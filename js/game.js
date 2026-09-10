@@ -1,17 +1,17 @@
 /* ============================================================
-   회계감사 시뮬레이터 — 진행 로직
+   감사 시즌 2026 — 진행 엔진 (game.js)
    ------------------------------------------------------------
-   구성   문제 N (배점)  →  물음 1, 2 ...  →  답안 칸 ①②③
-   형식   judge (O·X + 근거)  ·  list (단답 나열)  ·  essay (사례 서술)
-   꼬리질문  물음 점수가 낮으면 파트너 추가 질문이 발동한다
+   · 입력은 전부 타이핑. 판단도 문장 안에 써야 인정된다.
+   · 게이지 3종 : 감사증거 / 감사시간 / 신뢰
+   · 분기 : 답안에서 특정 논점을 짚으면 flag 를 얻고 뒤 장면이 바뀐다
+   · 에필로그 : 1년 뒤 감리 결과로 엔딩이 갈린다
    ============================================================ */
 (function () {
   'use strict';
 
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
-  var STORE = 'auditSim.v2';
-  var LABELS = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧'];
+  var STORE = 'auditSim.v3';
 
   var S = null, timer = null;
 
@@ -21,24 +21,25 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
-  function nl2br(s) { return esc(s).replace(/\n/g, '<br>'); }
   function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
   function load() { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch (e) { return {}; } }
   function save(o) { try { localStorage.setItem(STORE, JSON.stringify(o)); } catch (e) {} }
   function mmss(s) { s = Math.max(0, s | 0); return (s / 60 | 0) + ':' + ('0' + (s % 60)).slice(-2); }
   function show(id) {
-    ['home', 'play', 'final'].forEach(function (k) { $('#screen-' + k).hidden = (k !== id); });
+    ['home', 'play', 'end'].forEach(function (k) { $('#screen-' + k).hidden = (k !== id); });
     window.scrollTo(0, 0);
   }
+  function val(x, v) { return (typeof x === 'function') ? x(v) : x; }
 
   /* ---------- 자료 카드 ---------- */
-  function renderExhibits(list) {
+  function exhibits(list) {
     if (!list || !list.length) return '';
     return list.map(function (x) {
       if (x.type === 'table') {
         return '<div class="ex"><div class="ex-t">' + esc(x.title) + '</div><div class="scroll"><table><thead><tr>' +
-          x.head.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') +
-          '</tr></thead><tbody>' + x.rows.map(function (r) {
+          x.head.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+          x.rows.map(function (r) {
             return '<tr>' + r.map(function (c, i) {
               return '<td' + (i ? ' class="num"' : '') + '>' + esc(c) + '</td>';
             }).join('') + '</tr>';
@@ -46,122 +47,163 @@
       }
       if (x.type === 'kv') {
         return '<div class="ex ex-kv"><div class="ex-t">' + esc(x.title) + '</div><dl>' +
-          x.items.map(function (it) { return '<dt>' + esc(it[0]) + '</dt><dd>' + esc(it[1]) + '</dd>'; }).join('') +
+          x.items.map(function (i) { return '<dt>' + esc(i[0]) + '</dt><dd>' + esc(i[1]) + '</dd>'; }).join('') +
           '</dl></div>';
       }
       if (x.type === 'memo') {
         return '<div class="ex ex-memo"><div class="ex-tag">내부 자료</div><div class="ex-t">' + esc(x.title) +
           '</div><div class="ex-from">' + esc(x.from) + '</div><p>' + esc(x.body) + '</p></div>';
       }
-      if (x.type === 'news') {
-        return '<div class="ex ex-news"><div class="ex-tag">언론 보도</div><div class="ex-src">' + esc(x.source) +
-          ' · ' + esc(x.date) + '</div><div class="ex-h">' + esc(x.headline) + '</div><p>' + esc(x.body) + '</p></div>';
-      }
       return '';
     }).join('');
   }
 
-  /* ---------- 물음 해석 (variant 반영) ---------- */
-  function resolve(c, q) {
-    var v = q.variants ? pick(q.variants) : { id: '-', label: '' };
-    var parts, situations = null;
-
-    if (q.pool) {
-      var idxs = v.pick || q.pool.map(function (_, i) { return i; });
-      situations = idxs.map(function (idx, i) {
-        var p = q.pool[idx];
-        return { label: LABELS[i], body: p.body, ox: p.ox, oxScore: p.oxScore,
-                 maxChars: p.maxChars, rubric: p.rubric, model: p.model };
+  /* ---------- 장면 해석 (variant · 분기 · 누적) ---------- */
+  function resolve(sc) {
+    var v = { id: '-', label: '' };
+    if (sc.variants) {
+      var ok = sc.variants.filter(function (x) {
+        return !x.need || S.flags[x.need];
       });
-      parts = situations;
-    } else {
-      parts = q.parts(v);
-      parts.forEach(function (p, i) { if (!p.label && parts.length > 1) p.label = LABELS[i]; });
+      // need 가 걸린 판본이 있으면 그것을 우선한다 (분기의 결과를 보여주기 위해)
+      var forced = sc.variants.filter(function (x) { return x.need && S.flags[x.need]; });
+      v = forced.length ? forced[0] : pick(ok.length ? ok : sc.variants);
+    }
+    var it = {
+      sc: sc, v: v,
+      line: v.line || sc.line,
+      situation: val(sc.situation, v),
+      exhibits: val(sc.exhibits, v) || [],
+      rubric: val(sc.rubric, v),
+      model: val(sc.model, v),
+      verdict: val(sc.verdict, v),
+      prompt: sc.prompt, maxChars: sc.maxChars, timeLimit: sc.timeLimit
+    };
+    if (sc.dynamic) applyDynamic(it);
+    return it;
+  }
+
+  /* 앞 장면의 결과가 뒤 장면의 숫자를 바꾼다 */
+  function applyDynamic(it) {
+    if (it.sc.id === 's9') {
+      var rows = [['매출 기간귀속 오류', '8.4', '거부'],
+                  ['대손충당금 과소', '5.1', '거부'],
+                  ['미지급비용 누락', '3.7', '거부']];
+      var total = 8.4 + 5.1 + 3.7;
+      if (!S.flags.fraud_alert) {
+        rows.push(['특수관계자 관련 가공매출 (뒤늦게 확인)', '18.6', '거부']);
+        total += 18.6;
+        S.late = true;
+      }
+      if (!S.flags.inv_ok) {
+        rows.push(['제3자 보관 재고 과대계상', '9.2', '거부']);
+        total += 9.2;
+      }
+      rows.push(['미수정 합계', total.toFixed(1), '']);
+      S.misTotal = total;
+      it.exhibits = [
+        { type: 'table', title: '미수정왜곡표시 집계 (단위: 억원, 세전이익 기준)',
+          head: ['항목', '금액', '경영진 대응'], rows: rows },
+        { type: 'kv', title: '중요성', items: [
+          ['재무제표 전체 중요성', '12억원'], ['수행중요성', '8억 4천만원'],
+          ['명백히 사소한 금액', '6,000만원'], ['미수정 합계', total.toFixed(1) + '억원']] }
+      ];
+      it.situation = it.sc.situation +
+        (S.late ? ' 특히 특수관계자 관련 거래는 감사 종료 직전에야 확인되어 추가 절차를 수행할 시간이 부족하였다.' : '');
     }
 
-    return {
-      c: c, q: q, v: v, parts: parts, situations: situations,
-      form: q.form,
-      situation: q.situation ? q.situation(v) : null,
-      exhibits: q.exhibits ? q.exhibits(v) : [],
-      model: q.model ? q.model(v) : (situations ? situations.map(function (s) { return s.label + ' ' + s.model; }) : []),
-      ref: q.ref, kind: 'main'
-    };
+    if (it.sc.id === 's10') {
+      var t = S.misTotal || 17.2;
+      var ev = S.gauge.E;
+      var kind, why;
+      if (ev < 55) {
+        kind = '의견거절'; why = '충분하고 적합한 감사증거를 입수하지 못한 부분이 재무제표 전반에 걸쳐 있다';
+      } else if (t >= 35) {
+        kind = '부적정의견'; why = '미수정왜곡표시 ' + t.toFixed(1) + '억원이 재무제표의 다수 요소에 걸쳐 중요하고 전반적이다';
+      } else if (t > 12) {
+        kind = '한정의견'; why = '미수정왜곡표시 ' + t.toFixed(1) + '억원이 중요성 12억원을 초과하나 특정 계정에 국한되어 전반적이지 않다';
+      } else {
+        kind = '적정의견'; why = '미수정왜곡표시 합계가 중요성에 미달한다';
+      }
+      S.correctOpinion = kind;
+      it.situation = '감사 종료 단계이다. 미수정왜곡표시 합계는 ' + t.toFixed(1) +
+        '억원이고 재무제표 전체 중요성은 12억원이다. 감사증거 확보 수준은 ' + ev + '점이다.';
+      it.exhibits = [{ type: 'kv', title: '판단 자료', items: [
+        ['미수정왜곡표시 합계', t.toFixed(1) + '억원'],
+        ['재무제표 전체 중요성', '12억원'],
+        ['감사증거 게이지', ev + ' / 100'],
+        ['핵심감사사항', '3건 (상장회사)']] }];
+
+      // 정답 의견을 필수 논점으로 추가하고, 나머지는 함정으로
+      var all = ['적정의견', '한정의견', '부적정의견', '의견거절'];
+      var r = JSON.parse(JSON.stringify(it.rubric));
+      r.must = r.must.concat([{ kw: [kind], score: 18, label: kind + ' 표명', notBefore: kind === '적정의견' ? ['부'] : undefined }]);
+      r.trap = (r.trap || []).filter(function (x) { return x.kw[0] !== '적정의견' || kind === '적정의견'; });
+      all.forEach(function (o) {
+        if (o !== kind) r.trap.push({ kw: [o], score: -14, label: '오답 의견 — ' + o, notBefore: o === '적정의견' ? ['부'] : undefined });
+      });
+      it.rubric = r;
+      it.model = it.model.concat(['이번 회차의 정답: ' + kind + '. ' + why + '.']);
+    }
   }
 
   /* ---------- 시작 ---------- */
-  function startExam() {
-    var db = load(), wrong = db.wrong || {};
-    var papers = window.CASES.map(function (c) {
-      return { c: c, items: c.questions.map(function (q) { return resolve(c, q); }) };
-    });
-    S = { mode: 'exam', papers: papers, pi: 0, qi: 0, queue: [], results: [], started: Date.now() };
-    S.queue = [papers[0].items[0]];
-    renderQ();
+  function start() {
+    S = {
+      i: 0, results: [], flags: {}, started: Date.now(),
+      gauge: { E: 50, T: 100, R: 60 },
+      toasts: []
+    };
+    step();
   }
 
-  function startPractice(caseId) {
-    var c = window.CASES.filter(function (x) { return x.id === caseId; })[0];
-    var papers = [{ c: c, items: c.questions.map(function (q) { return resolve(c, q); }) }];
-    S = { mode: 'practice', papers: papers, pi: 0, qi: 0, queue: [], results: [], started: Date.now() };
-    S.queue = [papers[0].items[0]];
-    renderQ();
-  }
+  /* ---------- 장면 렌더 ---------- */
+  function step() {
+    var sc = window.SCENES[S.i];
+    var it = resolve(sc);
+    S.cur = it;
 
-  function totalQuestions() {
-    var n = 0; S.papers.forEach(function (p) { n += p.items.length; }); return n;
-  }
-  function doneQuestions() {
-    var n = 0;
-    for (var i = 0; i < S.pi; i++) n += S.papers[i].items.length;
-    return n + S.qi;
-  }
-  function avgPercent() {
-    if (!S.results.length) return 0;
-    var t = 0; S.results.forEach(function (r) { t += r.res.percent; });
-    return Math.round(t / S.results.length);
-  }
+    var cast = window.CAST[sc.speaker] || window.CAST.manager;
+    var g = S.gauge;
 
-  /* ---------- 문항 렌더 ---------- */
-  function renderQ() {
-    var it = S.queue[0];
-    var paper = S.papers[S.pi];
-    var c = paper.c;
+    $('#hud-day').textContent = sc.day;
+    $('#hud-ch').textContent = sc.chapter;
+    $('#hud-n').textContent = (S.i + 1) + ' / ' + window.SCENES.length;
+    $('#gauges').innerHTML =
+      '<span class="gz">' + window.ART.ring(g.E, '감사증거', 'var(--acc)') + '</span>' +
+      '<span class="gz">' + window.ART.ring(g.T, '감사시간', g.T < 30 ? 'var(--bad)' : 'var(--ok)') + '</span>' +
+      '<span class="gz">' + window.ART.ring(g.R, '신뢰', g.R < 40 ? 'var(--bad)' : 'var(--warn)') + '</span>';
 
-    $('#hud-paper').textContent = '문제 ' + c.no + '. ' + c.title;
-    $('#hud-pts').textContent = '(' + c.points + '점)';
-    $('#hud-prog').textContent = S.mode === 'practice'
-      ? '연습' : doneQuestions() + ' / ' + totalQuestions() + ' 물음';
-    $('#g-bar').style.width = (doneQuestions() / totalQuestions() * 100) + '%';
-    $('#g-avg').textContent = S.results.length ? avgPercent() + '점' : '—';
+    var toast = S.toasts.length
+      ? '<div class="toast">' + S.toasts.map(esc).join('<br>') + '</div>' : '';
+    S.toasts = [];
 
-    var head = '';
-    if (it.kind === 'main' && S.qi === 0) {
-      head += '<div class="paper-head"><span class="pno">문제 ' + c.no + '</span>' +
-        '<span class="ptitle">' + esc(c.title) + '</span><span class="ppts">' + c.points + '점</span></div>' +
-        '<div class="pchap">' + esc(c.chapter) + '</div>' +
-        (c.intro ? '<p class="pintro">' + esc(c.intro) + '</p>' : '');
-    }
-    if (it.kind === 'follow') {
-      head += '<div class="q-kind follow">파트너의 추가 질문</div>';
-    } else {
-      head += '<div class="q-no">(물음 ' + it.q.no + ')' +
-        (it.v.label ? ' <span class="vtag">' + esc(it.v.id) + '. ' + esc(it.v.label) + '</span>' : '') + '</div>';
-    }
-
-    if (it.situation) head += '<p class="situation">' + nl2br(it.situation) + '</p>';
-    head += renderExhibits(it.exhibits);
-    head += '<div class="prompt">' + nl2br(it.q ? it.q.text : it.text) + '</div>';
-
-    $('#play-body').innerHTML = head + renderAnswerBox(it) +
-      '<div class="row"><button id="btn-submit" class="btn primary">제출</button>' +
+    $('#play-body').innerHTML =
+      '<div class="scene">' + window.ART.scene(sc.art) +
+      '<div class="scene-tag">' + esc(sc.area) + '</div></div>' +
+      toast +
+      '<div class="say">' + window.ART.avatar(cast.avatar) +
+      '<div class="bubble"><b>' + esc(cast.name) + '</b><span>' + esc(cast.role) + '</span>' +
+      '<p>' + esc(it.line) + '</p></div></div>' +
+      (it.situation ? '<p class="situation">' + esc(it.situation) + '</p>' : '') +
+      exhibits(it.exhibits) +
+      '<div class="prompt">' + esc(it.prompt) + '</div>' +
+      (it.verdict ? '<div class="vhint">판단(해당한다 / 해당하지 않는다)을 <b>문장 안에</b> 반드시 쓰십시오. 판단이 틀리면 근거는 채점되지 않습니다.</div>' : '') +
+      '<div class="ansbox"><textarea id="ans" placeholder="답안을 타이핑하세요. 키워드만 나열하면 구조점수가 0점 처리됩니다."></textarea>' +
+      '<div class="ansmeta"><span id="cc">0</span>자 / 권장 ' + it.maxChars + '자</div></div>' +
+      '<div class="row"><button id="btn-go" class="btn primary">제출</button>' +
       '<span class="tmr" id="tmr"></span></div><div id="result"></div>';
 
-    wireInputs(it);
-    $('#btn-submit').addEventListener('click', function () { submit(false); });
+    var ta = $('#ans');
+    ta.addEventListener('input', function () {
+      var n = ta.value.replace(/\s/g, '').length;
+      $('#cc').textContent = n;
+      $('#cc').className = n > it.maxChars * 1.15 ? 'over' : '';
+    });
+    $('#btn-go').addEventListener('click', function () { submit(false); });
+    ta.focus();
 
-    var limit = it.timeLimit || (it.q && it.q.timeLimit) || 180;
-    var left = limit;
+    var left = it.timeLimit;
     $('#tmr').textContent = mmss(left);
     clearInterval(timer);
     timer = setInterval(function () {
@@ -172,97 +214,48 @@
       if (left <= 0) { clearInterval(timer); submit(true); }
     }, 1000);
 
-    var first = $('.ansbox textarea');
-    if (first) first.focus();
     show('play');
-  }
-
-  function renderAnswerBox(it) {
-    var form = it.form;
-
-    if (form === 'judge') {
-      return '<div class="answers judge">' + it.situations.map(function (s, i) {
-        return '<div class="jrow" data-i="' + i + '">' +
-          '<div class="jhead"><span class="jlabel">' + s.label + '</span>' +
-          '<p class="jbody">' + esc(s.body) + '</p></div>' +
-          '<div class="jans">' +
-          '<div class="oxbox"><span class="oxq">판단</span>' +
-          '<button type="button" class="ox" data-ox="O">O</button>' +
-          '<button type="button" class="ox" data-ox="X">X</button></div>' +
-          '<textarea class="jtext" data-max="' + (s.maxChars || 80) + '" placeholder="근거 (' + (s.maxChars || 80) + '자 이내)"></textarea>' +
-          '<div class="cc"><span class="ccv">0</span>/' + (s.maxChars || 80) + '자</div>' +
-          '</div></div>';
-      }).join('') + '</div>';
-    }
-
-    if (form === 'list') {
-      return '<div class="answers list">' + it.parts.map(function (p, i) {
-        return '<div class="lrow" data-i="' + i + '">' +
-          '<span class="llabel">' + (p.label || LABELS[i]) + '</span>' +
-          '<textarea class="jtext" rows="1" data-max="' + (p.maxChars || 50) + '" placeholder="' + (p.maxChars || 50) + '자 이내"></textarea>' +
-          '<span class="cc"><span class="ccv">0</span>/' + (p.maxChars || 50) + '</span>' +
-          '</div>';
-      }).join('') + '</div>';
-    }
-
-    var p0 = it.parts[0];
-    return '<div class="answers essay"><div class="ansbox" data-i="0">' +
-      '<textarea class="jtext" data-max="' + (p0.maxChars || 190) + '" placeholder="답안을 입력하세요. 키워드만 나열하면 구조점수가 0점 처리됩니다."></textarea>' +
-      '<div class="ansmeta"><span class="cc"><span class="ccv">0</span>자 / 권장 ' + (p0.maxChars || 190) + '자</span></div>' +
-      '</div></div>';
-  }
-
-  function wireInputs(it) {
-    $$('.jtext').forEach(function (ta) {
-      var max = +ta.getAttribute('data-max');
-      var cc = ta.parentNode.querySelector('.ccv') || (ta.parentNode.parentNode && ta.parentNode.parentNode.querySelector('.ccv'));
-      ta.addEventListener('input', function () {
-        var n = ta.value.replace(/\s/g, '').length;
-        if (cc) { cc.textContent = n; cc.className = 'ccv' + (n > max * 1.15 ? ' over' : ''); }
-        if (ta.rows === 1) { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
-      });
-    });
-    $$('.ox').forEach(function (b) {
-      b.addEventListener('click', function () {
-        var box = b.parentNode;
-        $$('.ox', box).forEach(function (x) { x.classList.remove('on'); });
-        b.classList.add('on');
-      });
-    });
-  }
-
-  function collect(it) {
-    if (it.form === 'judge') {
-      return $$('.jrow').map(function (row) {
-        var on = row.querySelector('.ox.on');
-        return { text: row.querySelector('.jtext').value, ox: on ? on.getAttribute('data-ox') : null };
-      });
-    }
-    return $$('.jtext').map(function (ta) { return { text: ta.value, ox: null }; });
   }
 
   /* ---------- 채점 ---------- */
   function submit(timedOut) {
     clearInterval(timer);
-    var it = S.queue[0];
-    var answers = collect(it);
-    var res = window.AE.gradeParts(answers, it.parts, it.form);
+    var it = S.cur, sc = it.sc;
+    var text = $('#ans').value;
+
+    var part = { maxChars: it.maxChars, rubric: it.rubric };
+    if (it.verdict) { part.verdict = it.verdict; part.verdictScore = it.verdict.score || 14; }
+    var res = window.AE.gradeParts([{ text: text }], [part], 'essay');
+    var p = res.parts[0];
 
     if (timedOut) {
       res.total = Math.max(0, res.total - Math.round(res.max * 0.05));
       res.percent = res.max ? Math.round(res.total / res.max * 100) : 0;
       res.flags.push('시간 초과 자동 제출 → 5% 차감');
     }
-    S.results.push({ it: it, answers: answers, res: res });
 
-    var db = load(); db.wrong = db.wrong || {};
-    if (it.kind === 'main') db.wrong[it.c.id + '#' + it.q.no] = res.percent;
-    save(db);
+    // 게이지
+    var trapHit = (p.res.trap || []).filter(function (t) { return t.hit; }).length;
+    var over = Math.max(0, text.replace(/\s/g, '').length - it.maxChars * 1.15);
+    S.gauge.E = clamp(Math.round(S.gauge.E + (res.percent - 55) * 0.45), 0, 100);
+    S.gauge.T = clamp(Math.round(S.gauge.T - (sc.cost || 8) - over / 40 - (timedOut ? 5 : 0)), 0, 100);
+    S.gauge.R = clamp(Math.round(S.gauge.R + (res.percent >= 80 ? 5 : res.percent >= 60 ? 1 : -4)
+                     - trapHit * 8 - (p.verdict && !p.verdict.correct ? 4 : 0)), 0, 100);
 
-    $$('.jtext').forEach(function (t) { t.disabled = true; });
-    $$('.ox').forEach(function (b) { b.disabled = true; });
-    $('#btn-submit').disabled = true;
-    renderResult(it, res);
+    // 분기 flag
+    var hits = {};
+    p.res.must.forEach(function (m) { if (m.hit) hits[m.label] = 1; });
+    (sc.flags || []).forEach(function (f) {
+      if (f.if.every(function (l) { return hits[l]; })) {
+        S.flags[f.set] = true;
+        if (f.toast) S.toasts.push(f.toast);
+      }
+    });
+
+    S.results.push({ it: it, text: text, res: res, part: p });
+    $('#ans').disabled = true;
+    $('#btn-go').disabled = true;
+    renderResult(it, res, p);
   }
 
   function itemRow(i, kind) {
@@ -280,188 +273,179 @@
       '</span><span class="sc">' + (i.got > 0 ? '+' : '') + i.got + '</span></li>';
   }
 
-  function renderResult(it, res) {
+  function renderResult(it, res, p) {
     var g = res.percent >= 90 ? 'S' : res.percent >= 80 ? 'A' : res.percent >= 70 ? 'B' : res.percent >= 60 ? 'C' : 'D';
-    var body = '';
+    var r = p.res;
+    var last = S.i + 1 >= window.SCENES.length;
 
-    res.parts.forEach(function (p, i) {
-      var r = p.res;
-      body += '<div class="presult">' +
-        '<div class="phead">' + (p.label ? '<span class="plab">' + p.label + '</span>' : '') +
-        (p.ox ? '<span class="oxres ' + (p.oxCorrect ? 'ok' : 'bad') + '">판단 ' +
-          (p.given || '무응답') + ' · 정답 ' + p.ox + '</span>' : '') +
-        '<span class="pscore">' + p.total + ' / ' + p.max + '</span></div>' +
-        '<ul class="items">' + r.must.map(function (x) { return itemRow(x, 'must'); }).join('') +
-        (r.bonus || []).map(function (x) { return itemRow(x, 'bonus'); }).join('') +
-        (r.trap || []).filter(function (x) { return x.hit; }).map(function (x) { return itemRow(x, 'trap'); }).join('') +
-        (r.structure && !r.structure.skip ? r.structure.detail.map(function (d) {
-          return '<li class="' + (d[1] ? 'ok' : 'miss') + ' st"><span class="mk">' + (d[1] ? '○' : '✕') +
-            '</span><span class="lb">' + esc(d[0]) + '</span><span class="sc">' + d[1] + '/' + d[2] + '</span></li>';
-        }).join('') : '') +
-        '</ul></div>';
-    });
+    var vbox = '';
+    if (p.verdict) {
+      var ok = p.verdict.correct;
+      vbox = '<div class="vres ' + (ok ? 'ok' : 'bad') + '">판단 ' +
+        (p.verdict.given === 'yes' ? '해당한다' : p.verdict.given === 'no' ? '해당하지 않는다' : '미기재') +
+        ' · 정답 ' + (p.verdict.expected === 'yes' ? '해당한다' : '해당하지 않는다') +
+        (ok ? '' : ' — 판단이 틀려 근거 서술은 채점되지 않았습니다') + '</div>';
+    }
 
     $('#result').innerHTML =
       '<div class="res"><div class="res-head"><div class="score"><b>' + res.percent + '</b><span>/ 100</span></div>' +
-      '<div class="pct g-' + g + '">' + g + ' <small>(' + res.total + '/' + res.max + ')</small></div></div>' +
+      '<div class="pct g-' + g + '">' + g + '</div></div>' + vbox +
       (res.flags.length ? '<ul class="flags">' + res.flags.map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('') + '</ul>' : '') +
-      body +
+      '<ul class="items">' +
+      r.must.map(function (x) { return itemRow(x, 'must'); }).join('') +
+      (r.bonus || []).filter(function (x) { return x.hit; }).map(function (x) { return itemRow(x, 'bonus'); }).join('') +
+      (r.trap || []).filter(function (x) { return x.hit; }).map(function (x) { return itemRow(x, 'trap'); }).join('') +
+      (r.structure && !r.structure.skip ? r.structure.detail.map(function (d) {
+        return '<li class="' + (d[1] ? 'ok' : 'miss') + ' st"><span class="mk">' + (d[1] ? '○' : '✕') +
+          '</span><span class="lb">' + esc(d[0]) + '</span><span class="sc">' + d[1] + '/' + d[2] + '</span></li>';
+      }).join('') : '') + '</ul>' +
       '<details class="model"><summary>모범답안</summary>' +
       (it.model || []).map(function (m) { return '<p>' + esc(m) + '</p>'; }).join('') +
-      '<div class="ref">' + esc(it.ref || '') + '</div></details>' +
-      '<div class="row"><button id="btn-next" class="btn primary">' + nextLabel() + '</button>' +
-      '<button id="btn-copy1" class="btn ghost">이 물음 첨삭 요청 복사</button></div></div>';
+      '<div class="ref">' + esc(it.sc.ref || '') + '</div></details>' +
+      '<div class="row"><button id="btn-next" class="btn primary">' +
+      (last ? '감사보고서 발행 →' : '다음 · ' + esc(window.SCENES[S.i + 1].chapter) + ' →') + '</button>' +
+      '<button id="btn-c1" class="btn ghost">이 장면 첨삭 요청 복사</button></div></div>';
 
     $('#btn-next').addEventListener('click', next);
-    $('#btn-copy1').addEventListener('click', function () {
-      copyOut(buildFeedback([S.results[S.results.length - 1]]), this);
+    $('#btn-c1').addEventListener('click', function () {
+      copyOut(feedback([S.results[S.results.length - 1]]), this);
     });
     $('#result').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  /* ---------- 진행 ---------- */
-  function pendingFollow(it, res) {
-    if (it.kind !== 'main' || !it.q.followUps) return null;
-    for (var i = 0; i < it.q.followUps.length; i++) {
-      var f = it.q.followUps[i];
-      var ok = false;
-      try { ok = f.when(res, it.v); } catch (e) { ok = false; }
-      if (ok) {
-        return { kind: 'follow', c: it.c, q: null, v: it.v, form: f.form || 'essay',
-                 text: f.q, timeLimit: f.timeLimit || 120,
-                 parts: f.parts(it.v), situation: null, exhibits: [],
-                 model: f.model ? f.model(it.v) : [], ref: f.ref || it.ref };
-      }
-    }
-    return null;
-  }
-
-  function nextLabel() {
-    var it = S.queue[0];
-    var last = S.results[S.results.length - 1];
-    if (last && pendingFollow(it, last.res)) return '파트너의 추가 질문 →';
-    var paper = S.papers[S.pi];
-    if (S.qi + 1 < paper.items.length) return '다음 물음 →';
-    if (S.pi + 1 < S.papers.length) return '문제 ' + S.papers[S.pi + 1].c.no + ' →';
-    return '채점 결과 보기';
-  }
-
   function next() {
-    var it = S.queue[0];
-    var last = S.results[S.results.length - 1];
-    var f = last ? pendingFollow(it, last.res) : null;
-    if (f) { f.q = { no: it.q.no, text: f.text, timeLimit: f.timeLimit }; S.queue = [f]; renderQ(); return; }
-
-    var paper = S.papers[S.pi];
-    if (S.qi + 1 < paper.items.length) { S.qi++; S.queue = [paper.items[S.qi]]; renderQ(); return; }
-    if (S.pi + 1 < S.papers.length) { S.pi++; S.qi = 0; S.queue = [S.papers[S.pi].items[0]]; renderQ(); return; }
-    finish();
+    S.i++;
+    if (S.i >= window.SCENES.length) return epilogue();
+    step();
   }
 
-  /* ---------- 종료 ---------- */
-  function finish() {
+  /* ---------- 에필로그 ---------- */
+  function epilogue() {
     clearInterval(timer);
-    var sum = 0;
-    S.results.forEach(function (r) { sum += r.res.percent; });
-    var pct = S.results.length ? Math.round(sum / S.results.length) : 0;
-    var g = pct >= 90 ? 'S' : pct >= 80 ? 'A' : pct >= 70 ? 'B' : pct >= 60 ? 'C' : 'D';
+    var g = S.gauge;
+    var sum = 0; S.results.forEach(function (r) { sum += r.res.percent; });
+    var avg = Math.round(sum / S.results.length);
 
-    var byStd = {};
-    S.results.forEach(function (r) {
-      (r.it.c.standards || []).forEach(function (s) {
-        byStd[s] = byStd[s] || { sum: 0, n: 0 };
-        byStd[s].sum += r.res.percent; byStd[s].n++;
-      });
+    // 최종 의견 정확도
+    var lastRes = S.results[S.results.length - 1];
+    var opinionOK = lastRes.part.res.must.some(function (m) {
+      return m.hit && m.label.indexOf(S.correctOpinion) === 0;
     });
-    var stdRows = Object.keys(byStd).map(function (k) {
-      return { k: k, p: Math.round(byStd[k].sum / byStd[k].n) };
+
+    var end, tone, body;
+    if (g.T <= 0) {
+      end = '마감 실패'; tone = 'bad';
+      body = '감사시간이 소진되어 법정기한 내에 감사보고서를 발행하지 못했다. 회사는 감사인 교체를 통보했고, 법인은 이 건을 손실로 처리했다.';
+    } else if (!opinionOK) {
+      end = '감리 지적 · 징계'; tone = 'bad';
+      body = '1년 뒤, ㈜서린정밀의 분식이 드러났다. 감리 결과 미수정왜곡표시 ' + (S.misTotal || 0).toFixed(1) +
+             '억원이 중요성을 초과했음에도 표명한 의견이 부적절했다는 판단이 내려졌다. ' +
+             (S.late ? '특히 특수관계자 거래를 감사 종료 직전에야 확인해 실증절차가 부족했다는 점이 지적되었다.' : '') +
+             ' 업무수행이사와 담당 회계사에게 징계가 내려졌다.';
+    } else if (g.E >= 72 && g.R >= 65) {
+      end = '무사통과'; tone = 'ok';
+      body = '1년 뒤 감리에서 이 건은 무작위 표본으로 선정되었다. 조서는 논점마다 근거와 결론이 남아 있었고, 지적사항 없이 종결되었다. ' +
+             '정한별 이사는 자네를 내년 시즌 인차지로 올렸다.';
+    } else if (g.E >= 60) {
+      end = '조서 미비 지적'; tone = 'warn';
+      body = '감사의견 자체는 적절했다. 다만 감리에서 일부 논점의 감사절차와 결론이 조서에 충분히 문서화되지 않았다는 지적을 받았다. ' +
+             '법인은 개선계획을 제출했고, 자네에게는 문서화 교육이 배정되었다.';
+    } else {
+      end = '증거 부족 경고'; tone = 'warn';
+      body = '의견은 맞았으나 뒷받침하는 감사증거가 얇았다. 감리에서 "결론은 타당하나 증거가 결론을 지지하지 못한다"는 평가를 받았다. ' +
+             '운이 좋았다는 뜻이다.';
+    }
+
+    var weak = {};
+    S.results.forEach(function (r) {
+      var a = r.it.sc.area;
+      weak[a] = weak[a] || { s: 0, n: 0 };
+      weak[a].s += r.res.percent; weak[a].n++;
+    });
+    var rows = Object.keys(weak).map(function (k) {
+      return { k: k, p: Math.round(weak[k].s / weak[k].n) };
     }).sort(function (a, b) { return a.p - b.p; });
 
     var missed = [];
     S.results.forEach(function (r) {
-      r.res.parts.forEach(function (p) {
-        p.res.must.forEach(function (m) {
-          if (!m.hit) missed.push({ t: r.it.c.title, label: m.label, why: m.negated ? '부정문 서술' : m.nearMiss ? '맥락 연결 부족' : '미언급' });
-        });
-        (p.res.trap || []).forEach(function (t) {
-          if (t.hit) missed.push({ t: r.it.c.title, label: '[오개념] ' + t.label, why: '감점' });
-        });
-        if (p.ox && !p.oxCorrect) missed.push({ t: r.it.c.title, label: '[판단] ' + p.label + ' O·X 오답', why: '정답 ' + p.ox });
+      r.part.res.must.forEach(function (m) {
+        if (!m.hit) missed.push({ t: r.it.sc.chapter, l: m.label, w: m.negated ? '부정문 서술' : m.nearMiss ? '맥락 연결 부족' : '미언급' });
       });
+      (r.part.res.trap || []).forEach(function (t) {
+        if (t.hit) missed.push({ t: r.it.sc.chapter, l: '[오개념] ' + t.label, w: '감점' });
+      });
+      if (r.part.verdict && !r.part.verdict.correct) {
+        missed.push({ t: r.it.sc.chapter, l: '[판단] 방향 오답', w: '근거 서술 전체 무효' });
+      }
     });
 
-    $('#final-body').innerHTML =
-      '<div class="final-score"><div class="fs-g g-' + g + '">' + g + '</div>' +
-      '<div class="fs-n"><b>' + pct + '</b> / 100</div>' +
-      '<div class="fs-sub">' + S.results.length + '물음 · ' + Math.round((Date.now() - S.started) / 60000) + '분</div></div>' +
+    $('#end-body').innerHTML =
+      '<div class="scene">' + window.ART.scene('review') + '</div>' +
+      '<div class="ending ' + tone + '"><div class="etag">1년 뒤</div>' +
+      '<h2>' + esc(end) + '</h2><p>' + esc(body) + '</p></div>' +
+      '<div class="finalg">' +
+      '<span class="gz">' + window.ART.ring(g.E, '감사증거', 'var(--acc)') + '</span>' +
+      '<span class="gz">' + window.ART.ring(g.T, '감사시간', 'var(--ok)') + '</span>' +
+      '<span class="gz">' + window.ART.ring(g.R, '신뢰', 'var(--warn)') + '</span>' +
+      '<span class="gz">' + window.ART.ring(avg, '답안 평균', 'var(--ink3)') + '</span></div>' +
 
-      '<h3>물음별</h3><div class="scroll"><table class="tbl"><thead><tr><th>문제</th><th>물음</th><th>형식</th><th>점수</th></tr></thead><tbody>' +
-      S.results.map(function (r) {
-        var f = r.it.form === 'judge' ? 'O·X' : r.it.form === 'list' ? '나열' : '서술';
-        return '<tr><td>' + esc(r.it.c.title) + '</td><td>' +
-          (r.it.kind === 'follow' ? '추가질문' : '물음 ' + r.it.q.no) +
-          (r.it.v && r.it.v.label ? ' <span class="vtag sm">' + esc(r.it.v.id) + '</span>' : '') +
-          '</td><td>' + f + '</td><td class="num"><b>' + r.res.percent + '</b></td></tr>';
-      }).join('') + '</tbody></table></div>' +
-
-      '<h3>기준서별 (낮은 순)</h3><div class="bars">' +
-      stdRows.map(function (s) {
-        return '<div class="bar"><span class="bl">' + esc(s.k) + '</span><span class="bt"><i style="width:' +
-          s.p + '%"></i></span><span class="bv">' + s.p + '</span></div>';
+      '<h3>영역별</h3><div class="bars">' + rows.map(function (x) {
+        return '<div class="bar"><span class="bl">' + esc(x.k) + '</span><span class="bt"><i style="width:' +
+          x.p + '%"></i></span><span class="bv">' + x.p + '</span></div>';
       }).join('') + '</div>' +
 
-      (missed.length
-        ? '<h3>오답노트 · ' + missed.length + '건</h3><ul class="missed">' + missed.map(function (m) {
-            return '<li><span class="mtag">' + esc(m.t) + '</span>' + esc(m.label) + ' <em>' + esc(m.why) + '</em></li>';
-          }).join('') + '</ul>'
-        : '<h3>오답노트</h3><p class="muted">놓친 필수 논점이 없습니다.</p>') +
+      '<h3>장면별</h3><div class="scroll"><table class="tbl"><thead><tr><th>장면</th><th>영역</th><th>점수</th></tr></thead><tbody>' +
+      S.results.map(function (r) {
+        return '<tr><td>' + esc(r.it.sc.chapter) + '</td><td>' + esc(r.it.sc.area) +
+          '</td><td class="num"><b>' + r.res.percent + '</b></td></tr>';
+      }).join('') + '</tbody></table></div>' +
 
-      '<div class="row"><button id="btn-copy-all" class="btn primary">전체 첨삭 요청 복사</button>' +
-      '<button id="btn-home" class="btn ghost">처음으로</button></div>' +
+      (missed.length ? '<h3>오답노트 · ' + missed.length + '건</h3><ul class="missed">' +
+        missed.map(function (m) {
+          return '<li><span class="mtag">' + esc(m.t) + '</span>' + esc(m.l) + ' <em>' + esc(m.w) + '</em></li>';
+        }).join('') + '</ul>' : '') +
+
+      '<div class="row"><button id="btn-ca" class="btn primary">전체 첨삭 요청 복사</button>' +
+      '<button id="btn-again" class="btn ghost">새 시즌 시작</button></div>' +
       '<textarea id="outbox" class="outbox" hidden readonly></textarea>';
 
-    $('#btn-copy-all').addEventListener('click', function () { copyOut(buildFeedback(S.results), this); });
-    $('#btn-home').addEventListener('click', renderHome);
+    $('#btn-ca').addEventListener('click', function () { copyOut(feedback(S.results), this); });
+    $('#btn-again').addEventListener('click', home);
 
     var db = load();
-    db.history = (db.history || []).concat([{ t: Date.now(), pct: pct, n: S.results.length, mode: S.mode }]).slice(-20);
+    db.history = (db.history || []).concat([{ t: Date.now(), end: end, avg: avg, E: g.E, T: g.T, R: g.R }]).slice(-20);
     save(db);
-    show('final');
+    show('end');
   }
 
-  /* ---------- 첨삭 요청 텍스트 ---------- */
-  function buildFeedback(rows) {
+  /* ---------- 첨삭 요청 ---------- */
+  function feedback(rows) {
     var L = [];
     L.push('아래는 CPA 2차 회계감사 답안 연습 결과입니다. 실제 2차 채점 기준으로 첨삭해 주세요.');
     L.push('요청: ① 누락 논점 ② 틀리거나 위험한 서술 ③ 답안 표현·구조 교정 ④ 실제라면 몇 점인지');
     L.push('='.repeat(52));
     rows.forEach(function (r, i) {
-      var it = r.it;
+      var sc = r.it.sc;
       L.push('');
-      L.push('[' + (i + 1) + '] 문제 ' + it.c.no + '. ' + it.c.title + ' — ' +
-             (it.kind === 'follow' ? '추가질문' : '물음 ' + it.q.no) +
-             (it.v && it.v.label ? ' (variant ' + it.v.id + ': ' + it.v.label + ')' : ''));
-      L.push('기준서: ' + (it.ref || (it.c.standards || []).join(', ')));
-      if (it.situation) { L.push('— 상황 —'); L.push(it.situation); }
-      L.push('— 문항 —'); L.push(it.q ? it.q.text : it.text);
-
-      r.res.parts.forEach(function (p, k) {
-        var a = r.answers[k] || {};
-        var s = it.situations && it.situations[k];
-        L.push('');
-        L.push('  ' + (p.label || '') + (s ? ' ' + s.body : ''));
-        if (p.ox) L.push('  내 판단: ' + (a.ox || '무응답') + '  /  정답: ' + p.ox);
-        L.push('  내 답안: ' + ((a.text || '').trim() || '(무응답)'));
-        L.push('  자동채점: ' + p.total + '/' + p.max);
-        var miss = p.res.must.filter(function (m) { return !m.hit; }).map(function (m) { return m.label; });
-        var hit = p.res.must.filter(function (m) { return m.hit; }).map(function (m) { return m.label; });
-        if (hit.length) L.push('    획득: ' + hit.join(' / '));
-        if (miss.length) L.push('    누락: ' + miss.join(' / '));
-        var tr = (p.res.trap || []).filter(function (t) { return t.hit; }).map(function (t) { return t.label; });
-        if (tr.length) L.push('    감점: ' + tr.join(' / '));
-      });
+      L.push('[' + (i + 1) + '] ' + sc.chapter + ' (' + sc.area + ')' +
+             (r.it.v && r.it.v.label ? ' — ' + r.it.v.label : ''));
+      L.push('기준서: ' + (sc.ref || (sc.standards || []).join(', ')));
+      if (r.it.situation) { L.push('— 상황 —'); L.push(r.it.situation); }
+      L.push('— 문항 —'); L.push(r.it.prompt);
+      L.push('— 내 답안 —'); L.push((r.text || '').trim() || '(무응답)');
+      if (r.part.verdict) {
+        L.push('— 판단 — 내 판단: ' + (r.part.verdict.given === 'yes' ? '해당한다' : r.part.verdict.given === 'no' ? '해당하지 않는다' : '미기재') +
+               ' / 정답: ' + (r.part.verdict.expected === 'yes' ? '해당한다' : '해당하지 않는다'));
+      }
+      L.push('— 자동채점: ' + r.res.percent + '점 —');
+      var hit = r.part.res.must.filter(function (m) { return m.hit; }).map(function (m) { return m.label; });
+      var mis = r.part.res.must.filter(function (m) { return !m.hit; }).map(function (m) { return m.label; });
+      if (hit.length) L.push('  획득: ' + hit.join(' / '));
+      if (mis.length) L.push('  누락: ' + mis.join(' / '));
+      var tr = (r.part.res.trap || []).filter(function (t) { return t.hit; }).map(function (t) { return t.label; });
+      if (tr.length) L.push('  감점: ' + tr.join(' / '));
       L.push('— 모범답안 —');
-      (it.model || []).forEach(function (m) { L.push('  ' + m); });
+      (r.it.model || []).forEach(function (m) { L.push('  ' + m); });
     });
     L.push('');
     L.push('='.repeat(52));
@@ -471,58 +455,49 @@
 
   function copyOut(text, btn) {
     var done = function () {
-      var old = btn.textContent; btn.textContent = '복사됨 ✓';
-      setTimeout(function () { btn.textContent = old; }, 1600);
+      var o = btn.textContent; btn.textContent = '복사됨 ✓';
+      setTimeout(function () { btn.textContent = o; }, 1600);
     };
-    function fallback() {
-      var box = $('#outbox');
-      if (!box) {
-        box = document.createElement('textarea');
-        box.id = 'outbox'; box.className = 'outbox'; box.readOnly = true;
-        $('#screen-play').appendChild(box);
-      }
-      box.hidden = false; box.value = text; box.select();
-      try { document.execCommand('copy'); done(); }
-      catch (e) { btn.textContent = '↓ 아래 상자에서 복사'; }
+    function fb() {
+      var b = $('#outbox');
+      if (!b) { b = document.createElement('textarea'); b.id = 'outbox'; b.className = 'outbox'; b.readOnly = true; $('#screen-play').appendChild(b); }
+      b.hidden = false; b.value = text; b.select();
+      try { document.execCommand('copy'); done(); } catch (e) { btn.textContent = '↓ 아래에서 복사'; }
     }
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done, fallback);
-    } else fallback();
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fb);
+    else fb();
   }
 
   /* ---------- 홈 ---------- */
-  function renderHome() {
+  function home() {
     clearInterval(timer);
     var db = load(), h = (db.history || []).slice().reverse();
-    var nQ = 0, nPts = 0;
-    window.CASES.forEach(function (c) { nQ += c.questions.length; nPts += c.points; });
-
+    var c = window.COMPANY;
     $('#home-body').innerHTML =
-      '<div class="modes">' +
-      '<button id="m-exam" class="mode"><b>모의고사 1회분</b><span>문제 ' + window.CASES.length +
-      '개 · 물음 ' + nQ + '개 · ' + nPts + '점. 회차마다 상황과 조건이 바뀝니다.</span></button>' +
-      '<div class="mode alt"><b>문제 단품 연습</b><span>채점이 납득되는지 확인할 때 쓰세요.</span>' +
-      '<select id="sel-case">' + window.CASES.map(function (c) {
-        return '<option value="' + c.id + '">문제 ' + c.no + '. ' + esc(c.title) + ' (' + c.points + '점)</option>';
-      }).join('') + '</select><button id="m-prac" class="btn small">이 문제 연습</button></div></div>' +
-      (h.length ? '<h3>최근 기록</h3><div class="scroll"><table class="tbl"><thead><tr><th>일시</th><th>구분</th><th>물음</th><th>점수</th></tr></thead><tbody>' +
-        h.slice(0, 8).map(function (x) {
+      '<div class="scene">' + window.ART.scene('office') + '</div>' +
+      '<div class="hero"><h2>감사 시즌 2026</h2>' +
+      '<p>자네는 ' + esc(c.firm) + ' 소속 담당 회계사다. ' + esc(c.name) + '(' + esc(c.market) + ', ' + esc(c.industry) +
+      ')의 감사를 수임 검토부터 보고서 발행까지 끌고 간다.</p>' +
+      '<p class="hero-sub">모든 대응은 <b>타이핑</b>으로 한다. 답안에서 무엇을 짚느냐에 따라 뒤 장면이 바뀌고, ' +
+      '1년 뒤 감리 결과로 엔딩이 갈린다.</p>' +
+      '<ul class="rules"><li><b>감사증거</b> 답안 수준만큼 쌓인다. 낮으면 마지막에 범위제한이 된다</li>' +
+      '<li><b>감사시간</b> 장면마다 줄고, 답이 길수록 더 준다. 0이 되면 마감 실패</li>' +
+      '<li><b>신뢰</b> 오개념을 쓰면 급락한다</li></ul>' +
+      '<button id="btn-start" class="btn primary big">감사 착수</button></div>' +
+      (h.length ? '<h3>지난 시즌</h3><div class="scroll"><table class="tbl"><thead><tr><th>일시</th><th>엔딩</th><th>평균</th><th>증거</th></tr></thead><tbody>' +
+        h.slice(0, 6).map(function (x) {
           var d = new Date(x.t);
-          return '<tr><td>' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' +
-            ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + '</td><td>' +
-            (x.mode === 'exam' ? '모의고사' : '연습') + '</td><td class="num">' + x.n +
-            '</td><td class="num"><b>' + x.pct + '</b></td></tr>';
+          return '<tr><td>' + (d.getMonth() + 1) + '/' + d.getDate() + '</td><td>' + esc(x.end) +
+            '</td><td class="num">' + x.avg + '</td><td class="num">' + x.E + '</td></tr>';
         }).join('') + '</tbody></table></div>' : '');
-
-    $('#m-exam').addEventListener('click', startExam);
-    $('#m-prac').addEventListener('click', function () { startPractice($('#sel-case').value); });
+    $('#btn-start').addEventListener('click', start);
     show('home');
   }
 
   document.addEventListener('DOMContentLoaded', function () {
     $('#btn-quit').addEventListener('click', function () {
-      if (!S || confirm('진행 중인 시험을 종료하고 처음으로 돌아갈까요?')) renderHome();
+      if (!S || confirm('진행 중인 시즌을 버리고 처음으로 돌아갈까요?')) home();
     });
-    renderHome();
+    home();
   });
 })();

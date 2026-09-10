@@ -98,7 +98,7 @@
   }
 
   /* ---------- 부정 표현 ---------- */
-  var NEG = /(하지않|되지않|지않|않는|않다|않음|아니|없다|없음|없으므로|없어도|없이|불필요|필요없|생략|무시|제외|안해도|말아야|배제)/;
+  var NEG = /(하지않|되지않|지않|않는|않다|않음|아니|없|불필요|필요없|생략|무시|제외|안해도|말아야|배제|못하|못한|어렵)/;
 
   /* ---------- 키워드 1개 탐색 (startAt 이후 첫 출현) ---------- */
   function findKw(hay, kw, allowFuzzy, startAt) {
@@ -309,6 +309,34 @@
     return R;
   }
 
+  /* ---------- 판단 추출 ----------
+     O·X 버튼을 쓰지 않는다. 답안 문장 안에서 판단 방향을 읽어낸다.
+       spec = { yes:['발생한다','해당한다'], no:['발생하지 않','해당하지 않'], answer:'yes' }
+     같은 문장에 양쪽 표현이 다 나오면 더 구체적인(긴) 쪽을 판단으로 본다.
+     길이가 같으면 뒤에 온 쪽 — 결론은 보통 뒤에 오기 때문이다.
+  ------------------------------------------------------------------ */
+  function readVerdict(raw, spec) {
+    if (!spec) return null;
+    var hay = norm(raw);
+    var best = { side: null, len: 0, at: -1 };
+
+    ['yes', 'no'].forEach(function (side) {
+      (spec[side] || []).forEach(function (phrase) {
+        expand(phrase).forEach(function (p) {
+          var k = norm(p);
+          if (k.length < 2) return;
+          var i = hay.lastIndexOf(k);
+          if (i < 0) return;
+          if (k.length > best.len || (k.length === best.len && i > best.at)) {
+            best = { side: side, len: k.length, at: i };
+          }
+        });
+      });
+    });
+
+    return { given: best.side, expected: spec.answer, correct: best.side === spec.answer };
+  }
+
   /* ---------- 물음 단위 채점 ----------
      실제 2차는 하나의 물음이 여러 칸(①②③ / 답안 양식 표)으로 나뉜다.
      parts 각각을 따로 채점하고 합산한다.
@@ -319,25 +347,36 @@
      O·X 판단이 틀리면 근거 서술은 논리적으로 무의미하므로 득점을 30%만 인정한다.
   ------------------------------------------------------------------ */
   function gradeParts(answers, parts, form) {
-    var out = { parts: [], total: 0, max: 0, flags: [] };
+    var out = { parts: [], total: 0, max: 0, flags: [], hits: [] };
     (parts || []).forEach(function (p, i) {
       var a = answers[i] || {};
       var r = grade(a.text, p.rubric || {}, { maxChars: p.maxChars || 120, form: form });
 
-      var oxMax = 0, oxGot = 0, oxWrong = false;
-      if (p.ox) {
-        oxMax = (p.oxScore != null) ? p.oxScore : 15;
-        if (a.ox && a.ox === p.ox) oxGot = oxMax;
-        else { oxWrong = true; if (a.ox) out.flags.push((p.label || ('#' + (i + 1))) + ' 판단 오답 → 근거 득점 30%만 인정'); }
+      // 판단은 버튼이 아니라 답안 문장에서 읽는다
+      var vMax = 0, vGot = 0, vWrong = false, ver = null;
+      if (p.verdict) {
+        ver = readVerdict(a.text, p.verdict);
+        vMax = (p.verdictScore != null) ? p.verdictScore : 15;
+        if (ver.correct) vGot = vMax;
+        else {
+          vWrong = true;
+          out.flags.push((p.label ? p.label + ' ' : '') +
+            (ver.given ? '판단이 반대입니다 → 근거 득점 30%만 인정'
+                       : '판단(발생 여부·해당 여부)을 문장으로 명시하지 않았습니다'));
+        }
       }
+      // 실제 GS 채점: "예/아니오 판정이 틀려, 이유 서술의 정확성과 무관하게
+      // 부분점수를 부여하지 않았습니다" → 판단이 틀리면 근거 서술은 0점이다.
       var body = r.total;
-      if (oxWrong) body = Math.round(body * 0.3);
+      if (vWrong && ver && ver.given) body = 0;
 
-      var pTotal = body + oxGot;
-      var pMax = r.max + oxMax;
+      var pTotal = body + vGot;
+      var pMax = r.max + vMax;
+      r.must.forEach(function (m) { if (m.hit) out.hits.push(m.label); });
+
       out.parts.push({
-        label: p.label, ox: p.ox, given: a.ox || null, oxCorrect: p.ox ? !oxWrong : null,
-        oxGot: oxGot, oxMax: oxMax, res: r, total: pTotal, max: pMax,
+        label: p.label, verdict: ver, verdictGot: vGot, verdictMax: vMax,
+        res: r, total: pTotal, max: pMax,
         percent: pMax ? Math.round(pTotal / pMax * 100) : 0
       });
       out.total += pTotal; out.max += pMax;
@@ -350,6 +389,7 @@
   global.AE = {
     grade: grade,
     gradeParts: gradeParts,
+    readVerdict: readVerdict,
     norm: norm,
     toJamo: toJamo,
     expand: expand,
