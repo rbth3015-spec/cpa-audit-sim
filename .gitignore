@@ -1,0 +1,10 @@
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# 학습 자료 원본 (저작권) — 저장소에 올리지 않는다
+자료/
+*.pdf
+*.hwp
+*.docx
