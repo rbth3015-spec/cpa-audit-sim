@@ -125,6 +125,12 @@ run('s5/CLEAN① 편의 있음 — 판단 반대', 's5', 'CLEAN', 0, '가정이 
 run('s8① ⓐ 정답', 's8', null, 0, 'ⓐ는 보고기간말 존재하던 상황의 증거이므로 수정을 요하는 사건이며 대손충당금을 추가로 인식한다.');
 run('s8① ⓐ 분류 반대', 's8', null, 0, 'ⓐ는 수정을 요하지 않는 사건이므로 주석에 공시한다.');
 run('s1① 판단 반대', 's1', null, 0, '조직이 분리되어 있으므로 훼손위협이 발생하지 않는다.');
+run('s7g① 중요한 불확실성 — 정답', 's7g', null, 0, '보고기간말부터 12개월을 대상으로 볼 때 약정 위반과 만기 집중으로 존속능력에 유의적 의문이 있고 대응계획의 실행가능성이 뒷받침되지 않으므로 중요한 불확실성이 존재한다.');
+run('s7g① 불확실성 없음 — 판단 반대', 's7g', null, 0, '만기 연장이 협의 중이므로 중요한 불확실성이 존재하지 않는다.');
+run('s7g② 손상징후 — 정답', 's7g', null, 1, '가동중단은 손상징후이므로 회수가능액을 추정하여 장부금액과 비교하고 사용가치 가정의 합리성을 평가한다.');
+run('s7g③ 강조사항문단 — 오개념', 's7g', null, 2, '계속기업 관련 사항이므로 강조사항문단에 기재한다.');
+run('s6f② 지배기구 보고 — 정답', 's6f', null, 1, '경영진이 관련되었으므로 지배기구와 적시에 커뮤니케이션하고 감사위원회에 통보하여 시정을 요구한다.');
+run('s6f② 경영진에게만 보고 — 오답', 's6f', null, 1, '대표이사에게 보고하고 종결한다.');
 
 /* ── 4. 경우의 수 시뮬레이션 ──────────────────────────── */
 function lcg(seed) { let a = seed >>> 0; return () => ((a = (a * 1664525 + 1013904223) >>> 0) / 4294967296); }
@@ -142,7 +148,12 @@ const PERSONAS = {
              meta: r => ({ over: 260, timedOut: r() < 0.4 }) },
   hedge:   { pct: () => 82, must: () => true, trap: (it, t) => it.sc.dynamic === 'opinion' && /^오답 의견/.test(t.label), verdict: () => true },
   slip:    { pct: () => 86, must: (it, m) => !(it.sc.dynamic === 'opinion' && / 표명$/.test(m.label)),
-             trap: (it, t) => it.sc.dynamic === 'opinion' && /^오답 의견/.test(t.label), verdict: () => true }
+             trap: (it, t) => it.sc.dynamic === 'opinion' && /^오답 의견/.test(t.label), verdict: () => true },
+  // 진실로 이어지는 논점만 짚고 나머지는 흘린다 — 다 찾았지만 조서가 얇은 사람
+  lucky:   { pct: () => 55,
+             must: (it, m) => TRUTH_LABELS.has(it.sc.id + '#' + m.label) ||
+                              (it.sc.dynamic === 'opinion' && / 표명$/.test(m.label)),
+             trap: () => false, verdict: () => true }
 };
 
 function synth(it, P, r) {
@@ -168,8 +179,8 @@ Object.entries(PERSONAS).forEach(([name, P]) => SEATS.forEach(seat => {
     const S = SEASON.create({ seed: seed * 7919, seat });
     const r = lcg(seed * 31 + name.length + seat.length);
     const path = [];
-    SCENES.forEach((sc, i) => {
-      S.i = i;
+    // 장면 구성은 시즌마다 다르다 — 고정 목록이 아니라 nextScene 을 따라간다
+    for (let sc = SEASON.nextScene(S), guard = 0; sc && guard < 40; sc = SEASON.nextScene(S), guard++) {
       const it = SEASON.resolve(sc, S);
       if (sc.dynamic) it.parts.forEach(p => {       // 이 상태에서 생성된 모범답안도 80점 이상이어야 한다
         const g = gradePart(p, p.model);
@@ -177,7 +188,11 @@ Object.entries(PERSONAS).forEach(([name, P]) => SEATS.forEach(seat => {
       });
       if (it.v && it.v.id !== '-') path.push(sc.id + ':' + it.v.id);
       SEASON.apply(S, it, [], synth(it, P, r), P.meta ? P.meta(r) : { over: 0, timedOut: false });
-    });
+      S.i++;
+    }
+    bump('장면 수', String(S.results.length) + '개');
+    SCENES.filter(sc => sc.when).forEach(sc =>
+      bump('조건부 장면', sc.chapter + (S.played[sc.id] ? ' 등장' : ' 없음')));
     const E = SEASON.epilogue(S);
     bump('감리 결과', E.audit.title);
     bump('회사의 운명', E.company.id);
@@ -208,7 +223,7 @@ const show = k => {
   Object.entries(o).sort((a, b) => b[1] - a[1]).forEach(([v, n]) =>
     console.log(`     ${String(n).padStart(4)}  ${'█'.repeat(Math.max(1, Math.round(n / tot * 36)))} ${v}`));
 };
-['감리 결과', '회사의 운명', '커리어', '정답 의견', '판본'].forEach(show);
+['감리 결과', '회사의 운명', '커리어', '정답 의견', '판본', '장면 수', '조건부 장면'].forEach(show);
 Object.keys(PERSONAS).forEach(n => show(`${n} 감리`));
 console.log(`  서로 다른 엔딩 조합: ${Object.keys(tally['조합']).length}가지`);
 

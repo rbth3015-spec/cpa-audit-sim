@@ -194,8 +194,10 @@
   }
 
   function renderHud(delta) {
-    var sc = window.SCENES[Math.min(S.i, window.SCENES.length - 1)];
-    var g = S.gauge, c = S.rel.company, n = window.SCENES.length;
+    // 장면 구성은 시즌마다 다르다. 진행도는 지금까지 확정된 목록 기준으로 그린다.
+    var list = window.SEASON.sceneList(S);
+    var sc = (cur && cur.it.sc) || list[Math.min(S.i, list.length - 1)];
+    var g = S.gauge, c = S.rel.company, n = list.length;
     var chips = '';
     for (var i = 0; i < n; i++) {
       chips += '<i class="' + (i < S.i ? 'done' : i === S.i ? 'now' : '') + '"></i>';
@@ -295,7 +297,8 @@
   }
 
   function step(delta) {
-    var sc = window.SCENES[S.i];
+    var sc = window.SEASON.nextScene(S);
+    if (!sc) return ending();
     var it = window.SEASON.resolve(sc, S);
     cur = { it: it, results: [], texts: [], left: [], over: 0, timedOut: false };
 
@@ -572,7 +575,9 @@
     renderHud(out.delta);
     renderDossier();
 
-    var d = out.delta, last = S.i + 1 >= window.SCENES.length;
+    var nx = window.SEASON.nextScene(S), last = !nx;
+    var total = window.SEASON.sceneList(S).length;
+    var d = out.delta;
     var side =
       '<div class="as-k">게이지 변화</div>' +
       '<div class="as-chips">' + chip('감사증거', d.E) + chip('감사시간', d.T) +
@@ -598,8 +603,8 @@
 
       '<div class="as-verdict__foot">' +
       '<button class="as-btn as-btn--ink as-btn--grow" id="btn-next" type="button"><span>' +
-      (last ? '감사보고서 발행' : '다음 장면 · ' + esc(window.SCENES[S.i + 1].chapter)) + '</span>' +
-      '<span class="as-btn__sub">' + (last ? 'ENDING' : ('0' + (S.i + 2)).slice(-2) + ' / ' + window.SCENES.length) + ' →</span></button>' +
+      (last ? '감사보고서 발행' : '다음 장면 · ' + esc(nx.chapter)) + '</span>' +
+      '<span class="as-btn__sub">' + (last ? 'ENDING' : ('0' + (S.i + 2)).slice(-2) + ' / ' + total) + ' →</span></button>' +
       '<button class="as-btn as-btn--out" id="btn-c1" type="button">첨삭 요청문 복사</button></div>';
     $('#parts').appendChild(box);
 
@@ -639,8 +644,9 @@
   function next() {
     var d = S.results.length ? S.results[S.results.length - 1].delta : null;
     S.i++;
-    if (S.i >= window.SCENES.length) return ending();
-    wipe(window.SCENES[S.i], function () { step(d); });
+    var nx = window.SEASON.nextScene(S);
+    if (!nx) return ending();
+    wipe(nx, function () { step(d); });
   }
 
   /* ============================================================
@@ -860,6 +866,13 @@
   /* ============================================================
      화면 01 — 타이틀 / 홈
      ============================================================ */
+  /* 조건부 장면이 있어서 시즌 길이가 고정이 아니다 */
+  function sceneRange() {
+    var all = window.SCENES.length;
+    var fixed = window.SCENES.filter(function (s) { return !s.when; }).length;
+    return (fixed === all ? all : fixed + '~' + all) + ' SCENES';
+  }
+
   function home() {
     clearInterval(timer);
     var db = load(), h = (db.history || []).slice().reverse();
@@ -884,7 +897,7 @@
 
       '<div class="as-title__body">' +
       '<h1 class="as-logo">감사<br>시즌<span>·</span>2026</h1>' +
-      '<div class="as-rule"><i></i><span>' + window.SCENES.length + ' SCENES · ' +
+      '<div class="as-rule"><i></i><span>' + sceneRange() + ' · ' +
       Object.keys(seats).length + ' SEATS · ' + window.EPILOGUE.audit.length + ' ENDINGS</span></div>' +
 
       '<p class="as-lead">' + esc(c.firm) + '에 ' + esc(c.name) + '(' + esc(c.market) + ', ' +
@@ -893,6 +906,8 @@
       '판단은 문장 안에 들어 있어야 인정된다.</p>' +
       '<p class="as-lead">이 회사에는 무언가가 숨어 있다. 무엇이 얼마나 숨어 있는지는 ' +
       '<strong>시즌마다 다르다.</strong> 짚은 만큼만 드러나고, 놓친 것은 1년 뒤 감리로 돌아온다.</p>' +
+      '<p class="as-lead">거쳐 가는 장면도 시즌마다 다르다. 회사 사정에 따라 열리는 장면이 있고, ' +
+      '<strong>내가 찾아냈을 때에만</strong> 열리는 장면이 있다.</p>' +
 
       '<div class="as-sec as-sec--rule">어느 자리에 앉겠나</div>' +
       '<div class="as-seats" role="group" aria-label="좌석 선택">' +

@@ -27,7 +27,7 @@
   'use strict';
 
   var MAT = 12;          // 재무제표 전체 중요성 (억원)
-  var TIME_SCALE = 0.8;  // 장면 비용 배율
+  var TIME_SCALE = 0.7;  // 장면 비용 배율 (조건부 장면까지 들어갈 여지를 둔다)
   var OPINIONS = ['적정의견', '한정의견', '부적정의견', '의견거절'];
   var KEYS = ['①', '②', '③', '④', '⑤'];
 
@@ -97,8 +97,14 @@
     var seed = opts.seed != null ? (opts.seed >>> 0) : (Math.floor(Math.random() * 90000) + 10000);
     var seat = SEATS[opts.seat] ? opts.seat : 'senior';
     var R = rng(seed);
+
+    // 회사 사정 — 시즌마다 다르다. 장면 구성과 일부 진실의 존재 여부를 가른다.
+    // 이건 숨은 진실이 아니라 재무제표에 드러나 있는 상태다 (플레이어가 숫자로 본다).
+    var stress = R() < 0.5;
+
     var truths = global.TRUTH.map(function (t) {
       var active = t.always ? true : R() < (t.p == null ? 1 : t.p);
+      if (t.needs === 'stress' && !stress) active = false;
       var j = t.jitter === false ? 1 : (0.88 + R() * 0.24);
       return { id: t.id, def: t, active: active, amount: r1(t.amount * j),
                found: false, verified: false, corrected: false };
@@ -107,14 +113,34 @@
     truths.forEach(function (t) { active[t.id] = t.active; });
 
     return {
-      seed: seed, seat: seat, rand: R, i: 0,
+      seed: seed, seat: seat, rand: R, i: 0, stress: stress,
       gauge: { E: 50, T: 100, R: 60 },
       rel: { company: 55 },
       flags: {}, hits: {}, truths: truths, active: active,
       cards: { learned: {}, review: {} },
-      log: [], results: [],
+      played: {}, log: [], results: [],
       late: false, mis: null, decision: null, opinionOK: false
     };
+  }
+
+  /* ---------- 시즌의 장면 구성 ----------
+     장면에 when(S) 이 있으면 조건이 맞는 시즌에만 등장한다.
+     · 회사 사정에 달린 것    계속기업 평가 — 유동성 압박이 있는 시즌에만
+     · 내 절차에 달린 것      부정 혐의 대응 — 가공거래를 실제로 찾아냈을 때만
+     when 은 한 번 참이 되면 계속 참이어야 한다(단조). 이미 지나온 장면은
+     조건과 무관하게 목록에 남는다. */
+  function sceneList(S) {
+    return global.SCENES.filter(function (sc) {
+      return S.played[sc.id] || !sc.when || sc.when(S);
+    });
+  }
+
+  function nextScene(S) {
+    var list = sceneList(S);
+    for (var i = 0; i < list.length; i++) {
+      if (!S.played[list[i].id]) return list[i];
+    }
+    return null;
   }
 
   /* ---------- 판본 선택 ---------- */
@@ -262,7 +288,8 @@
       if (!ok) return;
       if (t.active) {
         t.found = true;
-        S.gauge.E = clamp(S.gauge.E + 6, 0, 100);
+        // 발견은 증거를 보태 주지만, 증거 수준을 결정하는 것은 어디까지나 절차의 질이다
+        S.gauge.E = clamp(S.gauge.E + 3, 0, 100);
         events.push({ kind: 'found', id: t.id,
           text: '발견 — ' + t.def.title + ' ' + t.amount.toFixed(1) + '억원' });
       } else {
@@ -282,6 +309,8 @@
       S.opinionOK = right && !hedged;
       if (right && hedged) events.push({ kind: 'warn', text: '여러 의견을 걸쳐 썼다 — 감사의견은 하나다' });
     }
+
+    S.played[sc.id] = 1;
 
     var delta = { E: S.gauge.E - before.E, T: S.gauge.T - before.T,
                   R: S.gauge.R - before.R, C: S.rel.company - before.C };
@@ -516,6 +545,7 @@
 
   global.SEASON = {
     create: create, resolve: resolve, apply: apply, epilogue: epilogue,
+    sceneList: sceneList, nextScene: nextScene,
     misstatements: misstatements, decide: decide, band: band, asker: asker, reviewer: reviewer,
     seatWho: seatWho, bySeat: bySeat,
     SEATS: SEATS, FLAG_TEXT: FLAG_TEXT, MAT: MAT, OPINIONS: OPINIONS, KEYS: KEYS
