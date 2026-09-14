@@ -203,6 +203,16 @@
       return { points: 0, max: 0, detail: [], listing: false, skip: true };
     }
 
+    // short : 한 칸에 한 논점을 짧게 쓰는 형식.
+    // 긴 문장을 강요하지 않는다. 서술어로 끝맺었는지만 보고,
+    // 명사만 늘어놓으면(논점 2개 이상인데 서술어가 없으면) 나열로 본다.
+    if (form === 'short') {
+      var ends = /(다|음|함|임|것)(?=[\s.,)\]]|$)/.test(t.trim());
+      listing = !ends && mustHits >= 2;
+      detail.push(['서술어로 끝맺음', ends ? 4 : 0, 4]);
+      return { points: ends ? 4 : 0, max: 4, detail: detail, listing: listing };
+    }
+
     // 종결어미: 2차 답안은 "~다 / ~음 / ~함 / ~임 / ~때문이다" 로 끝난다
     var endings = (t.match(/(다|음|함|임)(?=[\s.,)]|$)/g) || []).length;
     var sents = t.split(/[.\n;!?]+/).map(function (x) { return x.trim(); })
@@ -252,11 +262,21 @@
     (rubric.must || []).forEach(function (it) {
       mustMax += it.score;
       var r = evalItem(hay, it);
-      if (r.hit) { mustGot += it.score; mustHits++; }
+      var got = 0, partial = false;
+      if (r.hit) { got = it.score; mustHits++; }
+      else if (it.half) {
+        // 핵심어는 있으나 한정어가 빠진 경우 절반만 준다.
+        // 실제 GS 채점의 "문장 완성도에 따라 점수를 차등 부여" 를 옮긴 것.
+        var h = evalItem(hay, { kw: it.half, negOk: it.negOk, notBefore: it.notBefore, fuzzy: it.fuzzy });
+        if (h.hit) { got = Math.round(it.score / 2); partial = true; mustHits++; r = h; }
+      }
+      mustGot += got;
       if (r.negated) negCount++;
-      R.must.push({ label: it.label, score: it.score, got: r.hit ? it.score : 0,
-                    hit: r.hit, negated: !!r.negated, nearMiss: !!r.nearMiss,
-                    fuzzy: !!r.fuzzy, matched: r.matched, hint: it.hint });
+      // hit 은 만점일 때만 true. 분기·진실 발견이 이 값을 근거로 삼기 때문이다.
+      R.must.push({ label: it.label, score: it.score, got: got,
+                    hit: !partial && got === it.score, partial: partial,
+                    negated: !!r.negated, nearMiss: !!r.nearMiss,
+                    fuzzy: !!r.fuzzy, matched: r.matched, hint: it.hint, why: it.why });
     });
 
     var bCap = (rubric.bonusCap != null) ? rubric.bonusCap : 15;
@@ -295,10 +315,12 @@
       R.flags.push('분량 초과 (' + bare + '자 / 권장 ' + maxChars + '자) → 감사시간 예산 −' + lenPen + '점');
     }
 
-    var max = mustMax + bCap + st.max;
+    // 가점은 분모에 넣지 않는다. 필수 논점을 다 쓰면 만점이고,
+    // 가점은 놓친 부분을 메워주는 역할만 한다 (만점을 넘지는 않는다).
+    var max = mustMax + st.max;
     var total = mustGot + bonusGot + trapGot + st.points - lenPen;
     if (st.listing) total = Math.min(total, Math.round(max * 0.75));
-    total = Math.max(0, total);
+    total = Math.max(0, Math.min(total, max));
 
     R.mustGot = mustGot; R.mustMax = mustMax;
     R.bonusGot = bonusGot; R.bonusRaw = bRaw; R.bonusCap = bCap;
@@ -327,8 +349,15 @@
           if (k.length < 2) return;
           var i = hay.lastIndexOf(k);
           if (i < 0) return;
+          var s2 = side;
+          if (side === 'yes') {
+            // "훼손위협이 발생" 뒤에 "하지 않는다" 가 붙으면 반대 판단이다.
+            // 긍정 표현이 부정 표현보다 길다는 이유로 긍정으로 읽으면 안 된다.
+            var tail = hay.substr(i + k.length, 6).split(SENT)[0];
+            if (NEG.test(tail)) s2 = 'no';
+          }
           if (k.length > best.len || (k.length === best.len && i > best.at)) {
-            best = { side: side, len: k.length, at: i };
+            best = { side: s2, len: k.length, at: i };
           }
         });
       });
@@ -350,7 +379,7 @@
     var out = { parts: [], total: 0, max: 0, flags: [], hits: [] };
     (parts || []).forEach(function (p, i) {
       var a = answers[i] || {};
-      var r = grade(a.text, p.rubric || {}, { maxChars: p.maxChars || 120, form: form });
+      var r = grade(a.text, p.rubric || {}, { maxChars: p.maxChars || 120, form: p.form || form });
 
       // 판단은 버튼이 아니라 답안 문장에서 읽는다
       var vMax = 0, vGot = 0, vWrong = false, ver = null;
