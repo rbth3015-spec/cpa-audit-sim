@@ -26,8 +26,7 @@
 (function (global) {
   'use strict';
 
-  var MAT = 12;          // 재무제표 전체 중요성 (억원)
-  var TIME_SCALE = 0.8;  // 장면 비용 배율
+  var TIME_SCALE = 0.7;  // 장면 비용 배율 (조건부 장면까지 들어갈 여지를 둔다)
   var OPINIONS = ['적정의견', '한정의견', '부적정의견', '의견거절'];
   var KEYS = ['①', '②', '③', '④', '⑤'];
 
@@ -57,12 +56,50 @@
   function clone(o) { return o == null ? o : JSON.parse(JSON.stringify(o)); }
   function call(x, v, S) { return typeof x === 'function' ? x(v, S) : x; }
 
+  /* ---------- 회사 치환 ----------
+     공통 장면은 논점이 업종과 무관하다. 회사 이름과 숫자만 갈아끼운다.
+     채점 라벨과 키워드는 절대 건드리지 않는다 — 라벨이 분기·진실 발견의 계약이다. */
+  var TOKEN = /\{(회사|업종|시장|법인|중요성|수행중요성|사소한금액|매출|자산|기준일)\}/g;
+  function tpl(x, co) {
+    if (typeof x !== 'string' || x.indexOf('{') < 0) return x;
+    return x.replace(TOKEN, function (_, k) {
+      switch (k) {
+        case '회사': return co.name;
+        case '업종': return co.industry;
+        case '시장': return co.market;
+        case '법인': return co.firm;
+        case '중요성': return co.mat + '억원';
+        case '수행중요성': return co.pm + '억원';
+        case '사소한금액': return co.trivial + '억원';
+        case '매출': return co.revenue;
+        case '자산': return co.assets;
+        case '기준일': return co.fy;
+      }
+      return _;
+    });
+  }
+  function tplDeep(x, co) {
+    if (typeof x === 'string') return tpl(x, co);
+    if (Array.isArray(x)) return x.map(function (i) { return tplDeep(i, co); });
+    if (x && typeof x === 'object') {
+      var o = {};
+      for (var k in x) o[k] = tplDeep(x[k], co);
+      return o;
+    }
+    return x;
+  }
+
   /* 좌석별로 다른 문구를 고른다. 문자열이면 그대로. */
   function bySeat(x, seat) {
     if (x == null) return null;
     if (typeof x === 'string') return x;
     return x[seat] || x.senior || x[Object.keys(x)[0]];
   }
+
+  /* 대사는 세 가지로 쓸 수 있다 — 문자열 · 자리별 묶음 · (v, S) 를 받는 함수.
+     회사 사실관계를 읽어야 하는 대사가 함수다. 함수를 먼저 펼치고 자리를 고른다
+     (함수가 자리별 묶음을 돌려줘도 된다). */
+  function voice(x, v, S) { return bySeat(call(x, v, S), S.seat); }
 
   /* 칸마다 나에게 묻는 사람
        어쏘   → 시니어(유가온)가 지시하고 묻는다
@@ -97,8 +134,16 @@
     var seed = opts.seed != null ? (opts.seed >>> 0) : (Math.floor(Math.random() * 90000) + 10000);
     var seat = SEATS[opts.seat] ? opts.seat : 'senior';
     var R = rng(seed);
-    var truths = global.TRUTH.map(function (t) {
+    var co = global.COMPANIES[opts.company] || global.COMPANIES[global.COMPANY_DEFAULT];
+
+    // 회사 사정 — 시즌마다 다르다. 장면 구성과 일부 진실의 존재 여부를 가른다.
+    // 이건 숨은 진실이 아니라 재무제표에 드러나 있는 상태다 (플레이어가 숫자로 본다).
+    // 압박이 얼마나 잦은지는 회사마다 다르다 (적자 바이오는 잦고, 흑자 IT는 드물다).
+    var stress = R() < (co.stressP == null ? 0.5 : co.stressP);
+
+    var truths = (global.TRUTH[co.id] || []).map(function (t) {
       var active = t.always ? true : R() < (t.p == null ? 1 : t.p);
+      if (t.needs === 'stress' && !stress) active = false;
       var j = t.jitter === false ? 1 : (0.88 + R() * 0.24);
       return { id: t.id, def: t, active: active, amount: r1(t.amount * j),
                found: false, verified: false, corrected: false };
@@ -107,14 +152,40 @@
     truths.forEach(function (t) { active[t.id] = t.active; });
 
     return {
-      seed: seed, seat: seat, rand: R, i: 0,
+      seed: seed, seat: seat, rand: R, i: 0, stress: stress,
+      company: co.id, co: co,
       gauge: { E: 50, T: 100, R: 60 },
       rel: { company: 55 },
       flags: {}, hits: {}, truths: truths, active: active,
       cards: { learned: {}, review: {} },
-      log: [], results: [],
+      played: {}, log: [], results: [],
       late: false, mis: null, decision: null, opinionOK: false
     };
+  }
+
+  /* ---------- 시즌의 장면 구성 ----------
+     장면에 when(S) 이 있으면 조건이 맞는 시즌에만 등장한다.
+     · 회사 사정에 달린 것    계속기업 평가 — 유동성 압박이 있는 시즌에만
+     · 내 절차에 달린 것      부정 혐의 대응 — 가공거래를 실제로 찾아냈을 때만
+     when 은 한 번 참이 되면 계속 참이어야 한다(단조). 이미 지나온 장면은
+     조건과 무관하게 목록에 남는다. */
+  function sceneList(S) {
+    return global.SCENES.filter(function (sc) {
+      if (S.played[sc.id]) return true;
+      // only: 업종 자체가 논점인 전용 장면. 그 회사에서만 열린다
+      if (sc.only && sc.only.indexOf(S.company) < 0) return false;
+      return !sc.when || sc.when(S);
+    }).sort(function (a, b) { return a.ord - b.ord; });
+    /* 파일이 나뉘어 있어 SCENES 의 배열 순서는 파일 로드 순서다. 업종 전용
+       장면이 뒤에 붙지 않도록 시간축은 ord 가 단독으로 정한다. */
+  }
+
+  function nextScene(S) {
+    var list = sceneList(S);
+    for (var i = 0; i < list.length; i++) {
+      if (!S.played[list[i].id]) return list[i];
+    }
+    return null;
   }
 
   /* ---------- 판본 선택 ---------- */
@@ -138,15 +209,15 @@
       if (r.bonusCap == null) r.bonusCap = 6;
       return {
         key: p.key || KEYS[i] || String(i + 1),
-        who: seatWho(bySeat(p.who, S.seat) || asker(S), S),
-        say: bySeat(p.say, S.seat) || '',
-        ask: bySeat(p.ask, S.seat) || '',
+        who: seatWho(voice(p.who, v, S) || asker(S), S),
+        say: voice(p.say, v, S) || '',
+        ask: voice(p.ask, v, S) || '',
         maxChars: p.maxChars || 90,
         timeLimit: p.timeLimit || 90,
         form: p.form || 'short',
         rubric: r,
         verdict: clone(call(p.verdict, v, S)) || null,
-        model: bySeat(p.model, S.seat) || ''
+        model: voice(p.model, v, S) || ''
       };
     });
   }
@@ -160,8 +231,8 @@
     var it = {
       sc: sc, v: v, seat: S.seat,
       speaker: bySeat(sc.speaker, S.seat) || sc.speaker,
-      line: bySeat(v.line, S.seat) || bySeat(sc.line, S.seat) || '',
-      note: bySeat(v.note, S.seat) || null,
+      line: voice(v.line, v, S) || voice(sc.line, v, S) || '',
+      note: voice(v.note, v, S) || null,
       situation: call(sc.situation, v, S),
       exhibits: call(sc.exhibits, v, S) || [],
       parts: normParts(call(sc.parts, v, S), S, v),
@@ -179,6 +250,18 @@
 
     if (sc.dynamic === 'misstatements') buildMisstatements(it, S);
     if (sc.dynamic === 'opinion') buildOpinion(it, S);
+
+    // 회사 치환은 맨 끝에서 한 번에 — 동적으로 만들어진 문구까지 덮는다
+    it.line = tpl(it.line, S.co);
+    it.note = tpl(it.note, S.co);
+    it.situation = tpl(it.situation, S.co);
+    it.prompt = tpl(it.prompt, S.co);
+    it.exhibits = tplDeep(it.exhibits, S.co);
+    it.parts.forEach(function (p) {
+      p.say = tpl(p.say, S.co);
+      p.ask = tpl(p.ask, S.co);
+      p.model = tpl(p.model, S.co);
+    });
     return it;
   }
 
@@ -262,7 +345,8 @@
       if (!ok) return;
       if (t.active) {
         t.found = true;
-        S.gauge.E = clamp(S.gauge.E + 6, 0, 100);
+        // 발견은 증거를 보태 주지만, 증거 수준을 결정하는 것은 어디까지나 절차의 질이다
+        S.gauge.E = clamp(S.gauge.E + 3, 0, 100);
         events.push({ kind: 'found', id: t.id,
           text: '발견 — ' + t.def.title + ' ' + t.amount.toFixed(1) + '억원' });
       } else {
@@ -282,6 +366,8 @@
       S.opinionOK = right && !hedged;
       if (right && hedged) events.push({ kind: 'warn', text: '여러 의견을 걸쳐 썼다 — 감사의견은 하나다' });
     }
+
+    S.played[sc.id] = 1;
 
     var delta = { E: S.gauge.E - before.E, T: S.gauge.T - before.T,
                   R: S.gauge.R - before.R, C: S.rel.company - before.C };
@@ -308,7 +394,7 @@
     });
     var open = items.filter(function (i) { return !i.corrected; });
     var total = r1(open.reduce(function (a, b) { return a + b.amount; }, 0));
-    var over = open.filter(function (i) { return i.amount >= MAT; }).length;
+    var over = open.filter(function (i) { return i.amount >= S.co.mat; }).length;
     return { items: items, total: total, over: over, coop: coop };
   }
 
@@ -327,8 +413,10 @@
       { type: 'table', title: '왜곡표시 집계 (단위: 억원, 세전이익 기준)',
         head: ['항목', '금액', '경영진 대응'], rows: rows },
       { type: 'kv', title: '중요성', items: [
-        ['재무제표 전체 중요성', MAT + '억원'], ['수행중요성', '8억 4천만원'],
-        ['명백히 사소한 금액', '6,000만원'], ['미수정 합계', m.total.toFixed(1) + '억원']] }
+        ['재무제표 전체 중요성', S.co.mat + '억원 (' + S.co.matBasis + ')'],
+        ['수행중요성', S.co.pm + '억원'],
+        ['명백히 사소한 금액', S.co.trivial + '억원'],
+        ['미수정 합계', m.total.toFixed(1) + '억원']] }
     ];
     var nTruth = m.items.filter(function (i) { return i.kind === 'truth'; }).length;
     it.situation = '감사 중 식별된 왜곡표시를 집계하였다. ' +
@@ -337,7 +425,7 @@
       (S.late ? ' 특히 특수관계자 거래는 감사 종료 직전에야 확인되어 추가 절차를 할 시간이 부족하였다.' : '');
 
     // 합계가 중요성에 미달하면 "의견 변형" 을 물을 수 없다 — 그 칸의 논점을 바꾼다
-    if (m.total <= MAT) {
+    if (m.total <= S.co.mat) {
       eachMust(it.parts, function (mu, p, i) {
         if (mu.label !== '수정되지 않으면 의견 변형') return;
         p.rubric.must[i] = { kw: ['중요성에 미달', '중요하지 않', '의견에 영향을 미치지', '변형하지', '미달'],
@@ -358,13 +446,13 @@
   function decide(S) {
     var m = S.mis || misstatements(S);
     var E = S.gauge.E;
-    var pervasive = m.total >= 60 || m.over >= 3;
+    var pervasive = m.total >= S.co.pervasive || m.over >= 3;
     var kind, basis;
     if (E < 45) {
       basis = 'scope';
       kind = (E < 35 || pervasive) ? '의견거절' : '한정의견';
       pervasive = kind === '의견거절';
-    } else if (m.total > MAT) {
+    } else if (m.total > S.co.mat) {
       basis = 'mis';
       kind = pervasive ? '부적정의견' : '한정의견';
     } else {
@@ -411,7 +499,7 @@
         { kw: ['충분하고 적합한 감사증거'], score: 12, label: '충분하고 적합한 감사증거 입수', negOk: true },
         { kw: ['중요성에 미달', '중요하지 않', '미달'], score: 16, label: '미수정왜곡표시가 중요성에 미달', negOk: true,
           why: '미수정왜곡표시 합계가 중요성에 미달하면 재무제표에 중요한 왜곡표시가 없다고 본다. 다만 금액이 작아도 질적 요인(손익 방향 전환, 약정 준수)으로 중요해질 수 있다.' }];
-      p2.model = '충분하고 적합한 감사증거를 입수하였고 미수정왜곡표시 ' + t + '억원은 중요성 ' + MAT + '억원에 미달한다.';
+      p2.model = '충분하고 적합한 감사증거를 입수하였고 미수정왜곡표시 ' + t + '억원은 중요성 ' + S.co.mat + '억원에 미달한다.';
     } else if (d.basis === 'scope') {
       p2.rubric.must = [
         { kw: ['감사범위제한'], score: 14, label: '감사범위제한',
@@ -427,7 +515,7 @@
         { kw: ['중요'], score: 10, label: '중요성 초과', negOk: true },
         { kw: ['전반적'], score: 16, label: d.pervasive ? '중요하고 전반적' : '중요하나 전반적이지 않음', negOk: true,
           why: '전반적이란 특정 계정에 국한되지 않거나, 국한되더라도 재무제표의 상당한 부분을 차지하는 경우다. 전반적이면 부적정의견, 아니면 한정의견이다.' }];
-      p2.model = '충분하고 적합한 감사증거는 입수하였으나 미수정왜곡표시 ' + t + '억원이 중요성 ' + MAT + '억원을 초과하고, 그 영향이 ' +
+      p2.model = '충분하고 적합한 감사증거는 입수하였으나 미수정왜곡표시 ' + t + '억원이 중요성 ' + S.co.mat + '억원을 초과하고, 그 영향이 ' +
         (d.pervasive ? '재무제표의 다수 요소에 걸쳐 전반적이다.' : '특정 계정에 국한되어 전반적이지는 않다.');
     }
 
@@ -468,12 +556,12 @@
     var d = decide(S);
     S.decision = d;
     it.situation = '감사 종료 단계이다. 미수정왜곡표시 합계는 ' + d.total.toFixed(1) +
-      '억원이고 재무제표 전체 중요성은 ' + MAT + '억원이다. 감사증거 확보 수준은 ' + S.gauge.E + '점이다.' +
+      '억원이고 재무제표 전체 중요성은 ' + S.co.mat + '억원이다. 감사증거 확보 수준은 ' + S.gauge.E + '점이다.' +
       (d.basis === 'scope' ? ' 여러 영역에서 충분하고 적합한 감사증거를 확보하지 못했다.' : '');
     it.exhibits = [{ type: 'kv', title: '판단 자료', items: [
       ['미수정왜곡표시 합계', d.total.toFixed(1) + '억원'],
       ['중요성을 넘는 개별 항목', S.mis.over + '건'],
-      ['재무제표 전체 중요성', MAT + '억원'],
+      ['재무제표 전체 중요성', S.co.mat + '억원'],
       ['감사증거', S.gauge.E + ' / 100'],
       ['핵심감사사항', '3건 (상장회사)']] }];
     it.parts = normParts(opinionParts(d, S), S, it.v);
@@ -493,7 +581,7 @@
                how: t.def.howFound };
     });
     var ctx = {
-      gauge: S.gauge, rel: S.rel, flags: S.flags, opinionOK: S.opinionOK, seat: S.seat,
+      gauge: S.gauge, rel: S.rel, flags: S.flags, opinionOK: S.opinionOK, seat: S.seat, co: S.co,
       misTotal: S.mis ? S.mis.total : 0,
       foundAmount: r1(found), missedAmount: r1(missed), decision: S.decision
     };
@@ -502,7 +590,7 @@
         var f = list[i];
         if (f.when(ctx)) {
           return { id: f.id, tone: f.tone, title: f.title,
-                   text: typeof f.text === 'function' ? f.text(ctx) : f.text };
+                   text: tpl(typeof f.text === 'function' ? f.text(ctx) : f.text, S.co) };
         }
       }
       return null;
@@ -516,8 +604,9 @@
 
   global.SEASON = {
     create: create, resolve: resolve, apply: apply, epilogue: epilogue,
+    sceneList: sceneList, nextScene: nextScene,
     misstatements: misstatements, decide: decide, band: band, asker: asker, reviewer: reviewer,
     seatWho: seatWho, bySeat: bySeat,
-    SEATS: SEATS, FLAG_TEXT: FLAG_TEXT, MAT: MAT, OPINIONS: OPINIONS, KEYS: KEYS
+    SEATS: SEATS, FLAG_TEXT: FLAG_TEXT, OPINIONS: OPINIONS, KEYS: KEYS
   };
 })(typeof window !== 'undefined' ? window : this);
