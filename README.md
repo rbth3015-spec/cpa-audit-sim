@@ -32,6 +32,10 @@ CPA 2차 회계감사 **답안 출력 연습** 게임. 브라우저에서 바로
 물건을 세는 회사, 추정을 따지는 회사, 통제를 보는 회사다.
 중요성의 **벤치마크가 회사마다 다르고**, 그 선택 자체가 논점이다 (KSA 320 A4~A9).
 
+![타이틀](docs/shots/title.png)
+![플레이](docs/shots/play.png)
+![판정](docs/shots/verdict.png)
+
 ---
 
 ## 실행
@@ -260,7 +264,28 @@ marks: [{ x: 5,  y: 12, w: 14, ratio: '4/3', tone: 'warn', label: '수량 불일
 
 무대는 분위기를 맡고, **데이터는 자료(`screen`)가 맡는다.** 둘을 섞지 않는다.
 사진이 들어오면 `.as-art` 안의 `<svg>` 를 `<img>` 로 바꾸기만 하면 된다.
-흑백 필터와 그라디언트는 CSS 에 있다.
+흑백 필터와 그라디언트는 CSS 에 있다. **SVG 는 지우지 않는다** — 사진이 있는 장면만
+사진을 쓰고 나머지는 그대로 SVG 로 간다.
+
+전체를 한눈에 보려면 `node tools/shots.js art` → `docs/shots/art.png`.
+지금 상태에서 제일 약한 것은 **인물 초상**이다. 원 하나 + 사각형 하나라 네 사람이 구별되지 않는다.
+
+### 이미지를 만드는 방법
+
+이 저장소에는 래스터 라이브러리가 없다 (PIL · ImageMagick · sharp 전부). **Chromium 하나로 한다.**
+
+| 하는 일 | 어떻게 | 도구 |
+|---|---|---|
+| HTML/CSS/SVG → 임의 크기 PNG | Playwright 스크린샷 | `tools/shots.js` |
+| 크롭 · 리사이즈 · 무채색 · 재인코딩 | 페이지 안 `<canvas>` → base64 | `tools/plates.js` |
+| 절차적 생성 | 시드로 매번 다른 스카이라인 | `js/art.js` |
+
+**결정론적 생성은 되고, 생성 모델(사진 생성)은 안 된다.** 사진은 밖에서 만들어 들여온다 —
+규격과 프롬프트는 `docs/이미지요청.md` 에 있고, 받은 파일은
+
+```bash
+node tools/plates.js ~/받은폴더        # → assets/art/ 에 규격대로
+```
 
 ---
 
@@ -347,10 +372,14 @@ data/scenes-it.js   ㈜넥스트온 전용 — IT일반통제 평가 · 수익 �
 data/truth.js       숨은 진실(회사별 세트) · 에필로그 조각
 data/lexicon.js     동의어 사전
 tools/validate.js   검증 · 경우의 수 시뮬레이션
+tools/shots.js      화면 캡처 · 아트 대지 (Chromium 으로 렌더)
+tools/plates.js     받은 사진을 규격에 맞게 깎는다 (Chromium <canvas> 로 크롭·리사이즈·무채색)
 docs/진단.md        콘텐츠 우선순위의 근거
 docs/디자인협업.md   Claude Design ↔ 코드. 무엇을 가져오고 무엇을 버렸는지, 옮기며 드러난 문제
 docs/디자인요청.md   다음 라운드에 보낼 요청서 (그대로 붙여넣는 블록)
 docs/기업확장.md     피감사회사 3곳(제조 · 바이오 · IT) — 설계와 구현 결과
+docs/이미지요청.md   생성 모델로 만들 원판 14장의 규격서 (초상 4 · 무대 8 · 히어로 1 · 타이틀 1)
+docs/shots/         화면 캡처와 아트 대지 (node tools/shots.js 로 다시 만든다)
 ```
 
 ---

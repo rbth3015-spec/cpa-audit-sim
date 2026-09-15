@@ -8,3 +8,6 @@ desktop.ini
 *.pdf
 *.hwp
 *.docx
+
+# 도구 실행용 (npm i playwright)
+node_modules/

@@ -945,6 +945,12 @@
   /* 회사를 바꾸면 표지가 통째로 다시 그려진다. 그때 입력하던 시즌 코드를 잃지 않도록 */
   var seedDraft = '';
 
+  /* 파일 번호 — 조서 색인과 같은 규칙. 회사마다 다르고 시즌 내내 같다 */
+  function fileNo(coId) {
+    var i = Object.keys(window.COMPANIES).indexOf(coId);
+    return 'A-26-' + ('000' + ((i + 1) * 417 % 9973)).slice(-4);
+  }
+
   function home() {
     clearInterval(timer);
     var db = load(), h = (db.history || []).slice().reverse();
@@ -961,15 +967,25 @@
       '<div class="as-title__art">' +
       '<div class="as-art">' + window.ART.scene('tower') + '</div>' +
       '<div class="as-title__veil"></div>' +
+      '<div class="as-title__punch" aria-hidden="true"><i></i><i></i></div>' +
       tags([{ text: 'CASE FILE · ' + c.market }, { text: '수임 검토', red: true }]) +
       '<div class="as-title__stamp"><div class="as-k">감사기준일</div><b>' + esc(dotDate(c.fy)) + '</b></div>' +
       '<div class="as-title__foot">' +
+      '<div class="as-title__file"><span>감사업무 파일</span><b>' + fileNo(coId) + '</b>' +
+      '<span>편철 ' + esc(c.industry) + '</span></div>' +
       '<div><div class="as-k">피감사회사</div><div class="as-title__co">' + esc(c.name) + '</div></div>' +
       '<div style="text-align:right"><div class="as-k">현재시각</div>' +
       '<div class="as-title__clock">' + clock(now) + '</div></div></div>' +
       '</div>' +
 
       '<div class="as-title__body">' +
+      '<div class="as-cover"><span class="as-k">감사업무 파일 · ENGAGEMENT FILE</span>' +
+      '<dl class="as-cover__meta">' +
+      '<div><dt class="as-k">감사인</dt><dd>' + esc(c.firm) + '</dd></div>' +
+      '<div><dt class="as-k">파일</dt><dd class="as-cover__idx">' + fileNo(coId) + '</dd></div>' +
+      '<div><dt class="as-k">대상</dt><dd class="as-cover__tgt">' + esc(c.market) + ' · ' +
+      esc(c.industry) + '</dd></div>' +
+      '</dl></div>' +
       '<h1 class="as-logo">감사<br>시즌<span>·</span>2026</h1>' +
       '<div class="as-rule"><i></i><span>' + sceneRange(coId) + ' · ' +
       Object.keys(cos).length + ' CASES · ' +
@@ -989,9 +1005,9 @@
       Object.keys(cos).map(function (k) {
         var o = cos[k];
         return '<button class="as-co" type="button" data-co="' + k + '" aria-pressed="' +
-          (k === coId) + '"><b>' + esc(o.name) + '</b>' +
-          '<u>' + esc(o.market) + ' · ' + esc(o.industry) + '</u>' +
-          '<span>' + esc(o.hook) + '</span>' +
+          (k === coId) + '"><span class="as-co__t"><b>' + esc(o.name) + '</b>' +
+          '<u>' + esc(o.market) + ' · ' + esc(o.industry) + '</u></span>' +
+          '<span class="as-co__h">' + esc(o.hook) + '</span>' +
           '<em>중요성 ' + o.mat + '억원 · ' + esc(o.matBasis.split(' — ')[0]) + '</em></button>';
       }).join('') + '</div>' +
       '<p class="as-lead" style="margin-top:12px">회사가 바뀌면 <strong>묻는 논점</strong>이 바뀐다. ' +
@@ -1034,7 +1050,8 @@
             '<td>' + (x.seed || '') + '</td>' +
             '<td>' + esc((seats[x.seat] || {}).name || '') + '</td>' +
             '<td>' + (x.found != null ? x.found.toFixed(1) : '') + '</td>' +
-            '<td>' + (x.missed != null ? x.missed.toFixed(1) : '') + '</td>' +
+            '<td' + (x.missed > 0 ? ' class="as-record__miss"' : '') + '>' +
+            (x.missed != null ? x.missed.toFixed(1) : '') + '</td>' +
             '<td class="as-record__avg">' + x.avg + '</td></tr>';
         }).join('') + '</tbody></table></div></div>' : '') +
 
