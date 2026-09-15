@@ -375,20 +375,31 @@
       // partner: 'assets/art/face-partner.jpg',
       // manager: 'assets/art/face-manager.jpg',
       // staff:   'assets/art/face-staff.jpg',
-      // cfo:     'assets/art/face-cfo.jpg'
+      // cfo:     'assets/art/face-cfo.jpg',
+
+      /* 회사 쪽 인물은 회사마다 다를 수 있다 — 'kind@회사id' 로 적는다.
+         없으면 회사 없는 키로 떨어진다 (㈜서린정밀 CFO 가 기본) */
+      // 'cfo@raon':   'assets/art/face-cfo-raon.jpg',
+      // 'cfo@nexton': 'assets/art/face-cfo-nexton.jpg'
     },
     scene: {
       // warehouse: 'assets/art/warehouse.jpg',
+      // 'lab@raon': 'assets/art/lab.jpg',
       // ...
     }
   };
+  /* 회사 전용 사진이 있으면 그것, 없으면 공용 */
+  function pick(map, kind, co) {
+    return (co && map[kind + '@' + co]) || map[kind] || null;
+  }
   function plate(src, cls) {
     return '<img src="' + src + '" alt="" loading="lazy" decoding="async"' +
       (cls ? ' class="' + cls + '"' : '') + '>';
   }
 
-  function avatar(kind) {
-    if (PHOTO.face[kind]) return plate(PHOTO.face[kind]);
+  function avatar(kind, co) {
+    var src = pick(PHOTO.face, kind, co);
+    if (src) return plate(src);
     var f = FACES[kind] || FACES.staff;
     return '<svg viewBox="0 0 136 136" preserveAspectRatio="xMidYMid meet" ' +
       'role="img" aria-hidden="true" focusable="false">' +
@@ -414,7 +425,10 @@
   }
 
   global.ART = {
-    scene: function (k) { return PHOTO.scene[k] ? plate(PHOTO.scene[k]) : (SCENES[k] || SCENES.desk)(); },
+    scene: function (k, co) {
+      var src = pick(PHOTO.scene, k, co);
+      return src ? plate(src) : (SCENES[k] || SCENES.desk)();
+    },
     avatar: avatar,
     timer: timer,
     has: function (k) { return !!SCENES[k]; }

@@ -117,7 +117,7 @@
   function dialog(who, text) {
     var c = window.CAST[who] || window.CAST.manager;
     return '<div class="as-dialog">' +
-      '<div class="as-dialog__avatar">' + window.ART.avatar(c.avatar) + '</div>' +
+      '<div class="as-dialog__avatar">' + window.ART.avatar(c.avatar, S.company) + '</div>' +
       '<div class="as-dialog__body">' +
       '<div class="as-dialog__who">' +
       '<span class="as-badge' + (who === 'cfo' ? ' as-badge--red' : '') + '">' + esc(c.role) + '</span>' +
@@ -131,7 +131,7 @@
   function ask(who, text) {
     var c = window.CAST[who] || window.CAST.manager;
     return '<div class="as-ask">' +
-      '<span class="as-ask__avatar">' + window.ART.avatar(c.avatar) + '</span>' +
+      '<span class="as-ask__avatar">' + window.ART.avatar(c.avatar, S.company) + '</span>' +
       '<span class="as-ask__body"><b>' + esc(c.name) + '</b>' +
       '<em>' + esc(c.role) + '</em>' +
       '<span>“' + esc(text) + '”</span></span></div>';
@@ -380,7 +380,7 @@
       wpHead(sc, it) +
 
       '<div class="as-stage"><div class="as-stage__box">' +
-      '<div class="as-art">' + window.ART.scene(sc.art) + '</div>' +
+      '<div class="as-art">' + window.ART.scene(sc.art, S.company) + '</div>' +
       '<div class="as-stage__veil"></div>' +
       tags([{ text: 'SCENE ' + ('0' + (S.i + 1)).slice(-2) + ' · ' + sc.area }].concat(
         it.v && it.v.label ? [{ text: it.v.label, red: true, live: true }] : [])) +
