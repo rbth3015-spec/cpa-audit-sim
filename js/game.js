@@ -123,7 +123,7 @@
       '<span class="as-badge' + (who === 'cfo' ? ' as-badge--red' : '') + '">' + esc(c.role) + '</span>' +
       '<span class="as-dialog__name">' + esc(c.name) + '</span>' +
       (who === 'cfo' ? '<span class="as-badge as-badge--out">피감사회사</span>'
-                     : '<span class="as-dialog__role">' + esc(window.COMPANY.firm) + '</span>') +
+                     : '<span class="as-dialog__role">' + esc(S.co.firm) + '</span>') +
       '</div><p class="as-dialog__line">“' + esc(text) + '”</p></div></div>';
   }
 
@@ -288,10 +288,11 @@
   /* ============================================================
      화면 02 — 플레이
      ============================================================ */
-  function start(seed, seat) {
+  function start(seed, seat, company) {
     var o = {};
     if (seed != null) o.seed = seed;
     o.seat = seat || (load().seat) || 'senior';
+    o.company = company || (load().company) || window.COMPANY_DEFAULT;
     S = window.SEASON.create(o);
     step();
   }
@@ -328,9 +329,9 @@
       (it.situation ? '<p class="as-p">' + esc(it.situation) + '</p>' : '<p class="as-p as-dim">—</p>') +
       '</div><div class="as-brief__side">' +
       (side ? figs(side.items, side.title)
-            : figs([['피감사회사', window.COMPANY.name], ['영역', sc.area],
+            : figs([['피감사회사', S.co.name], ['영역', sc.area],
                     ['기준서', (sc.standards || []).join(' · ')],
-                    ['수행중요성', window.COMPANY.pm]], '이 장면')) +
+                    ['수행중요성', S.co.pm + '억원']], '이 장면')) +
       '</div></div>' +
 
       (ex.length ? '<div class="as-docs">' + ex.map(function (x, k) {
@@ -673,7 +674,7 @@
     var E = window.SEASON.epilogue(S), g = S.gauge, a = E.audit;
     var sum = 0; S.results.forEach(function (r) { sum += r.res.percent; });
     var avg = Math.round(sum / S.results.length * 10) / 10;
-    var dec = S.decision, seed = S.seed, seat = S.seat;
+    var dec = S.decision, seed = S.seed, seat = S.seat, coId = S.company;
     var no = 0;
     window.EPILOGUE.audit.forEach(function (x, k) { if (x.id === a.id) no = k + 1; });
 
@@ -792,13 +793,13 @@
     $('#btn-ca').addEventListener('click', function () { copyOut(feedback(S.results), this); });
     $('#btn-same').addEventListener('click', function () { start(seed, seat); });
     $$('.seat-again').forEach(function (b) {
-      b.addEventListener('click', function () { start(seed, b.getAttribute('data-seat')); });
+      b.addEventListener('click', function () { start(seed, b.getAttribute('data-seat'), coId); });
     });
-    $('#btn-new').addEventListener('click', function () { start(null, seat); });
+    $('#btn-new').addEventListener('click', function () { start(null, seat, coId); });
 
     var db = load();
-    db.history = (db.history || []).concat([{ t: Date.now(), seed: seed, seat: seat, end: a.title, tone: a.tone,
-      avg: avg, found: E.found, missed: E.missed }]).slice(-30);
+    db.history = (db.history || []).concat([{ t: Date.now(), seed: seed, seat: seat, company: coId,
+      end: a.title, tone: a.tone, avg: avg, found: E.found, missed: E.missed }]).slice(-30);
     save(db);
     show('end');
   }
@@ -866,17 +867,25 @@
   /* ============================================================
      화면 01 — 타이틀 / 홈
      ============================================================ */
-  /* 조건부 장면이 있어서 시즌 길이가 고정이 아니다 */
-  function sceneRange() {
-    var all = window.SCENES.length;
-    var fixed = window.SCENES.filter(function (s) { return !s.when; }).length;
-    return (fixed === all ? all : fixed + '~' + all) + ' SCENES';
+  /* 조건부 장면이 있어서 시즌 길이가 고정이 아니다.
+     업종 전용 장면까지 있으므로 회사를 정해야 길이를 셀 수 있다 */
+  function sceneRange(coId) {
+    var mine = window.SCENES.filter(function (s) {
+      return !s.only || s.only.indexOf(coId) >= 0;
+    });
+    var fixed = mine.filter(function (s) { return !s.when; }).length;
+    return (fixed === mine.length ? mine.length : fixed + '~' + mine.length) + ' SCENES';
   }
+
+  /* 회사를 바꾸면 표지가 통째로 다시 그려진다. 그때 입력하던 시즌 코드를 잃지 않도록 */
+  var seedDraft = '';
 
   function home() {
     clearInterval(timer);
     var db = load(), h = (db.history || []).slice().reverse();
-    var c = window.COMPANY, seats = window.SEASON.SEATS;
+    var cos = window.COMPANIES, seats = window.SEASON.SEATS;
+    var coId = db.company && cos[db.company] ? db.company : window.COMPANY_DEFAULT;
+    var c = cos[coId];
     var chosen = db.seat && seats[db.seat] ? db.seat : 'senior';
     var now = new Date();
     var today = now.getFullYear() + '. ' + pad2(now.getMonth() + 1) + '. ' + pad2(now.getDate()) + '.';
@@ -897,7 +906,8 @@
 
       '<div class="as-title__body">' +
       '<h1 class="as-logo">감사<br>시즌<span>·</span>2026</h1>' +
-      '<div class="as-rule"><i></i><span>' + sceneRange() + ' · ' +
+      '<div class="as-rule"><i></i><span>' + sceneRange(coId) + ' · ' +
+      Object.keys(cos).length + ' CASES · ' +
       Object.keys(seats).length + ' SEATS · ' + window.EPILOGUE.audit.length + ' ENDINGS</span></div>' +
 
       '<p class="as-lead">' + esc(c.firm) + '에 ' + esc(c.name) + '(' + esc(c.market) + ', ' +
@@ -908,6 +918,20 @@
       '<strong>시즌마다 다르다.</strong> 짚은 만큼만 드러나고, 놓친 것은 1년 뒤 감리로 돌아온다.</p>' +
       '<p class="as-lead">거쳐 가는 장면도 시즌마다 다르다. 회사 사정에 따라 열리는 장면이 있고, ' +
       '<strong>내가 찾아냈을 때에만</strong> 열리는 장면이 있다.</p>' +
+
+      '<div class="as-sec as-sec--rule">어느 회사를 맡겠나</div>' +
+      '<div class="as-cos" role="group" aria-label="회사 선택">' +
+      Object.keys(cos).map(function (k) {
+        var o = cos[k];
+        return '<button class="as-co" type="button" data-co="' + k + '" aria-pressed="' +
+          (k === coId) + '"><b>' + esc(o.name) + '</b>' +
+          '<u>' + esc(o.market) + ' · ' + esc(o.industry) + '</u>' +
+          '<span>' + esc(o.hook) + '</span>' +
+          '<em>중요성 ' + o.mat + '억원 · ' + esc(o.matBasis.split(' — ')[0]) + '</em></button>';
+      }).join('') + '</div>' +
+      '<p class="as-lead" style="margin-top:12px">회사가 바뀌면 <strong>묻는 논점</strong>이 바뀐다. ' +
+      '제조는 재고를 세고, 바이오는 추정을 따지고, IT는 통제를 본다. ' +
+      '중요성의 기준부터 다르다.</p>' +
 
       '<div class="as-sec as-sec--rule">어느 자리에 앉겠나</div>' +
       '<div class="as-seats" role="group" aria-label="좌석 선택">' +
@@ -935,12 +959,13 @@
 
       (h.length ? '<div style="margin-top:36px"><div class="as-sec as-sec--rule">지난 플레이 기록</div>' +
         '<div class="as-scroll"><table class="as-record"><thead><tr>' +
-        '<th>일시</th><th style="text-align:left">엔딩</th><th>시즌</th><th>자리</th>' +
+        '<th>일시</th><th style="text-align:left">엔딩</th><th>회사</th><th>시즌</th><th>자리</th>' +
         '<th>찾음</th><th>놓침</th><th>평균</th></tr></thead><tbody>' +
         h.slice(0, 3).map(function (x) {
           var dt = new Date(x.t);
           return '<tr><td>' + pad2(dt.getMonth() + 1) + '.' + pad2(dt.getDate()) + ' ' + clock(dt) + '</td>' +
             '<td class="as-record__end t-' + (x.tone || '') + '">' + esc(x.end) + '</td>' +
+            '<td>' + esc((cos[x.company] || {}).name || '') + '</td>' +
             '<td>' + (x.seed || '') + '</td>' +
             '<td>' + esc((seats[x.seat] || {}).name || '') + '</td>' +
             '<td>' + (x.found != null ? x.found.toFixed(1) : '') + '</td>' +
@@ -950,6 +975,17 @@
 
       '</div></div>';
 
+    $('#seed').value = seedDraft;
+
+    /* 회사는 표지·시즌 길이·중요성을 한꺼번에 바꾸므로 그 자리에서 다시 그린다 */
+    $$('.as-co').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (b.getAttribute('aria-pressed') === 'true') return;
+        seedDraft = $('#seed').value || '';
+        var d2 = load(); d2.company = b.getAttribute('data-co'); save(d2);
+        home();
+      });
+    });
     $$('.as-seat').forEach(function (b) {
       b.addEventListener('click', function () {
         $$('.as-seat').forEach(function (x) { x.setAttribute('aria-pressed', 'false'); });
@@ -960,7 +996,8 @@
     });
     $('#btn-start').addEventListener('click', function () {
       var v = ($('#seed').value || '').replace(/\D/g, '');
-      start(v ? parseInt(v, 10) : null, chosen);
+      seedDraft = '';
+      start(v ? parseInt(v, 10) : null, chosen, coId);
     });
     show('home');
   }

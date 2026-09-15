@@ -19,20 +19,6 @@
      please(trap) 회사 입장을 받아주는 서술 — 회사 태도가 오른다
    ============================================================ */
 
-window.COMPANY = {
-  name: '㈜서린정밀',
-  market: '코스닥 상장',
-  industry: '이차전지 장비 제조',
-  fy: '20×6년 12월 31일',
-  revenue: '1,284억원',
-  assets: '1,702억원',
-  ni: '61억원',
-  materiality: '12억원',
-  pm: '8억 4천만원',
-  trivial: '6,000만원',
-  firm: '세종회계법인'
-};
-
 window.CAST = {
   partner: { name: '정한별', role: '업무수행이사', avatar: 'partner' },
   manager: { name: '유가온', role: '시니어', avatar: 'manager' },
@@ -45,21 +31,26 @@ window.SCENES = [
 
 /* ── 1. 수임 검토 ───────────────────────────────────────── */
 {
-  id: 's1', day: '20×6. 11. 14.', chapter: '수임 검토',
+  id: 's1', ord: 10, day: '20×6. 11. 14.', chapter: '수임 검토',
   art: 'office', area: '감사일반', standards: ['윤리기준', 'KSA 210'],
   speaker: { staff: 'manager', senior: 'partner', partner: 'manager' }, cost: 6,
   line: {
-    staff: '서린정밀 건, 이사님이 오늘 결정하신대. 컨설팅본부 건이 걸리는데 자네 생각은?',
-    senior: '서린정밀 건, 우리가 받을지 오늘 결정해야 하네. 컨설팅본부 건이 걸리는데 자네 의견은?',
-    partner: '이사님, 서린정밀 수임 건입니다. 컨설팅본부가 ERP를 깔아준 회사라서요.'
+    staff: '{회사} 건, 이사님이 오늘 결정하신대. 컨설팅본부 건이 걸리는데 자네 생각은?',
+    senior: '{회사} 건, 우리가 받을지 오늘 결정해야 하네. 컨설팅본부 건이 걸리는데 자네 의견은?',
+    partner: '이사님, {회사} 수임 건입니다. 컨설팅본부가 손을 댄 회사라서요.'
   },
-  situation: '세종회계법인 컨설팅본부는 직전 2개 사업연도 동안 ㈜서린정밀의 전사적자원관리(ERP) 회계모듈 설계·구축 용역을 수행하였다. 용역 산출물인 표준 계정체계와 전표 승인 워크플로우는 당기 결산에 그대로 적용된다. 컨설팅 수수료는 예상 감사보수의 2.4배이다.',
-  exhibits: [
-    { type: 'kv', title: '수임 검토', items: [
-      ['회사', '㈜서린정밀 (코스닥)'], ['업종', '이차전지 장비 제조'],
-      ['매출액', '1,284억원'], ['예상 감사보수', '2억 8,000만원'],
-      ['컨설팅 수수료', '6억 7,000만원']] }
-  ],
+  situation: function (v, S) {
+    var e = S.co.engage;
+    return '{법인} 컨설팅본부는 직전 2개 사업연도 동안 {회사}의 ' + e.service + '을 수행하였다. ' +
+      '용역 산출물인 ' + e.output + '은 당기 결산에 그대로 적용된다. ' +
+      '컨설팅 수수료는 예상 감사보수의 ' + e.ratio + '이다.';
+  },
+  exhibits: function (v, S) {
+    return [{ type: 'kv', title: '수임 검토', items: [
+      ['회사', S.co.name + ' (' + S.co.market + ')'], ['업종', S.co.industry],
+      ['매출액', S.co.revenue], ['예상 감사보수', S.co.engage.fee],
+      ['컨설팅 수수료', S.co.engage.consultFee]] }];
+  },
   prompt: '이 용역이 독립성에 미치는 영향과 감사인이 취해야 할 조치',
   confront: ['해소 불가 시 수임 거절 또는 용역 중단'],
   parts: function () {
@@ -129,7 +120,7 @@ window.SCENES = [
 
 /* ── 2. 위험평가 ★분기 발생 ─────────────────────────────── */
 {
-  id: 's2', day: '20×6. 12. 5.', chapter: '위험평가',
+  id: 's2', ord: 20, day: '20×6. 12. 5.', chapter: '위험평가',
   art: 'meeting', area: '감사계획과 위험평가', standards: ['KSA 315', 'KSA 240'],
   speaker: 'manager', cost: 8,
   line: {
@@ -137,15 +128,16 @@ window.SCENES = [
     senior: '업무팀 토의 자료 정리했어요. 여기서 뭘 유의적 위험으로 올릴지 정해야 합니다.',
     partner: '업무팀 토의 자료입니다. 유의적 위험 지정은 이사님 판단이 필요합니다.'
   },
-  situation: '4분기 매출이 직전 3개 분기 평균의 2.1배로 증가하였다. 영업본부는 연간 목표 달성 시 지급되는 성과연동 인센티브를 운영한다. 또한 대표이사가 일부 거래처의 판매단가와 매출 인식시점을 직접 결정하고, 회계팀의 정규 승인절차를 우회하여 결산 수정분개를 지시한 사례가 확인되었다.',
-  exhibits: [
-    { type: 'table', title: '분기별 매출액 (단위: 억원)',
-      head: ['구분', '1분기', '2분기', '3분기', '4분기', '계'],
-      rows: [['당기', '241', '256', '238', '549', '1,284'],
-             ['전기', '238', '245', '251', '289', '1,023']] },
-    { type: 'memo', from: '영업본부장 → 영업팀 (사내 메신저)', title: '12월 마감 관련',
-      body: '올해 목표까지 62억 남았습니다. 12월 안에 계약서 날인만 되면 매출로 잡을 수 있으니, 납품 일정은 내년으로 하더라도 계약은 이달 안에 끝내주세요.' }
-  ],
+  situation: function (v, S) {
+    return S.co.risk.lead + ' 또한 대표이사가 일부 거래의 단가와 인식시점을 직접 결정하고, ' +
+      '회계팀의 정규 승인절차를 우회하여 결산 수정분개를 지시한 사례가 확인되었다.';
+  },
+  exhibits: function (v, S) {
+    var r = S.co.risk;
+    return [{ type: 'table', title: r.unit,
+              head: ['구분', '1분기', '2분기', '3분기', '4분기', '계'], rows: r.rows },
+            { type: 'memo', from: r.memo.from, title: r.memo.title, body: r.memo.body }];
+  },
   prompt: '식별되는 위험과 그에 대한 감사인의 대응',
   confront: ['경영진의 내부통제 무력화 위험'],
   flags: [
@@ -154,7 +146,7 @@ window.SCENES = [
   ],
   parts: function () {
     return [
-      { say: '4분기에 매출이 두 배로 뛰었어요. 영업본부 메신저도 보세요. 수익 쪽은 어떻게 보십니까?',
+      { say: function (v, S) { return S.co.risk.say; },
         ask: '수익인식과 관련해 식별되는 위험', maxChars: 95, timeLimit: 95,
         rubric: {
           bonusCap: 6,
@@ -211,7 +203,7 @@ window.SCENES = [
 
 /* ── 3. 재고실사 입회 ★분기 ─────────────────────────────── */
 {
-  id: 's3', day: '20×6. 12. 31.', chapter: '재고실사 입회',
+  id: 's3', ord: 30, day: '20×6. 12. 31.', chapter: '재고실사 입회', only: ['seorin'],
   art: 'warehouse', area: '감사절차 수행과 결과 보고', standards: ['KSA 501'],
   speaker: 'cfo', cost: 10,
   line: '실사는 저희가 알아서 합니다. 본사 창고만 보시면 되고, 외주 임가공 물량은 거래처가 관리하니 명세서로 갈음하시죠.',
@@ -307,34 +299,53 @@ window.SCENES = [
 
 /* ── 4. 외부조회 ★회사 태도·앞선 절차에 따라 판본이 갈린다 ── */
 {
-  id: 's4', day: '20×7. 1. 20.', chapter: '외부조회',
+  id: 's4', ord: 40, day: '20×7. 1. 20.', chapter: '외부조회',
   art: 'desk', area: '감사절차 수행과 결과 보고', standards: ['KSA 505', 'KSA 500'],
   speaker: 'manager', cost: 8,
   line: '조회서 회신이 다 안 왔어요. 그리고 하나는… 좀 이상합니다.',
   variants: [
-    { id: 'C', label: '경영진의 조회 불허', when: function (S) { return S.rel.company < 42; },
-      body: '감사인이 최대 거래처를 포함한 3곳에 조회서를 발송하려 하자, 재무담당임원이 "그 거래처들은 관계가 예민하니 보내지 말아 달라"며 발송 자체를 거부하였다. 3곳의 잔액 합계는 42억원(총 매출채권의 18.0%)이다.',
-      rows: [['발송 완료', '12건', '191억원', '전건 회신'], ['발송 거부', '3건', '42억원', '경영진 불허']] },
-    { id: 'B', label: '회신의 신뢰성 의심', when: function (S) { return !!S.flags.fraud_alert; },
-      body: '조회서 15건이 모두 회신되었다. 그런데 최대 거래처 회신서는 회사 재무팀 팩스번호로 수신되었고, 회신 담당자 연락처가 회사 영업팀 직원 번호와 동일하다. 잔액은 42억원(총 매출채권의 18.0%)이다.',
-      rows: [['회신', '15건', '233억원', '1건 발신경로 이상'], ['이상 건', '1건', '42억원', '18.0%']] },
-    { id: 'A', label: '중요 금액 미회신',
-      body: '적극적 조회서 15건을 발송하였으나 3건이 미회신이다. 그중 1건은 최대 거래처로 잔액 42억원(총 매출채권의 18.0%)이다. 회사는 "거래처 내부방침상 조회에 응하지 않는다"며 세금계산서와 거래명세서를 대신 제시한다.',
-      rows: [['회신', '12건', '191억원', '불일치 없음'], ['미회신', '3건', '42억원', '18.0%']] }
+    { id: 'C', label: '경영진의 조회 불허', when: function (S) { return S.rel.company < 42; } },
+    { id: 'B', label: '회신의 신뢰성 의심', when: function (S) { return !!S.flags.fraud_alert; } },
+    { id: 'A', label: '중요 금액 미회신' }
   ],
   enter: function (S, v) {
     if (v.id === 'C') return { speaker: 'cfo',
       note: '회사의 태도가 굳어졌다. 자료 요청에 대한 회신이 눈에 띄게 늦어지고 있다.',
-      line: '조회서요? 그 거래처들은 건드리지 마십시오. 관계 틀어지면 책임지실 겁니까?' };
+      line: '조회서요? ' + S.co.confirm.refuse + '. 관계 틀어지면 책임지실 겁니까?' };
     if (v.id === 'B') return {
       note: '분개 전수 추출을 준비하며 거래처 마스터를 대조하던 중이었다. 회신서 한 장의 발신번호가 눈에 걸렸다.' };
     return {};
   },
   confront: ['증거 미입수 시 감사범위제한', '감사인이 직접 연락하여 발신자 신원 확인', '지배기구와 커뮤니케이션', '타당하지 않으면 감사범위제한'],
-  situation: function (v) { return v.body; },
-  exhibits: function (v) {
-    return [{ type: 'table', title: '매출채권 조회 현황', head: ['구분', '건수', '금액', '비고'], rows: v.rows },
-            { type: 'kv', title: '참고', items: [['총 매출채권', '233억원'], ['수행중요성', '8억 4천만원']] }];
+  situation: function (v, S) {
+    var c = S.co.confirm;
+    var tail = '(총 ' + c.subject + '의 ' + c.pct + ')이다.';
+    if (v.id === 'C') {
+      return '감사인이 최대 ' + c.counterparty + '를 포함한 3곳에 조회서를 발송하려 하자, 재무담당임원이 ' +
+        '"' + c.refuse + '"며 발송 자체를 거부하였다. 3곳의 잔액 합계는 ' + c.big + tail;
+    }
+    if (v.id === 'B') {
+      return '조회서 ' + c.sent + '건이 모두 회신되었다. 그런데 최대 ' + c.counterparty +
+        ' 회신서는 회사 재무팀 팩스번호로 수신되었고, 회신 담당자 연락처가 회사 직원 번호와 동일하다. 잔액은 ' + c.big + tail;
+    }
+    return '적극적 조회서 ' + c.sent + '건을 발송하였으나 ' + c.unanswered + '건이 미회신이다. ' +
+      '그중 1건은 최대 ' + c.counterparty + '로 잔액 ' + c.big + tail +
+      ' 회사는 "내부방침상 조회에 응하지 않는다"며 ' + c.altDoc + '를 대신 제시한다.';
+  },
+  exhibits: function (v, S) {
+    var c = S.co.confirm, rows;
+    if (v.id === 'C') {
+      rows = [['발송 완료', (c.sent - 3) + '건', c.rest, '전건 회신'],
+              ['발송 거부', '3건', c.big, '경영진 불허']];
+    } else if (v.id === 'B') {
+      rows = [['회신', c.sent + '건', c.total, '1건 발신경로 이상'],
+              ['이상 건', '1건', c.big, c.pct]];
+    } else {
+      rows = [['회신', (c.sent - c.unanswered) + '건', c.rest, '불일치 없음'],
+              ['미회신', c.unanswered + '건', c.big, c.pct]];
+    }
+    return [{ type: 'table', title: c.subject + ' 조회 현황', head: ['구분', '건수', '금액', '비고'], rows: rows },
+            { type: 'kv', title: '참고', items: [['총 ' + c.subject, c.total], ['수행중요성', S.co.pm + '억원']] }];
   },
   prompt: '조회 결과에 대한 감사인의 절차와 그 근거',
   parts: function (v) {
@@ -387,7 +398,7 @@ window.SCENES = [
     if (v.id === 'C') {
       return [
         { who: 'cfo',
-          say: '그 거래처들은 건드리지 마십시오. 관계 틀어지면 책임지실 겁니까?',
+          say: function (v, S) { return S.co.confirm.refuse + '. 관계 틀어지면 책임지실 겁니까?'; },
           ask: '경영진의 발송 거부를 어떻게 처리할 것인가', maxChars: 95, timeLimit: 90,
           rubric: {
             bonusCap: 6,
@@ -432,7 +443,10 @@ window.SCENES = [
     }
 
     return [
-      { say: '미회신 3건인데, 그중 하나가 최대 거래처예요. 어떻게 할까요?',
+      { say: function (v, S) {
+          var c = S.co.confirm;
+          return '미회신 ' + c.unanswered + '건인데, 그중 하나가 최대 ' + c.counterparty + '예요. 어떻게 할까요?';
+        },
         ask: '미회신 건에 대한 절차', maxChars: 100, timeLimit: 95,
         rubric: {
           bonusCap: 6,
@@ -444,7 +458,7 @@ window.SCENES = [
           bonus: [{ kw: ['재발송', '직접 접촉'], score: 6, label: '조회 재발송' }],
           trap: []
         },
-        model: '조회를 재발송하거나 거래처에 직접 접촉하고, 대체적 감사절차로 기말 후 현금회수 내역을 은행거래내역과 대조한다.' },
+        model: '조회를 재발송하거나 상대방에 직접 접촉하고, 대체적 감사절차로 기말 후 현금회수 내역을 은행거래내역과 대조한다.' },
 
       { who: 'cfo',
         say: '세금계산서하고 거래명세서 다 드렸잖습니까. 그걸로 충분하지 않나요?',
@@ -485,7 +499,7 @@ window.SCENES = [
 
 /* ── 5. 회계추정치 ★진실에 따라 판단이 뒤집힌다 ──────────── */
 {
-  id: 's5', day: '20×7. 2. 3.', chapter: '회계추정치',
+  id: 's5', ord: 50, day: '20×7. 2. 3.', chapter: '회계추정치', only: ['seorin'],
   art: 'desk', area: '감사절차 수행과 결과 보고', standards: ['KSA 540', 'KSA 500'],
   speaker: 'manager', cost: 9,
   variants: [

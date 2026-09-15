@@ -11,26 +11,31 @@ window.SCENES = (window.SCENES || []).concat([
 
 /* ── 6. 특수관계자 ★위험평가의 선택이 여기서 갈린다 ──────── */
 {
-  id: 's6', day: '20×7. 2. 10.', chapter: '특수관계자',
+  id: 's6', ord: 60, day: '20×7. 2. 10.', chapter: '특수관계자',
   art: 'night', area: '감사절차 수행과 결과 보고', standards: ['KSA 550', 'KSA 240'],
   speaker: 'manager', cost: 9,
   variants: [
     { id: 'HIT', label: '분개 전수추출로 포착', when: function (S) { return !!S.flags.fraud_alert; },
-      line: '분개 전수 데이터를 돌렸더니 걸렸습니다. 회사가 준 특수관계자 목록에 없는 거래처예요.',
-      body: '업무팀이 분개 데이터를 전수 추출한 결과, 회사가 제시한 특수관계자 목록에 없는 ㈜한들상사와의 거래 84억원이 확인되었다. 등기부등본상 ㈜한들상사의 대표이사는 서린정밀 대표이사의 배우자이며, 거래는 전부 대표이사 지시로 개시되었고 정상적인 신용평가 절차를 거치지 않았다.' },
+      line: '분개 전수 데이터를 돌렸더니 걸렸습니다. 회사가 준 특수관계자 목록에 없는 상대방이에요.' },
     { id: 'MISS', label: '외부 제보로 뒤늦게 인지', late: true, extraCost: 6,
       note: '감사 종료를 앞두고 들어온 제보다. 추가 절차를 할 시간이 빠듯하다.',
-      line: '외부에서 제보가 들어왔습니다. 저희가 못 잡은 게 있었어요.',
-      body: '감사 종료를 앞두고 익명 제보로, 회사가 제시한 특수관계자 목록에 없는 ㈜한들상사와의 거래 84억원이 확인되었다. 등기부등본상 ㈜한들상사의 대표이사는 서린정밀 대표이사의 배우자이며, 거래는 전부 대표이사 지시로 개시되었고 정상적인 신용평가 절차를 거치지 않았다.' }
+      line: '외부에서 제보가 들어왔습니다. 저희가 못 잡은 게 있었어요.' }
   ],
-  situation: function (v) { return v.body; },
-  exhibits: function () {
-    return [{ type: 'table', title: '㈜한들상사 거래 내역 (단위: 억원)',
-      head: ['구분', '금액', '비고'],
-      rows: [['매출', '61', '전액 4분기 집중'],
-             ['매입', '23', '단가 근거자료 없음'],
-             ['기말 매출채권', '38', '회수 이력 없음']] },
-      { type: 'kv', title: '참고', items: [['특수관계자 공시 여부', '미공시'], ['거래 개시 승인', '대표이사 구두 지시']] }];
+  situation: function (v, S) {
+    var r = S.co.related;
+    var how = v.id === 'HIT'
+      ? '업무팀이 분개 데이터를 전수 추출한 결과, '
+      : '감사 종료를 앞두고 익명 제보로, ';
+    return how + '회사가 제시한 특수관계자 목록에 없는 ' + r.name + '와의 거래 ' + r.total +
+      '이 확인되었다. 등기부등본상 ' + r.name + '의 지배주주는 ' + r.tie +
+      '이며, 거래는 전부 대표이사 지시로 개시되었고 정상적인 심사 절차를 거치지 않았다.';
+  },
+  exhibits: function (v, S) {
+    var r = S.co.related;
+    return [{ type: 'table', title: r.name + ' 거래 내역 (단위: 억원)',
+              head: ['구분', '금액', '비고'], rows: r.rows },
+            { type: 'kv', title: '참고', items: [['특수관계자 공시 여부', '미공시'],
+                                                 ['거래 개시 승인', '대표이사 구두 지시']] }];
   },
   prompt: '미공시 특수관계자를 발견했을 때 감사인이 수행하여야 할 절차',
   confront: ['부정위험 재평가', '경영진 진술의 신뢰성 재고'],
@@ -54,10 +59,14 @@ window.SCENES = (window.SCENES || []).concat([
         },
         model: '관련 정보를 업무팀 전원에게 즉시 커뮤니케이션하고, 경영진에게 그 관계와 거래가 식별되지 못한 이유를 질문하며 관련 통제의 적정성을 재평가한다.' },
 
-      { say: { staff: '84억 거래 자체는 어떻게 확인할 건데?',
-               senior: '84억 거래 자체는 어떻게 확인할까요?',
-               partner: '84억 거래는 어떻게 확인할까요?' },
-        ask: '84억원 거래 자체에 대한 절차', maxChars: 100, timeLimit: 95,
+      { say: function (v, S) {
+          var t = S.co.related.total;
+          return { staff: t + ' 거래 자체는 어떻게 확인할 건데?',
+                   senior: t + ' 거래 자체는 어떻게 확인할까요?',
+                   partner: t + ' 거래는 어떻게 확인할까요?' }[S.seat];
+        },
+        ask: function (v, S) { return S.co.related.total + ' 거래 자체에 대한 절차'; },
+        maxChars: 100, timeLimit: 95,
         rubric: {
           bonusCap: 8,
           must: [
@@ -70,7 +79,9 @@ window.SCENES = (window.SCENES || []).concat([
         model: '미공시된 관계와 거래에 대해 적절한 실증절차를 수행하고, 정상적인 사업과정을 벗어난 거래의 사업목적을 확인한다. 대표이사의 승인은 거래의 정당성을 보장하지 않는다.' },
 
       { who: 'cfo',
-        say: '한들상사는 그냥 거래처입니다. 특수관계자 목록은 저희가 정확하게 드린 겁니다.',
+        say: function (v, S) {
+          return S.co.related.name.replace(/^㈜/, '') + '는 그냥 거래 상대방입니다. 특수관계자 목록은 저희가 정확하게 드린 겁니다.';
+        },
         ask: '이 발견이 감사 전체에 미치는 영향', maxChars: 110, timeLimit: 100,
         rubric: {
           bonusCap: 6,
@@ -94,28 +105,33 @@ window.SCENES = (window.SCENES || []).concat([
    못 찾은 시즌에는 이 장면 자체가 없다. 찾아야 시작되는 국면이 있다.
    TODO: 회계사 검수 (KSA 240 문단 34~40 · 외부감사법 제22조 취지) */
 {
-  id: 's6f', day: '20×7. 2. 17.', chapter: '부정 혐의 대응',
+  id: 's6f', ord: 65, day: '20×7. 2. 17.', chapter: '부정 혐의 대응',
   art: 'meeting', area: '감사절차 수행과 결과 보고', standards: ['KSA 240', 'KSA 260'],
   speaker: { staff: 'manager', senior: 'partner', partner: 'manager' }, cost: 6,
   when: function (S) {
-    return S.truths.some(function (t) {
-      return t.found && (t.id === 'circular_ar' || t.id === 'circular_flow');
-    });
+    // 경영진이 관련된 부정 성격의 진실을 실제로 찾아냈을 때만 열린다 (회사마다 그 진실이 다르다)
+    return S.truths.some(function (t) { return t.found && t.def.fraud; });
   },
-  line: {
-    staff: '한들상사 건, 상대방이 대표이사 배우자야. 이건 이제 성격이 달라졌어.',
-    senior: '자네가 올린 한들상사 건, 상대방이 대표이사 배우자네. 성격이 달라졌어.',
-    partner: '이사님, 한들상사 건은 대표이사 배우자가 지배하는 법인이었습니다. 성격이 달라졌습니다.'
+  line: function (v, S) {
+    var n = S.co.related.name.replace(/^㈜/, ''), t = S.co.related.tie;
+    return { staff: n + ' 건, 상대방이 ' + t + '야. 이건 이제 성격이 달라졌어.',
+             senior: '자네가 올린 ' + n + ' 건, 상대방이 ' + t + '네. 성격이 달라졌어.',
+             partner: '이사님, ' + n + ' 건은 ' + t + '한 법인이었습니다. 성격이 달라졌습니다.' }[S.seat];
   },
-  situation: '실체가 확인되지 않는 매출채권의 상대방은 대표이사의 배우자가 지배하는 법인이었고, 거래는 전부 대표이사의 구두 지시로 개시되었다. 회사는 이를 특수관계자로 공시하지 않았다. 경영진은 실무자의 단순 착오라고 설명하고 있다. 오류를 다루던 국면이 부정 혐의를 다루는 국면으로 넘어갔다.',
-  exhibits: [
-    { type: 'kv', title: '확인된 사실', items: [
-      ['거래 상대방', '㈜한들상사'], ['지배주주', '대표이사의 배우자'],
+  situation: function (v, S) {
+    return '실체가 확인되지 않는 거래의 상대방은 ' + S.co.related.tie + '한 법인이었고, ' +
+      '거래는 전부 대표이사의 구두 지시로 개시되었다. 회사는 이를 특수관계자로 공시하지 않았다. ' +
+      '경영진은 실무자의 단순 착오라고 설명하고 있다. 오류를 다루던 국면이 부정 혐의를 다루는 국면으로 넘어갔다.';
+  },
+  exhibits: function (v, S) {
+    var r = S.co.related;
+    return [{ type: 'kv', title: '확인된 사실', items: [
+      ['거래 상대방', r.name], ['지배주주', r.tie],
       ['특수관계자 공시', '미공시'], ['거래 개시', '대표이사 구두 지시'],
-      ['기말 매출채권', '38억원 · 회수 이력 없음']] },
-    { type: 'memo', title: '경영진 답변서', from: '재무담당임원 박정후 → 감사팀 (2. 16.)',
-      body: '해당 거래처는 정상적인 영업활동의 일환으로 관리되어 온 곳입니다. 특수관계자 명세에서 누락된 것은 실무자가 관계 여부를 인지하지 못한 단순 착오이며, 회사는 이를 고의로 은폐한 사실이 없습니다. 다음 사업연도 공시에 반영하겠습니다.' }
-  ],
+      ['거래 규모', r.total]] },
+      { type: 'memo', title: '경영진 답변서', from: '재무담당임원 박정후 → 감사팀 (2. 16.)',
+        body: '해당 상대방은 정상적인 영업활동의 일환으로 관리되어 온 곳입니다. 특수관계자 명세에서 누락된 것은 실무자가 관계 여부를 인지하지 못한 단순 착오이며, 회사는 이를 고의로 은폐한 사실이 없습니다. 다음 사업연도 공시에 반영하겠습니다.' }];
+  },
   prompt: '경영진이 관련된 부정 혐의가 식별되었을 때 감사인의 대응',
   confront: ['지배기구와 커뮤니케이션', '감사 또는 감사위원회에 통보하고 시정 요구'],
   parts: function () {
@@ -187,11 +203,11 @@ window.SCENES = (window.SCENES || []).concat([
 
 /* ── 7. 기타정보 ────────────────────────────────────────── */
 {
-  id: 's7', day: '20×7. 2. 24.', chapter: '기타정보',
+  id: 's7', ord: 70, day: '20×7. 2. 24.', chapter: '기타정보',
   art: 'desk', area: '감사절차 수행과 결과 보고', standards: ['KSA 720'],
   speaker: 'cfo', cost: 8,
   line: '사업보고서 초안입니다. 재무제표는 이미 확정됐으니 이쪽은 그냥 참고만 하시면 됩니다.',
-  situation: '㈜서린정밀이 감사보고서일 전에 제공한 사업보고서 초안에서 다음 세 가지를 확인하였다.',
+  situation: '{회사}가 감사보고서일 전에 제공한 사업보고서 초안에서 다음 세 가지를 확인하였다.',
   exhibits: [
     { type: 'table', title: '사업보고서 초안 검토 결과',
       head: ['항목', '사업보고서 기재', '감사인이 아는 사실'],
@@ -204,7 +220,7 @@ window.SCENES = (window.SCENES || []).concat([
   enter: function (S) {
     if (S.rel.company < 35) return { line: '사업보고서요? 재무제표 끝났으면 된 거 아닙니까. 보시든 말든 알아서 하세요.' };
     var rp = S.truths.some(function (t) { return t.found && t.id.indexOf('circular') === 0; });
-    if (rp) return { note: '한들상사 건이 드러난 뒤로 재무팀은 모든 문서를 법무팀을 거쳐 보내고 있다.' };
+    if (rp) return { note: '특수관계자 건이 드러난 뒤로 재무팀은 모든 문서를 법무팀을 거쳐 보내고 있다.' };
     return {};
   },
   parts: function () {
@@ -272,25 +288,17 @@ window.SCENES = (window.SCENES || []).concat([
    장면이 열렸다는 것 자체가 "뭔가 있다"는 뜻은 아니다 — 손상은 있을 수도, 없을 수도 있다.
    TODO: 회계사 검수 (KSA 570 · KSA 701 문단 15 취지) */
 {
-  id: 's7g', day: '20×7. 2. 27.', chapter: '계속기업 평가',
+  id: 's7g', ord: 75, day: '20×7. 2. 27.', chapter: '계속기업 평가',
   art: 'night', area: '감사절차 수행과 결과 보고', standards: ['KSA 570', 'KSA 540'],
   speaker: 'cfo', cost: 7,
   when: function (S) { return !!S.stress; },
-  line: '차입약정 비율은 은행과 협의 중입니다. 만기 연장은 사실상 확정이에요. 감사보고서에 계속기업 이야기가 들어가면 그날로 자금줄이 끊깁니다.',
-  situation: '당기 영업활동현금흐름은 마이너스로 돌아섰고, 주거래은행 차입약정의 부채비율 조항을 기말 현재 위반한 상태다. 1년 내 만기가 도래하는 차입금은 340억원이며, 회사는 만기 연장 협의 중이라는 구두 설명만 제시하였다. 2공장 라인은 9월부터 가동이 중단되어 가동률이 31%로 떨어져 있다.',
-  exhibits: [
-    { type: 'table', title: '차입금 만기구조 (단위: 억원)',
-      head: ['구분', '금액', '비고'],
-      rows: [['1년 내 만기', '340', '연장 협의 중 (구두)'],
-             ['1~2년', '120', '약정 위반 시 기한이익 상실'],
-             ['2년 초과', '60', ''],
-             ['계', '520', '']] },
-    { type: 'kv', title: '재무 지표', items: [
-      ['유동비율', '68%'], ['부채비율', '412%'],
-      ['약정 부채비율 한도', '350% (위반)'],
-      ['영업활동현금흐름', '−87억원'],
-      ['2공장 가동률', '31% (전기 79%)']] }
-  ],
+  line: function (v, S) { return S.co.gc.line; },
+  situation: function (v, S) { return S.co.gc.body; },
+  exhibits: function (v, S) {
+    var g = S.co.gc;
+    return [{ type: 'table', title: g.table.title, head: g.table.head, rows: g.table.rows },
+            { type: 'kv', title: '재무 지표', items: g.figs }];
+  },
   prompt: '계속기업 관련 중요한 불확실성의 판단과 감사보고서 반영',
   confront: ['계속기업 관련 중요한 불확실성 별도 문단'],
   parts: function () {
@@ -323,24 +331,23 @@ window.SCENES = (window.SCENES || []).concat([
         },
         model: '보고기간말부터 12개월 이상을 대상으로 한 경영진 평가를 검토한 결과 약정 위반과 만기 집중, 영업현금흐름 적자가 존속능력에 유의적 의문을 초래하며, 만기 연장은 구두 설명뿐이어서 대응계획의 실행가능성이 뒷받침되지 않으므로 중요한 불확실성이 존재한다.' },
 
-      { say: { staff: '2공장은 어떻게 볼 거야? 가동률이 31%야.',
-               senior: '2공장 가동률이 31%입니다. 이건 어떻게 볼까요?',
-               partner: '2공장 가동률이 31%입니다. 어떻게 보시겠습니까?' },
-        ask: '가동이 중단된 2공장 라인에 대한 절차', maxChars: 100, timeLimit: 95,
+      { say: function (v, S) { return S.co.gc.assetSay; },
+        ask: function (v, S) { return S.co.gc.asset + '에 대한 절차'; },
+        maxChars: 100, timeLimit: 95,
         rubric: {
           bonusCap: 6,
           must: [
             { kw: ['회수가능액'], score: 18, half: ['손상'],
               label: '손상징후가 있으므로 회수가능액 추정',
-              why: '가동중단과 약정 위반은 그 자체로 손상징후다. 징후가 있으면 회수가능액(순공정가치와 사용가치 중 큰 금액)을 추정해 장부금액과 비교해야 한다. 징후만 적고 넘어가면 절차를 한 것이 아니다.' },
+              why: '자산을 쓰지 못하게 되었거나 약정을 위반한 상황은 그 자체로 손상징후다. 징후가 있으면 회수가능액(순공정가치와 사용가치 중 큰 금액)을 추정해 장부금액과 비교해야 한다. 징후만 적고 넘어가면 절차를 한 것이 아니다.' },
             { kw: ['가정의 합리성', '사용가치', '할인율'], score: 12, half: ['가정'],
               label: '사용가치 산정에 사용된 가정의 합리성 평가' }
           ],
           bonus: [{ kw: ['현금창출단위'], score: 6, label: '현금창출단위 식별' }],
-          trap: [{ kw: ['일시적 가동중단이므로', '라인 전환이므로 손상 아니'], score: -14,
+          trap: [{ kw: ['일시적이므로', '경영진 설명대로', '회사 설명에 따라 손상 아니'], score: -14,
                    label: '경영진 설명만으로 손상징후 부인', please: true }]
         },
-        model: '가동중단과 약정 위반은 손상징후이므로 회수가능액을 추정하여 장부금액과 비교하고, 사용가치 산정에 사용된 가정의 합리성을 평가한다.' },
+        model: '해당 상황은 손상징후이므로 회수가능액을 추정하여 장부금액과 비교하고, 사용가치 산정에 사용된 가정의 합리성을 평가한다.' },
 
       { say: { staff: '그래서 감사보고서에는 어떻게 들어가지?',
                senior: '그럼 감사보고서에는 어떻게 반영합니까?',
@@ -373,24 +380,29 @@ window.SCENES = (window.SCENES || []).concat([
 
 /* ── 8. 후속사건 ────────────────────────────────────────── */
 {
-  id: 's8', day: '20×7. 3. 4.', chapter: '후속사건',
+  id: 's8', ord: 80, day: '20×7. 3. 4.', chapter: '후속사건',
   art: 'night', area: '감사절차 수행과 결과 보고', standards: ['KSA 560'],
   speaker: 'manager', cost: 7,
   line: '보고서 발행 직전인데 두 건이 터졌습니다. 성격이 다른 것 같은데요.',
   situation: '재무제표일은 20×6년 12월 31일, 감사보고서일 예정일은 20×7년 3월 12일이다. 다음 두 사건이 확인되었다.',
-  exhibits: [
-    { type: 'table', title: '보고기간 후 발생 사건',
+  exhibits: function (v, S) {
+    var b = S.co.sub;
+    return [{ type: 'table', title: '보고기간 후 발생 사건',
       head: ['구분', '내용', '금액'],
-      rows: [['ⓐ 20×7. 2. 18.', '주요 거래처 ㈜대양 회생절차 개시. 20×6년 하반기부터 어음 연체가 누적되고 있었음', '매출채권 27억원'],
-             ['ⓑ 20×7. 3. 2.', '제2공장 화재로 생산설비 소실. 화재 원인은 3월 1일 발생한 전기 결함', '설비 장부가액 34억원']] },
-    { type: 'kv', title: '참고', items: [['재무제표 전체 중요성', '12억원'], ['기존 대손충당금', '4억원']] }
-  ],
+      rows: [['ⓐ 20×7. 2. 18.', b.what, b.amount],
+             ['ⓑ 20×7. 3. 2.', '본사 전산실 화재로 서버 소실. 화재 원인은 3월 1일 발생한 전기 결함', '설비 장부가액 34억원']] },
+      { type: 'kv', title: '참고', items: [['재무제표 전체 중요성', S.co.mat + '억원'],
+                                           [b.prior, b.priorAmt]] }];
+  },
   prompt: '보고기간 후 발생한 두 사건의 성격과 처리',
   parts: function () {
     return [
-      { say: { staff: '㈜대양 건부터. 이건 어떤 사건이고 어떻게 처리해?',
-               senior: '㈜대양 건은 어떻게 처리할까요?',
-               partner: '㈜대양 회생 건입니다. 어떻게 처리할까요?' },
+      { say: function (v, S) {
+          var w = S.co.sub.who;
+          return { staff: w + ' 건부터. 이건 어떤 사건이고 어떻게 처리해?',
+                   senior: w + ' 건은 어떻게 처리할까요?',
+                   partner: w + ' 건입니다. 어떻게 처리할까요?' }[S.seat];
+        },
         ask: 'ⓐ의 성격과 처리', maxChars: 105, timeLimit: 95,
         rubric: {
           bonusCap: 6,
@@ -405,9 +417,9 @@ window.SCENES = (window.SCENES || []).concat([
         },
         model: 'ⓐ는 보고기간말 현재 존재하던 신용악화에 대한 추가 증거이므로 수정을 요하는 사건이며, 기존 충당금을 초과하는 23억원의 대손충당금을 추가 인식하도록 요구한다.' },
 
-      { say: { staff: '제2공장 화재는?',
+      { say: { staff: '전산실 화재는?',
                senior: '화재 건은요?',
-               partner: '제2공장 화재 건은 어떻게 할까요?' },
+               partner: '전산실 화재 건은 어떻게 할까요?' },
         ask: 'ⓑ의 성격과 처리', maxChars: 105, timeLimit: 95,
         rubric: {
           bonusCap: 6,
@@ -442,7 +454,7 @@ window.SCENES = (window.SCENES || []).concat([
 
 /* ── 9. 왜곡표시 평가 ★발견한 진실과 회사 태도에 따라 집계가 달라진다 ── */
 {
-  id: 's9', day: '20×7. 3. 8.', chapter: '왜곡표시의 평가',
+  id: 's9', ord: 90, day: '20×7. 3. 8.', chapter: '왜곡표시의 평가',
   art: 'meeting', area: '감사절차 수행과 결과 보고', standards: ['KSA 450', 'KSA 320'],
   speaker: 'cfo', cost: 8,
   line: '이 정도는 개별적으로 중요하지 않잖습니까. 수정 못 합니다.',
@@ -518,7 +530,7 @@ window.SCENES = (window.SCENES || []).concat([
 
 /* ── 10. 의견형성 ★정답 의견이 매 시즌 달라진다 ────────── */
 {
-  id: 's10', day: '20×7. 3. 12.', chapter: '의견형성',
+  id: 's10', ord: 100, day: '20×7. 3. 12.', chapter: '의견형성',
   art: 'report', area: '감사절차 수행과 결과 보고', standards: ['KSA 700', 'KSA 705', 'KSA 701'],
   speaker: { staff: 'manager', senior: 'partner', partner: 'manager' }, cost: 10,
   line: '자, 마지막이네.',

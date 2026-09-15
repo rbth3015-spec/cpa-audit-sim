@@ -164,6 +164,27 @@ main.as-shell{padding-top:clamp(26px,4vw,48px)}
   border-bottom:1px solid var(--as-line)}
 .as-rulelist b{font:800 13px/1.4 var(--as-font)}
 .as-rulelist span{font-size:14px;line-height:1.7;color:var(--as-dim)}
+/* 회사 선택 — 자리 선택과 같은 규칙(왼쪽 6px 선이 선택을 말한다)을 쓰되,
+   회사는 고르는 즉시 위 표지가 바뀌므로 카드에 업종·중요성 근거까지 적는다 */
+.as-cos{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-bottom:6px;
+  border-top:2px solid var(--as-line-strong)}
+.as-co{appearance:none;cursor:pointer;text-align:left;display:block;width:100%;height:100%;
+  background:transparent;color:var(--as-ink);border:0;border-bottom:1px solid var(--as-line);
+  border-top:6px solid transparent;border-right:1px solid var(--as-line);padding:14px 14px 16px}
+.as-cos .as-co:last-child{border-right:0}
+.as-co b{display:block;font:800 15px/1.3 var(--as-font)}
+.as-co u{display:block;text-decoration:none;font:600 10px/1.5 var(--as-mono);
+  letter-spacing:.1em;color:var(--as-dim);margin-top:4px}
+.as-co span{display:block;font-size:13px;line-height:1.65;color:var(--as-ink-2);margin-top:9px}
+.as-co em{display:block;font:600 11px/1.5 var(--as-mono);color:var(--as-dim);font-style:normal;
+  margin-top:8px;padding-top:8px;border-top:1px solid var(--as-line)}
+.as-co:hover{background:var(--as-panel-2)}
+.as-co[aria-pressed="true"]{border-top-color:var(--as-red);background:var(--as-panel-2)}
+@media (max-width:700px){
+  .as-cos{grid-template-columns:1fr}
+  .as-co{border-right:0;border-top-width:0;border-left:6px solid transparent;padding:14px 0 14px 12px}
+  .as-co[aria-pressed="true"]{border-left-color:var(--as-red)}
+}
 .as-seats{display:flex;flex-direction:column;gap:0;margin-bottom:6px}
 .as-seat{appearance:none;cursor:pointer;text-align:left;display:block;width:100%;
   background:transparent;color:var(--as-ink);border:0;border-bottom:1px solid var(--as-line);
@@ -681,8 +702,11 @@ main.as-shell{padding-top:clamp(26px,4vw,48px)}
 <div id="fx-wipe" class="as-wipe" aria-hidden="true" hidden></div>
 
 <script src="data/lexicon.js"></script>
+<script src="data/company.js"></script>
 <script src="data/scenes1.js"></script>
 <script src="data/scenes2.js"></script>
+<script src="data/scenes-bio.js"></script>
+<script src="data/scenes-it.js"></script>
 <script src="data/truth.js"></script>
 <script src="js/art.js"></script>
 <script src="js/engine.js"></script>

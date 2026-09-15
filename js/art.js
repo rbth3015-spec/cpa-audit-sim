@@ -186,6 +186,88 @@
       return wrap(s);
     },
 
+    // 실험실 — 개발비 자산화 (라온바이오)
+    /* 창고의 자리를 대신한다. 셀 물건이 없는 회사라 선반에는 시약이 선다. */
+    lab: function () {
+      var s = fade('var(--as-panel)', 'var(--as-panel-2)');
+      s += rect(0, 0, W, 46, 'var(--as-ink)', 0.06) + line(0, 46, W, 46, 'var(--as-line-strong)', 2);
+      [112, 344, 576].forEach(function (x) { s += rect(x, 14, 112, 8, 'var(--as-panel)', 0.95); });
+
+      // 시약장 — 선반마다 높이가 다른 병이 선다
+      s += rect(30, 74, 214, 176, 'var(--as-sunk)', 1);
+      [126, 178, 230].forEach(function (y, r) {
+        for (var i = 0; i < 9; i++) {
+          var h = 20 + ((i * 7 + r * 5) % 5) * 6;
+          s += rect(42 + i * 22, y - h, 13, h, 'var(--as-ink)', 0.18 + (i % 3) * 0.09) +
+            rect(45 + i * 22, y - h - 6, 7, 6, 'var(--as-ink)', 0.36);
+        }
+        s += line(30, y, 244, y, 'var(--as-line-strong)', 2);
+      });
+      s += frame(30, 74, 214, 176) + line(137, 74, 137, 250, 'var(--as-line)', 1);
+
+      // 벽면 — 파이프라인 진행 도표. 이 회사의 자산은 저 칸들 안에 있다
+      s += rect(286, 74, 224, 116, 'var(--as-sunk)', 1) + frame(286, 74, 224, 116);
+      [0, 1, 2, 3, 4].forEach(function (r) {
+        var y = 88 + r * 20, w = [166, 128, 74, 40, 26][r];
+        s += rect(300, y, w, 9, 'var(--as-ink)', 0.62 - r * 0.09) +
+          line(300, y + 13, 496, y + 13, 'var(--as-line)', 1);
+      });
+
+      // 후드 — 새시가 반쯤 내려와 있다
+      s += rect(556, 74, 214, 176, 'var(--as-sunk)', 1) +
+        rect(556, 74, 214, 42, 'var(--as-ink)', 0.18) + frame(556, 74, 214, 176) +
+        line(556, 116, 770, 116, 'var(--as-line-strong)', 2) + line(663, 116, 663, 250, 'var(--as-line)', 1);
+
+      // 벤치 — 플라스크 · 비커 · 시험관 거치대
+      s += line(0, 250, W, 250, 'var(--as-line-strong)', 2) + rect(0, 250, W, 100, 'var(--as-panel)', 0.94);
+      s += '<path d="M300 198 h20 v24 l28 28 h-76 l28 -28 z" fill="var(--as-ink)" opacity="0.34"/>' +
+        '<path d="M300 198 h20 v24 l28 28 h-76 l28 -28 z" fill="none" stroke="var(--as-line-strong)" stroke-width="2"/>';
+      s += rect(372, 204, 36, 46, 'var(--as-ink)', 0.16) + rect(372, 228, 36, 22, 'var(--as-ink)', 0.46) +
+        frame(372, 204, 36, 46);
+      s += rect(430, 236, 78, 14, 'var(--as-ink)', 0.66);
+      for (var t = 0; t < 5; t++) s += rect(436 + t * 14, 206, 8, 30, 'var(--as-ink)', 0.26);
+      s += papers(112, 250, 4);
+      s += figure(624, 250, 1.02, 'var(--as-ink)', 0.5);
+      return wrap(s);
+    },
+
+    // 서버실 — IT일반통제 (넥스트온)
+    /* 통로 끝에 문이 있고 문 옆에 카드 리더가 있다. 이 장면의 논점이 거기 있다. */
+    server: function () {
+      var s = fade('var(--as-panel-2)', 'var(--as-sunk)');
+      s += rect(0, 0, W, 40, 'var(--as-ink)', 0.08) + line(0, 40, W, 40, 'var(--as-line-strong)', 2);
+      [46, 300, 554].forEach(function (x) { s += rect(x, 12, 200, 6, 'var(--as-ink)', 0.22); });
+
+      // 통로 끝 — 출입문과 카드 리더
+      s += rect(318, 56, 150, 232, 'var(--as-sunk)', 1);
+      s += rect(352, 92, 72, 196, 'var(--as-ink)', 0.12) + frame(352, 92, 72, 196) +
+        line(352, 104, 424, 104, 'var(--as-line)', 1) + rect(414, 184, 7, 18, 'var(--as-ink)', 0.62);
+      s += rect(438, 150, 15, 24, 'var(--as-ink)', 0.52) + rect(441, 156, 9, 5, 'var(--as-panel)', 0.92);
+
+      // 랙 — 통로 양쪽으로 세 열씩
+      [12, 114, 216, 468, 570, 672].forEach(function (x, i) {
+        s += rect(x, 56, 102, 232, 'var(--as-panel)', 1);
+        for (var u = 0; u < 11; u++) {
+          var y = 66 + u * 20;
+          s += rect(x + 8, y, 86, 14, 'var(--as-ink)', 0.13 + ((u + i) % 3) * 0.07) +
+            line(x + 8, y + 14, x + 94, y + 14, 'var(--as-line)', 1);
+          if ((u * 3 + i * 5) % 4) s += rect(x + 84, y + 4, 6, 6, 'var(--as-ink)', 0.66);
+        }
+        s += frame(x, 56, 102, 232);
+      });
+
+      // 액세스 플로어 — 통로 끝으로 모인다
+      s += line(0, 288, W, 288, 'var(--as-line-strong)', 2) + rect(0, 288, W, 62, 'var(--as-panel)', 0.94);
+      for (var g = 0; g <= 8; g++) {
+        var fx = g * 100;
+        s += line(fx, 350, fx + (393 - fx) * 0.42, 288, 'var(--as-line)', 1);
+      }
+      s += line(0, 320, W, 320, 'var(--as-line)', 1);
+      // 통로 안쪽에 선 사람 — 아래쪽은 대사 띠에 가리므로 어깨선을 올려 잡는다
+      s += figure(393, 250, 1.02, 'var(--as-ink)', 0.8);
+      return wrap(s);
+    },
+
     // 책상 — 조서 작업 · 외부조회 · 회계추정치 · 기타정보
     desk: function () {
       var s = fade('var(--as-panel)', 'var(--as-panel-2)');
