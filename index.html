@@ -24,6 +24,11 @@
 :root{
   --as-font:"Archivo",Pretendard,"Pretendard Variable",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",system-ui,sans-serif;
   --as-mono:"SFMono-Regular",ui-monospace,Menlo,Consolas,"D2Coding","Malgun Gothic",monospace;
+  /* 서사 텍스트(대사·상황·문항·답안·모범답안·검토의견)는 명조로 읽는다.
+     구글 폰트를 부르지 않는다 — file:// 에서도 돌아야 하므로 시스템 명조로만 내려간다.
+     Mac: AppleMyungjo · Windows: 바탕 · Linux: 나눔명조 */
+  --as-serif:"Gowun Batang","Nanum Myeongjo",NanumMyeongjo,AppleMyungjo,"Apple Myungjo",
+    Batang,"바탕",Georgia,serif;
   --as-bg:#f3f2f2; --as-panel:#ffffff; --as-panel-2:#eae9e9; --as-sunk:#e2e0df;
   --as-ink:#201e1d; --as-ink-2:#444141; --as-dim:#7d7979;
   --as-line:#d7d3d3; --as-line-strong:#201e1d; --as-rule:#bab6b6;
@@ -78,6 +83,7 @@ table{border-collapse:collapse;width:100%}
 @keyframes as-tick{0%,100%{opacity:.35}50%{opacity:1}}
 @keyframes as-scan{from{transform:translateY(-100%)}to{transform:translateY(900%)}}
 @keyframes as-slide{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
+@keyframes as-pen{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{
     animation-duration:.001ms!important;animation-delay:0ms!important;
@@ -105,7 +111,7 @@ main.as-shell{padding-top:clamp(26px,4vw,48px)}
 .as-sec{font:700 11px/1 var(--as-font);letter-spacing:.18em;color:var(--as-dim)}
 .as-sec--rule{padding-bottom:10px;border-bottom:2px solid var(--as-rule)}
 .as-k{font:600 10px/1 var(--as-mono);letter-spacing:.16em;color:var(--as-dim)}
-.as-p{margin:0 0 10px;font-size:15px;line-height:1.85;color:var(--as-ink-2);text-wrap:pretty}
+.as-p{margin:0 0 12px;font:400 15.5px/1.95 var(--as-serif);color:var(--as-ink-2);text-wrap:pretty}
 .as-p:last-child{margin-bottom:0}
 .as-tag{font:700 10px/1 var(--as-mono);letter-spacing:.16em;padding:8px 12px;
   background:var(--as-ink);color:var(--as-bg)}
@@ -273,8 +279,28 @@ main.as-shell{padding-top:clamp(26px,4vw,48px)}
 .as-dialog__who{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;margin-bottom:7px}
 .as-dialog__name{font:800 15px/1 var(--as-font)}
 .as-dialog__role{font:600 11px/1 var(--as-mono);letter-spacing:.1em;color:var(--as-dim)}
-.as-dialog__line{margin:0;font-size:clamp(15px,1.7vw,17px);line-height:1.7;
+.as-dialog__line{margin:0;font:400 clamp(15.5px,1.8vw,17.5px)/1.78 var(--as-serif);
   color:var(--as-ink);text-wrap:pretty}
+
+/* 조서 머리 — HUD 가 말하지 않는 것(누가 쓰고 누가 검토하는가, 조서 색인)을 적는다 */
+.as-wp{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;
+  gap:10px 20px;padding:13px clamp(14px,2vw,22px) 12px;
+  border-bottom:1px solid var(--as-line);background:var(--as-panel-2)}
+.as-wp__co{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 12px;margin-top:9px}
+.as-wp__co b{font:800 clamp(16px,2vw,19px)/1 var(--as-font);letter-spacing:-.02em}
+.as-wp__co span{font:400 13.5px/1.3 var(--as-serif);color:var(--as-dim)}
+.as-wp__meta{display:flex;flex-wrap:wrap;gap:0;margin:0}
+.as-wp__meta div{padding:0 13px;border-left:1px solid var(--as-line)}
+.as-wp__meta div:first-child{border-left:0;padding-left:0}
+.as-wp__meta dt{margin-bottom:7px}
+.as-wp__meta dd{margin:0;font:700 13px/1 var(--as-font);white-space:nowrap}
+.as-wp__meta dd.as-wp__rev{font:400 13px/1 var(--as-serif);color:var(--as-dim)}
+.as-wp__meta dd.as-wp__idx{font:600 13px/1 var(--as-mono);letter-spacing:.06em}
+@media (max-width:640px){
+  .as-wp{grid-template-columns:1fr}
+  .as-wp__meta div:first-child{padding-left:0}
+  .as-wp__meta div:nth-child(n+2){padding-left:13px}
+}
 
 .as-note{display:flex;gap:12px;align-items:flex-start;padding:13px clamp(14px,2vw,22px);
   border-bottom:2px solid var(--as-line-strong);border-left:6px solid var(--as-warn);
@@ -310,9 +336,60 @@ main.as-shell{padding-top:clamp(26px,4vw,48px)}
 .as-table td{font-size:13px;padding:11px 0}
 .as-table td+td{font:600 13px/1 var(--as-mono);white-space:nowrap}
 .as-table tbody tr:last-child td{font-weight:700}
+/* 회계 관행: 합계 행 아래는 이중선으로 닫는다 */
+.as-table tr.as-table__sum td,.as-table tr.as-table__sum th{
+  border-bottom:3px double var(--as-line-strong);font-weight:700}
+.as-table tr.as-table__sum th{border-top:1px solid var(--as-line-strong)}
+/* 감사 틱마크 — 마지막 열. 정상은 먹, 문제는 붉은 글자 */
+.as-tick{font:600 13px/1 var(--as-mono);letter-spacing:.04em;white-space:nowrap}
+.as-tick--bad{color:var(--as-red-2)}
+/* 음수는 괄호로 적는다 */
+.as-neg{color:var(--as-red-2)}
+/* 시스템 화면 자료 — 사진을 쓰지 않는다. 감사인이 실제로 들여다보는 화면을
+   타이포와 격자로 세운다. 읽는 자료이지 누르는 물건이 아니다. */
+.as-screen{position:relative;background:#191615;overflow:hidden;
+  border:1px solid var(--as-line-strong);padding:clamp(12px,1.6vw,18px);
+  display:flex;flex-direction:column;min-height:196px}
+.as-screen::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background:repeating-linear-gradient(to bottom,
+    rgba(255,255,255,.045) 0 1px,transparent 1px 3px)}
+.as-screen__bar{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;
+  padding-bottom:10px;border-bottom:1px solid rgba(243,242,242,.22)}
+.as-screen__sys{font:600 10px/1.4 var(--as-mono);letter-spacing:.2em;color:#f3f2f2}
+.as-screen__sub{font:400 11px/1.4 var(--as-mono);color:rgba(243,242,242,.62)}
+.as-screen__t{margin-left:auto;display:flex;align-items:center;gap:7px;
+  font:500 11px/1 var(--as-mono);font-variant-numeric:tabular-nums;color:rgba(243,242,242,.72)}
+.as-screen__t i{width:7px;height:7px;border-radius:50%;background:var(--as-red);
+  animation:as-blink 1.6s steps(2) infinite}
+.as-screen__grid{display:grid;gap:8px;margin-top:12px;flex:1 1 auto}
+.as-screen--row .as-screen__grid{gap:6px}
+.as-screen__c{display:flex;align-items:flex-end;padding:7px 8px;min-height:26px;min-width:0;
+  font:500 10px/1.45 var(--as-mono);letter-spacing:.06em;white-space:pre-line}
+.as-screen--row .as-screen__c{align-items:center;padding:9px 12px;
+  font:400 11.5px/1.6 var(--as-mono);letter-spacing:.02em;white-space:normal}
+.as-screen__c--fill{background:rgba(243,242,242,.8);color:#191615;border:1px solid rgba(243,242,242,.8)}
+.as-screen__c--dim{background:rgba(243,242,242,.08);color:rgba(243,242,242,.6);
+  border:1px solid rgba(243,242,242,.18)}
+/* 비어 있는 칸 — 이 장면에서 눈이 가야 하는 자리다 */
+.as-screen__c--empty{background:transparent;color:rgba(246,233,207,.92);
+  border:1.5px dashed rgba(246,233,207,.5)}
+.as-screen__cap{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;
+  padding:9px 12px;background:var(--as-panel-2);border:1px solid var(--as-line);border-top:0}
+.as-screen__cap span{font:400 12.5px/1.5 var(--as-serif);color:var(--as-ink-2);flex:1 1 220px}
+.as-screen__cap em{margin-left:auto;font:500 10px/1.5 var(--as-mono);letter-spacing:.1em;
+  color:var(--as-dim);font-style:normal;white-space:nowrap}
+/* 좁은 화면 — 열을 접지 않는다. 격자의 자리 자체가 정보다(D열이 어디인지) */
+@media (max-width:560px){
+  .as-screen{padding:10px;min-height:0}
+  .as-screen__grid{gap:5px;margin-top:10px}
+  .as-screen__c{font-size:9px;letter-spacing:.01em;padding:5px 4px;min-height:22px}
+  .as-screen--row .as-screen__c{font-size:10.5px;padding:7px 9px}
+  .as-screen__sys,.as-screen__sub,.as-screen__t{font-size:9.5px}
+}
+
 .as-memo{border:1px solid var(--as-line);background:var(--as-panel);padding:14px 16px}
 .as-memo__from{font:600 11px/1 var(--as-mono);letter-spacing:.06em;color:var(--as-dim);margin-bottom:9px}
-.as-memo p{margin:0;font-size:13.5px;line-height:1.75;color:var(--as-ink-2);text-wrap:pretty}
+.as-memo p{margin:0;font:400 14px/1.8 var(--as-serif);color:var(--as-ink-2);text-wrap:pretty}
 
 /* 문항 + 답안 */
 .as-task{padding:clamp(20px,2.6vw,32px) clamp(18px,2.4vw,26px);
@@ -330,14 +407,14 @@ main.as-shell{padding-top:clamp(26px,4vw,48px)}
 .as-ask__body b{font:800 13px/1 var(--as-font)}
 .as-ask__body em{font:600 10px/1 var(--as-mono);letter-spacing:.12em;color:var(--as-dim);
   font-style:normal;margin-left:8px}
-.as-ask__body span{display:block;margin-top:8px;font-size:15px;line-height:1.7;
+.as-ask__body span{display:block;margin-top:8px;font:400 15.5px/1.75 var(--as-serif);
   color:var(--as-ink);text-wrap:pretty}
 .as-task__head{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;margin-bottom:12px}
 .as-task__no{font:800 11px/1 var(--as-font);letter-spacing:.2em;color:var(--as-red)}
 .as-task__meta{font:600 10px/1 var(--as-mono);letter-spacing:.12em;color:var(--as-dim)}
 .as-task__n{margin-left:auto;font:600 10px/1 var(--as-mono);letter-spacing:.12em;color:var(--as-dim)}
-.as-task__q{margin:0 0 20px;font:700 clamp(17px,2.1vw,21px)/1.65 var(--as-font);
-  letter-spacing:-.01em;text-wrap:pretty}
+.as-task__q{margin:0 0 20px;max-width:62ch;
+  font:700 clamp(17.5px,2.2vw,22px)/1.68 var(--as-serif);text-wrap:pretty}
 .as-warnbar{display:flex;gap:12px;align-items:flex-start;border:2px solid var(--as-red);
   background:var(--as-red-soft);padding:13px 15px;margin-bottom:22px}
 .as-warnbar i{flex:0 0 auto;width:18px;height:18px;background:var(--as-red);margin-top:2px}
@@ -356,8 +433,11 @@ main.as-shell{padding-top:clamp(26px,4vw,48px)}
 .as-answer__bar i.warn{background:var(--as-warn)}
 .as-answer__bar i.over{background:var(--as-red)}
 .as-answer__input{display:block;width:100%;border:0;outline:0;resize:vertical;
-  background:transparent;color:var(--as-ink);font-family:var(--as-font);font-size:16px;
-  line-height:1.95;padding:16px 18px;min-height:124px}
+  background:var(--as-panel);color:var(--as-ink);font:400 16px/32px var(--as-serif);
+  padding:0 18px 12px;min-height:128px;
+  background-image:repeating-linear-gradient(to bottom,
+    transparent 0 31px,var(--as-line) 31px 32px);
+  background-attachment:local}
 .as-answer__input::placeholder{color:var(--as-dim)}
 .as-answer__input:disabled{opacity:.78}
 .as-answer__foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:11px 14px;
@@ -418,9 +498,20 @@ main.as-shell{padding-top:clamp(26px,4vw,48px)}
 .as-judge p{margin:7px 0 0;font-size:13px;line-height:1.65;color:var(--as-dim)}
 .as-judge--bad{border-color:var(--as-red);background:var(--as-red-soft)}
 .as-judge--bad .as-k,.as-judge--bad b,.as-judge--bad p{color:var(--as-red)}
-.as-react{border-left:6px solid var(--as-ink);background:var(--as-panel);padding:12px 14px}
-.as-react b{font:800 12px/1 var(--as-font)}
-.as-react span{display:block;margin-top:7px;font-size:14px;line-height:1.7;color:var(--as-ink-2);text-wrap:pretty}
+/* 검토 의견 — 상급자가 조서에 붉은 펜으로 적은 것처럼. 좌→우로 써 내려간다 */
+.as-react{display:grid;grid-template-columns:auto minmax(0,1fr);
+  border:1px solid var(--as-line-strong);background:var(--as-panel-2)}
+.as-react__k{padding:12px 13px;border-right:1px solid var(--as-line);
+  writing-mode:horizontal-tb;white-space:nowrap}
+.as-react__b{padding:12px 15px 13px;min-width:0}
+.as-react b{font:800 12.5px/1 var(--as-font)}
+.as-react em{font:400 11.5px/1 var(--as-serif);color:var(--as-dim);font-style:normal;margin-left:8px}
+.as-react span{display:block;margin-top:8px;font:400 clamp(14.5px,1.7vw,16px)/1.85 var(--as-serif);
+  color:var(--as-red-2);text-wrap:pretty;animation:as-pen .7s both}
+@media (max-width:520px){
+  .as-react{grid-template-columns:1fr}
+  .as-react__k{border-right:0;border-bottom:1px solid var(--as-line);padding-bottom:10px}
+}
 .as-flags{display:flex;flex-direction:column;gap:8px}
 .as-flag{display:flex;gap:10px;align-items:center;padding:10px 12px;
   border-left:6px solid var(--as-warn);background:var(--as-warn-soft);animation:as-rise .45s both}
@@ -479,7 +570,7 @@ main.as-shell{padding-top:clamp(26px,4vw,48px)}
   letter-spacing:.1em;padding:4px 7px;margin-left:8px;vertical-align:middle}
 .as-why[aria-expanded="true"]{background:var(--as-ink);color:var(--as-bg)}
 .as-whybox{margin-top:9px;border-left:2px solid var(--as-red);padding:2px 0 2px 14px;
-  font-size:13.5px;line-height:1.8;color:var(--as-ink-2);text-wrap:pretty}
+  font:400 14px/1.85 var(--as-serif);color:var(--as-ink-2);text-wrap:pretty}
 .as-crit{margin-top:16px;padding-top:14px;border-top:1px solid var(--as-line);
   font:600 11.5px/1.7 var(--as-mono);color:var(--as-dim);text-wrap:pretty}
 
@@ -492,7 +583,7 @@ main.as-shell{padding-top:clamp(26px,4vw,48px)}
 .as-model__body{padding:0 clamp(18px,2.4vw,26px) 22px}
 .as-model--flat{margin-top:36px}
 .as-model--flat summary,.as-model--flat .as-model__body{padding-left:0;padding-right:0}
-.as-model__p{margin:0 0 14px;font-size:15px;line-height:1.95;color:var(--as-ink-2);
+.as-model__p{margin:0 0 14px;font:400 15.5px/1.95 var(--as-serif);color:var(--as-ink-2);
   border-left:2px solid var(--as-red);padding-left:16px;text-wrap:pretty}
 .as-model__p b{display:block;font:800 11px/1 var(--as-mono);letter-spacing:.14em;
   color:var(--as-red);margin-bottom:7px}

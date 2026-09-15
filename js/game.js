@@ -144,6 +144,49 @@
       }).join('') + '</dl>';
   }
 
+  /* 회계 관행 — 조서의 표는 일반 표와 다르게 읽힌다.
+       합계 행     아래를 이중선으로 닫는다
+       음수        빼기표가 아니라 괄호로 적는다
+       감사 틱마크  마지막 열. 「✓」 는 끝난 것, 나머지는 끝나지 않은 것이라 붉다 */
+  var SUM_ROW = /^(계|합계|소계|총계|누계)$/;
+  var TICK_OK = /^(✓|○|확인|완료|일치|적절)$/;
+  var TICK_BAD = /^(미실사|미인도|미확인|미회수|반품|거부|불일치|미흡|결함|해당|미제출|불응)$/;
+
+  function cellHtml(c, last) {
+    var t = String(c == null ? '' : c).trim();
+    if (last && (TICK_OK.test(t) || TICK_BAD.test(t))) {
+      return '<span class="as-tick' + (TICK_BAD.test(t) ? ' as-tick--bad' : '') + '">' + esc(t) + '</span>';
+    }
+    var neg = /^[-−▲△]\s?([\d,][\d,.]*)$/.exec(t);
+    if (neg) return '<span class="as-neg">(' + esc(neg[1]) + ')</span>';
+    return esc(t);
+  }
+
+  /* 조서 머리 — HUD 가 말하지 않는 것을 적는다.
+     누가 쓰고 누가 검토하는가, 그리고 이 종이의 조서 색인번호. */
+  function wpHead(sc, it) {
+    var me = seatOf(), rev = window.CAST[S.seat === 'partner' ? 'manager' : 'partner'] || {};
+    var idx = 'C-' + (Math.floor((sc.ord || 10) / 10)) + '-' + (S.seed % 9 + 1);
+    return '<div class="as-wp">' +
+      '<div><span class="as-k">감사조서 · WORKING PAPER</span>' +
+      '<div class="as-wp__co"><b>' + esc(S.co.name) + '</b>' +
+      '<span>' + esc(it.prompt) + '</span></div></div>' +
+      '<dl class="as-wp__meta">' +
+      '<div><dt class="as-k">작성</dt><dd>' + esc(me.name) + '</dd></div>' +
+      '<div><dt class="as-k">검토</dt><dd class="as-wp__rev">' + esc(rev.name || '—') + '</dd></div>' +
+      '<div><dt class="as-k">색인</dt><dd class="as-wp__idx">' + idx + '</dd></div>' +
+      '</dl></div>';
+  }
+
+  /* 검토 의견 — 상급자가 붉은 펜으로 조서에 적은 것처럼 */
+  function react(who, text) {
+    var c = window.CAST[who] || window.CAST.manager;
+    return '<div class="as-react">' +
+      '<div class="as-react__k"><span class="as-k">검토<br>의견</span></div>' +
+      '<div class="as-react__b"><b>' + esc(c.name) + '</b><em>' + esc(c.role) + '</em>' +
+      '<span>' + esc(text) + '</span></div></div>';
+  }
+
   function docCell(x, no) {
     var head = '<div class="as-doc__head"><span class="as-doc__no">자료 ' + no + '</span>' +
       '<span class="as-doc__t">' + esc(x.title) + '</span></div>';
@@ -151,8 +194,30 @@
       return '<div class="as-doc">' + head + '<div class="as-scroll"><table class="as-table"><thead><tr>' +
         x.head.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' +
         x.rows.map(function (r) {
-          return '<tr>' + r.map(function (c) { return '<td>' + esc(c) + '</td>'; }).join('') + '</tr>';
+          var sum = SUM_ROW.test(String(r[0]).trim());
+          return '<tr' + (sum ? ' class="as-table__sum"' : '') + '>' + r.map(function (c, k) {
+            return '<td>' + cellHtml(c, k === r.length - 1) + '</td>';
+          }).join('') + '</tr>';
         }).join('') + '</tbody></table></div></div>';
+    }
+    /* 시스템 화면 — 사진 대신. 셀 톤 세 가지로 「있다 / 흐리다 / 비었다」를 말한다 */
+    if (x.type === 'screen') {
+      var row = x.mode === 'row';
+      return '<div class="as-doc">' + head +
+        '<div class="as-screen' + (row ? ' as-screen--row' : '') + '">' +
+        '<div class="as-screen__bar"><span class="as-screen__sys">' + esc(x.sys) + '</span>' +
+        (x.sub ? '<span class="as-screen__sub">' + esc(x.sub) + '</span>' : '') +
+        '<span class="as-screen__t"><i></i>' + esc(x.time || '') + '</span></div>' +
+        '<div class="as-screen__grid" style="grid-template-columns:repeat(' + (row ? 1 : (x.cols || 4)) +
+        ',minmax(0,1fr));grid-template-rows:repeat(' + (x.rows || 1) + ',minmax(0,1fr))">' +
+        (x.cells || []).map(function (c) {
+          return '<div class="as-screen__c as-screen__c--' + (c[1] || 'dim') + '"' +
+            (row ? '' : ' style="grid-column:' + c[2] + ';grid-row:' + c[3] + '"') +
+            '>' + esc(c[0]) + '</div>';
+        }).join('') + '</div></div>' +
+        (x.note ? '<div class="as-screen__cap"><span>' + esc(x.note) + '</span>' +
+          (x.ref ? '<em>' + esc(x.ref) + '</em>' : '') + '</div>' : '') +
+        '</div>';
     }
     if (x.type === 'kv') {
       return '<div class="as-doc">' + head + '<dl class="as-figs">' +
@@ -312,6 +377,7 @@
     $('#play-body').innerHTML =
       '<div class="as-frame">' +
       '<div class="as-hud" id="hud"></div>' +
+      wpHead(sc, it) +
 
       '<div class="as-stage"><div class="as-stage__box">' +
       '<div class="as-art">' + window.ART.scene(sc.art) + '</div>' +
@@ -529,8 +595,7 @@
             ? '판단이 정확하므로 근거 서술 전체가 채점 대상에 포함되었습니다.'
             : '판단이 틀려 근거 서술은 채점되지 않았습니다.') + '</p></div>'
         : '') +
-      '<div class="as-react"><b>' + esc((window.CAST[part.who] || {}).name || '') + '</b>' +
-      '<span>“' + esc(reactionFor(part, g)) + '”</span></div>' +
+      react(part.who, reactionFor(part, g)) +
       (g.flags.length ? '<div class="as-flags">' + g.flags.map(function (f, k) {
         return '<div class="as-flag' + (/차감|초과/.test(f) ? ' as-flag--red' : '') +
           '" style="animation-delay:' + (0.26 + k * 0.06).toFixed(2) + 's">' +
