@@ -366,7 +366,29 @@
 
   /* meet(slice 가 아니라) — 좁은 화면에서 초상 칸이 가로로 늘어나도
      얼굴이 확대되지 않고 칸 안에 들어간다. 남는 자리는 칸 배경색이 받는다. */
+  /* ---------- 사진 대장 ----------
+     파일이 실제로 들어온 자리만 여기에 적는다. 적히지 않은 자리는 SVG 가 그린다.
+     한 장만 들어와도 앱은 그대로 돈다 — 그래서 SVG 를 지우지 않는다.
+     경로는 index.html 기준 상대경로 (file:// 에서도 열려야 한다). */
+  var PHOTO = {
+    face: {
+      // partner: 'assets/art/face-partner.jpg',
+      // manager: 'assets/art/face-manager.jpg',
+      // staff:   'assets/art/face-staff.jpg',
+      // cfo:     'assets/art/face-cfo.jpg'
+    },
+    scene: {
+      // warehouse: 'assets/art/warehouse.jpg',
+      // ...
+    }
+  };
+  function plate(src, cls) {
+    return '<img src="' + src + '" alt="" loading="lazy" decoding="async"' +
+      (cls ? ' class="' + cls + '"' : '') + '>';
+  }
+
   function avatar(kind) {
+    if (PHOTO.face[kind]) return plate(PHOTO.face[kind]);
     var f = FACES[kind] || FACES.staff;
     return '<svg viewBox="0 0 136 136" preserveAspectRatio="xMidYMid meet" ' +
       'role="img" aria-hidden="true" focusable="false">' +
@@ -392,7 +414,7 @@
   }
 
   global.ART = {
-    scene: function (k) { return (SCENES[k] || SCENES.desk)(); },
+    scene: function (k) { return PHOTO.scene[k] ? plate(PHOTO.scene[k]) : (SCENES[k] || SCENES.desk)(); },
     avatar: avatar,
     timer: timer,
     has: function (k) { return !!SCENES[k]; }
