@@ -1,0 +1,72 @@
+/* ============================================================
+   감사 대상 (seasons.js)
+   ------------------------------------------------------------
+   회사마다 한 시즌. 회사 · 장면 · 진실 · 이야기 · 회사 쪽 인물이 한 묶음이다.
+   돌발 업무(cases.js)와 암기 카드(deck.js)는 회사와 상관없이 공통으로 쓴다.
+
+   이 파일은 데이터 파일이 다 읽힌 뒤에 불린다.
+     SEASONS.list()        고를 수 있는 회사들
+     SEASONS.use(id)       그 회사로 바꾼다 (window.COMPANY · SCENES · TRUTH · STORYDATA 교체)
+     SEASONS.current()     지금 회사
+
+   새 회사를 넣는 법
+     data/<회사>.js 에서 window.SEASON_<회사> = { COMPANY, SCENES, TRUTH, STORY, CAST } 로 담고
+     index.html 에 <script> 한 줄, 아래 BOOK 에 한 줄 추가한다.
+   ============================================================ */
+(function (global) {
+  'use strict';
+
+  // 첫 회사(㈜서린정밀)는 scenes1·2 · truth · story 가 전역에 올려 둔 것을 그대로 쓴다
+  var SEORIN = {
+    COMPANY: global.COMPANY, SCENES: global.SCENES, TRUTH: global.TRUTH, STORY: global.STORYDATA,
+    CAST: null, CAST_ORDER: (global.CAST_ORDER || {}).client
+  };
+
+  var BOOK = [
+    { id: 'seorin', name: '㈜서린정밀', market: '코스닥', industry: '이차전지 장비 제조',
+      tag: '부정 · 특수관계자', art: 'office', data: SEORIN,
+      brief: '4분기 매출이 두 배로 뛰었다. 대표이사의 배우자 회사가 거래처에 있다.' }
+  ];
+  if (global.SEASON_RAON) {
+    BOOK.push({ id: 'raon', name: '㈜라온바이오', market: '코스닥', industry: '신약 개발 · 임상 3상',
+      tag: '초도감사 · 계속기업', art: 'lab', data: global.SEASON_RAON,
+      brief: '증권선물위원회가 지정한 감사인으로 처음 들어간다. 자금이 6개월치 남았다.' });
+  }
+  if (global.SEASON_GUREUM) {
+    BOOK.push({ id: 'gureum', name: '㈜구름결', market: '코스닥', industry: 'SaaS 구독 · SI',
+      tag: 'IT 통제 · 데이터', art: 'server', data: global.SEASON_GUREUM,
+      brief: '거래 340만 건을 시스템이 인식한다. 운영 DB 권한이 개발팀에 열려 있다.' });
+  }
+
+  var cur = BOOK[0];
+
+  function list() { return BOOK.slice(); }
+  function current() { return cur; }
+  function find(id) {
+    for (var i = 0; i < BOOK.length; i++) if (BOOK[i].id === id) return BOOK[i];
+    return BOOK[0];
+  }
+
+  function use(id) {
+    var b = find(id);
+    cur = b;
+    global.COMPANY = b.data.COMPANY;
+    global.SCENES = b.data.SCENES;
+    global.TRUTH = b.data.TRUTH;
+    global.STORYDATA = b.data.STORY;
+    // 회사 쪽 인물 — 공통 인물(법인 · 외부)에 이어 붙인다
+    if (b.data.CAST) Object.keys(b.data.CAST).forEach(function (k) { global.CAST[k] = b.data.CAST[k]; });
+    if (b.data.CAST_ORDER) global.CAST_ORDER.client = b.data.CAST_ORDER;
+    if (global.SEASON && global.SEASON.resetCards) global.SEASON.resetCards();
+    return b;
+  }
+
+  /* 모든 회사를 한 번씩 훑는다 (개념 카드 도감 · 연습 모드 문제은행) */
+  function each(fn) {
+    var keep = cur.id;
+    BOOK.forEach(function (b) { use(b.id); fn(b); });
+    use(keep);
+  }
+
+  global.SEASONS = { list: list, current: current, use: use, find: find, each: each };
+})(window);
