@@ -19,7 +19,7 @@
 .brand .kick { font: 600 13px/1 var(--mono); letter-spacing: .1em; color: #ff9b88; }
 .brand h1 { margin: 16px 0 0; font: 800 clamp(64px, 8.6vw, 132px)/.92 var(--display); letter-spacing: -.045em; }
 .brand h1 em { font-style: normal; color: var(--red); display: block; }
-.brand p { margin: 20px 0 0; font: 400 21px/1.5 var(--serif); color: rgba(243, 242, 242, .86); max-width: 520px; }
+.brand p { margin: 20px 0 0; font: 400 21px/1.5 var(--serif); color: rgba(243, 242, 242, .86); max-width: 520px; word-break: keep-all; }
 .menu { display: grid; gap: 8px; margin-top: 34px; max-width: 540px; }
 .menu .m {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px;
