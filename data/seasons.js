@@ -32,6 +32,11 @@
       tag: '초도감사 · 계속기업', art: 'lab', data: global.SEASON_RAON,
       brief: '증권선물위원회가 지정한 감사인으로 처음 들어간다. 자금이 6개월치 남았다.' });
   }
+  if (global.SEASON_GUREUM) {
+    BOOK.push({ id: 'gureum', name: '㈜구름결', market: '코스닥', industry: 'SaaS 구독 · SI',
+      tag: 'IT 통제 · 데이터', art: 'server', data: global.SEASON_GUREUM,
+      brief: '거래 340만 건을 시스템이 인식한다. 운영 DB 권한이 개발팀에 열려 있다.' });
+  }
 
   var cur = BOOK[0];
 

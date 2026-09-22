@@ -38,7 +38,7 @@
   }
 
   function roomName(room, place) {
-    if (room === 'team') return '서린정밀 감사팀';
+    if (room === 'team') return String((global.COMPANY || {}).name || '').replace('㈜', '') + ' 감사팀';
     if (room === 'talk') return place || '대면';
     if (/^dm:/.test(room)) { var c = C(room.slice(3)); return c ? c.name : room; }
     return room;
@@ -158,8 +158,9 @@
     init(S);
     var sc = it.sc, ev = [];
     if (it.v && it.v.id && it.v.id !== '-') S.story.vars[sc.id] = it.v.id;
-    if (!/^s\d+$/.test(sc.id)) return ev;      // 돌발 업무는 관계에 영향 없음
-    function add(k, n) { if (!n) return; var e = bump(S, k, n); if (e.event) ev.push(e.event); }
+    // 돌발 업무는 관계에 영향 없음 — 지금 회사의 장면만, 그 회사 이야기에 있는 사람만
+    if (!(global.SCENES || []).some(function (x) { return x.id === sc.id; })) return ev;
+    function add(k, n) { if (!n || D().BONDS[k] == null) return; var e = bump(S, k, n); if (e.event) ev.push(e.event); }
     var found = (o.events || []).filter(function (e) { return e.kind === 'found'; }).length;
     add('sua', found * 8 - (o.please || 0) * 6 + Math.min(4, (o.confront || 0) * 2));
     var gov = (o.newHits || []).filter(function (l) { return l.indexOf('지배기구') >= 0; }).length;

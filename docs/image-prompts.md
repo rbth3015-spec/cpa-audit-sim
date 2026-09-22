@@ -67,6 +67,34 @@ Black and white documentary portrait photograph of a Korean woman in her early 6
 Black and white documentary portrait photograph of a Korean man in his mid-40s, senior investigator at the financial supervisory authority. Neat short hair, plain dark suit, government ID badge on a lanyard, no expression at all. Looking straight into the lens. Square 1:1 composition, head and shoulders, face centered, eye line about 38% from the top. Background: blurred government office corridor with grey filing cabinets, flat institutional lighting. Shot on 35mm film, fine grain, high contrast, shallow depth of field. No text, no logos, no watermark.
 ```
 
+## 1-2. ㈜구름결 인물 — 4명
+
+SaaS · SI 회사. 사무실은 밝고 캐주얼하다 — 정장보다 니트 · 후드 · 사원증.
+
+### 강민서 · 재무이사 (44) — `character/gcfo.png`
+
+```
+Black and white documentary portrait photograph of a Korean woman in her mid-40s, CFO of a listed software company. Sleek shoulder-length hair, minimal makeup, fitted dark blazer over a plain knit top, a thin smartwatch. Smooth, polite, practiced smile that stays on the surface, looking straight into the lens. Square 1:1 composition, head and shoulders, face centered, eye line about 38% from the top. Background: blurred bright open-plan tech office with glass meeting rooms. Shot on 35mm film, natural light, fine grain, high contrast, shallow depth of field. No text, no logos, no watermark.
+```
+
+### 도재윤 · 대표이사 · 창업자 (49) — `character/gceo.png`
+
+```
+Black and white documentary portrait photograph of a Korean man in his late 40s, founder and CEO of a software company who used to write the code himself. Short messy hair with grey at the temples, short stubble, black turtleneck under an unstructured jacket, reading glasses pushed up on the head. Relaxed, slightly amused expression, looking straight into the lens. Square 1:1 composition, head and shoulders, face centered, eye line about 38% from the top. Background: blurred loft office with a whiteboard full of system diagrams. Shot on 35mm film, natural light, fine grain, high contrast, shallow depth of field. No text, no logos, no watermark.
+```
+
+### 서태오 · IT운영팀장 (39) — `character/itops.png`
+
+```
+Black and white documentary portrait photograph of a Korean man in his late 30s, head of IT operations at a software company. Short practical haircut, dark fleece vest over a checked shirt, an employee ID badge on a lanyard, tired eyes after a night shift. Guarded, defensive expression, arms not visible, looking straight into the lens. Square 1:1 composition, head and shoulders, face centered, eye line about 38% from the top. Background: blurred server room aisle with rows of rack lights. Shot on 35mm film, natural light, fine grain, high contrast, shallow depth of field. No text, no logos, no watermark.
+```
+
+### 문경호 · SI본부장 (51) — `character/sipm.png`
+
+```
+Black and white documentary portrait photograph of a Korean man in his early 50s, head of the system integration division at a software company, a salesman at heart. Neatly combed hair, suit without a tie, top button open, a phone in the breast pocket. Big confident smile, eyebrows raised as if closing a deal, looking straight into the lens. Square 1:1 composition, head and shoulders, face centered, eye line about 38% from the top. Background: blurred meeting room with a project schedule chart on the wall. Shot on 35mm film, natural light, fine grain, high contrast, shallow depth of field. No text, no logos, no watermark.
+```
+
 ---
 
 ## 2. 표정 — 9장 (선택)

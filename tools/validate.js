@@ -13,10 +13,11 @@ const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 const ctx = { console, Math, JSON, Date }; ctx.window = ctx; vm.createContext(ctx);
 for (const f of ['data/lexicon.js', 'data/cast.js', 'data/scenes1.js', 'data/scenes2.js', 'data/truth.js', 'data/cases.js',
-                 'data/minis.js', 'data/story.js', 'data/deck.js', 'data/raon.js', 'js/engine.js', 'js/minis.js',
+                 'data/minis.js', 'data/story.js', 'data/deck.js', 'data/raon.js', 'data/gureum.js',
+                 'js/engine.js', 'js/minis.js',
                  'js/story.js', 'js/season.js', 'data/seasons.js'])
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
-ctx.SEASONS.use(process.env.SEASON || 'seorin');     // SEASON=raon node tools/validate.js
+ctx.SEASONS.use(process.env.SEASON || 'seorin');     // SEASON=raon · SEASON=gureum node tools/validate.js
 const { AE, EPILOGUE, SEASON, CAST, CASES, MINIS, STORY, DECK } = ctx;
 const { SCENES, TRUTH, STORYDATA, COMPANY } = ctx;
 console.log(`■ 감사 대상 — ${COMPANY.name} (${ctx.SEASONS.current().id})`);
