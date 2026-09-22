@@ -1,15 +1,76 @@
 /* ============================================================
    장면 아트 (art.js)
    ------------------------------------------------------------
-   외부 이미지 파일을 쓰지 않는다. 전부 인라인 SVG.
-     · 오프라인·단일 폴더로 돌아간다
-     · 다크모드에서 자동으로 색이 바뀐다 (CSS 변수 사용)
-     · 장면 데이터의 숫자·상태에 따라 그림이 바뀔 수 있다
+   장면 배너 · 인물 아바타 · 홈 타이틀은 assets/ 의 사진과 영상을 쓴다.
+   그 파일들은 tools/images.py 가 image/ 원본에서 구워낸다 (원본은 장당 7~11MB).
+
+   사진이 없는 키는 아래 인라인 SVG 로 그린다. 새 장면에 art 를 붙이고
+   사진을 아직 안 만들었을 때도 화면이 비지 않는다.
+     · 인터넷 없이 단일 폴더로 돌아간다
+     · SVG 는 다크모드에서 자동으로 색이 바뀐다 (CSS 변수 사용)
    ============================================================ */
 (function (global) {
   'use strict';
 
   var W = 800, H = 200;
+
+  /* 사진 에셋 --------------------------------------------------
+     어떤 사진이 있는지는 assets/manifest.js (tools/images.py 가 만든다) 에 적혀 있다.
+     목록에 없는 인물은 이니셜 초상, 없는 장면은 아래 SVG 로 그린다. */
+  var DIR = 'assets/';
+  var MAN = global.ASSETS || {
+    scene: ['office', 'meeting', 'warehouse', 'desk', 'night', 'report', 'review', 'lab', 'server'],
+    face: ['partner', 'manager', 'cfo', 'staff'], card: ['partner', 'manager', 'cfo', 'staff'], mood: {}
+  };
+  function set(a) { var o = {}; (a || []).forEach(function (k) { o[k] = 1; }); return o; }
+  var SCENE_PHOTO = set(MAN.scene), FACE_PHOTO = set(MAN.face), CARD_PHOTO = set(MAN.card);
+  var MOODS = MAN.mood || {};
+
+  function photo(file, cls) {
+    return '<img class="' + cls + '" src="' + DIR + file + '" alt="" decoding="async">';
+  }
+
+  /* 인물 ------------------------------------------------------- */
+  function person(who) { var C = global.CAST || {}; return C[who] || null; }
+  function avatarKey(who) { var p = person(who); return p ? p.avatar : who; }
+  function initial(who) {
+    var p = person(who);
+    if (!p) return '?';
+    if (who === 'staff') return '나';
+    return /^[가-힣]/.test(p.name) ? p.name.charAt(0) : p.name.charAt(0).toUpperCase();
+  }
+  // 같은 사람은 늘 같은 톤 — 이름에서 정한다
+  function hue(who) {
+    var s = String(who), h = 0;
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+    return h;
+  }
+  function faceSrc(who, mood) {
+    var k = avatarKey(who);
+    if (!FACE_PHOTO[k]) return null;
+    if (mood && (MOODS[k] || []).indexOf(mood) >= 0) return DIR + 'face-' + k + '-' + mood + '.jpg';
+    return DIR + 'face-' + k + '.jpg';
+  }
+  function placeholder(who, cls) {
+    return '<span class="' + cls + ' ph" style="--ph:' + hue(who) + '" aria-hidden="true"><b>' + initial(who) + '</b></span>';
+  }
+  /* 말풍선 아바타 — 표정 사진이 없으면 기본 사진에 표정 클래스만 붙인다 */
+  function face(who, mood, cls) {
+    cls = cls || 'av';
+    var src = faceSrc(who, mood);
+    var own = mood && (MOODS[avatarKey(who)] || []).indexOf(mood) >= 0;
+    var moodCls = mood && !own ? ' mood-' + mood : '';
+    if (!src) return placeholder(who, cls + moodCls);
+    return '<img class="' + cls + moodCls + '" src="' + src + '" alt="" decoding="async">';
+  }
+  /* 인물 카드 (4:5) */
+  function card(who, cls) {
+    cls = cls || 'pc';
+    var k = avatarKey(who);
+    if (CARD_PHOTO[k]) return '<img class="' + cls + '" src="' + DIR + 'card-' + k + '.jpg" alt="" decoding="async">';
+    return placeholder(who, cls);
+  }
+  function sceneSrc(k) { return SCENE_PHOTO[k] ? DIR + 'scene-' + k + '.jpg' : (SCENE_PHOTO.desk ? DIR + 'scene-desk.jpg' : ''); }
 
   function wrap(inner, cls) {
     return '<svg class="art ' + (cls || '') + '" viewBox="0 0 ' + W + ' ' + H +
@@ -189,6 +250,8 @@
   };
 
   function avatar(kind) {
+    if (FACE_PHOTO[kind]) return photo('face-' + kind + '.jpg', 'avatar');
+    if (person(kind)) return face(kind, null, 'avatar');
     var f = FACES[kind] || FACES.staff;
     return '<svg class="avatar" viewBox="0 0 64 64" role="img" aria-hidden="true">' +
       '<circle cx="32" cy="32" r="32" fill="' + f.bg + '" opacity=".26"/>' +
@@ -212,10 +275,27 @@
       '<span class="ringlab">' + label + '</span>';
   }
 
+  /* 홈 타이틀 — 10초짜리 세로 영상. 소리 없이 한 번 돌고, 끝나면 첫 화면으로 되녹는다
+     (영상이 카메라를 움직여서 마지막 구도로 멈춰 있으면 허전하다).
+     움직임을 줄이도록 설정한 기기에서는 정지 화면만 보여준다. */
+  function title() {
+    var still = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return photo('title.jpg', 'title-still') +
+      '<video id="title-v" class="title-v" src="' + DIR + 'title.mp4" poster="' + DIR + 'title.jpg"' +
+      ' muted playsinline preload="auto"' + (still ? '' : ' autoplay') + '></video>';
+  }
+
   global.ART = {
-    scene: function (k) { return (SCENES[k] || SCENES.desk)(); },
+    scene: function (k) { return SCENE_PHOTO[k] ? photo('scene-' + k + '.jpg', 'art') : (SCENES[k] || SCENES.desk)(); },
+    sceneSrc: sceneSrc,
     avatar: avatar,
+    face: face,            // (인물, 표정?, 클래스?) → 말풍선 아바타 HTML
+    faceSrc: faceSrc,
+    card: card,            // (인물, 클래스?) → 4:5 인물 카드 HTML
+    portrait: function (kind) { return CARD_PHOTO[kind] ? photo('card-' + kind + '.jpg', 'portrait') : card(kind, 'portrait'); },
+    hasFace: function (who) { return !!FACE_PHOTO[avatarKey(who)]; },
+    title: title,
     ring: ring,
-    has: function (k) { return !!SCENES[k]; }
+    has: function (k) { return !!SCENES[k] || !!SCENE_PHOTO[k]; }
   };
 })(window);

@@ -8,3 +8,6 @@ desktop.ini
 *.pdf
 *.hwp
 *.docx
+
+# 이미지 원본 (tools/images.py 가 assets/ 로 굽는다) — 용량이 커서 올리지 않는다
+image/

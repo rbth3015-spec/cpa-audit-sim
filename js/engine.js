@@ -303,8 +303,8 @@
 
     var st = structure(raw, mustHits, opt.form);
     R.structure = st;
-    if (st.listing) R.flags.push('키워드 나열로 판정 → 구조점수 0점, 총점 75% 상한 적용');
-    if (negCount)   R.flags.push('부정문으로 서술된 필수 논점 ' + negCount + '건 → 득점 무효');
+    if (st.listing) R.flags.push('용어 나열 — 75%까지만 인정');
+    if (negCount)   R.flags.push('부정문으로 쓴 논점 ' + negCount + '개 — 인정 안 함');
 
     var bare = raw.replace(/\s/g, '').length;
     var maxChars = opt.maxChars || 300;
@@ -312,7 +312,7 @@
     var lenPen = 0;
     if (bare > limit) {
       lenPen = Math.min(12, Math.ceil((bare - limit) / 20));
-      R.flags.push('분량 초과 (' + bare + '자 / 권장 ' + maxChars + '자) → 감사시간 예산 −' + lenPen + '점');
+      R.flags.push('분량 초과 ' + bare + '자 / 권장 ' + maxChars + '자 — −' + lenPen);
     }
 
     // 가점은 분모에 넣지 않는다. 필수 논점을 다 쓰면 만점이고,
@@ -373,7 +373,7 @@
      part = { label, ox:'O'|'X'|null, maxChars, rubric, oxScore }
      ans  = { text:'...', ox:'O'|'X'|null }
 
-     O·X 판단이 틀리면 근거 서술은 논리적으로 무의미하므로 득점을 30%만 인정한다.
+     판단이 틀리면 근거 서술은 0점이다 (실제 GS 채점과 같다).
   ------------------------------------------------------------------ */
   function gradeParts(answers, parts, form) {
     var out = { parts: [], total: 0, max: 0, flags: [], hits: [] };
@@ -390,8 +390,7 @@
         else {
           vWrong = true;
           out.flags.push((p.label ? p.label + ' ' : '') +
-            (ver.given ? '판단이 반대입니다 → 근거 득점 30%만 인정'
-                       : '판단(발생 여부·해당 여부)을 문장으로 명시하지 않았습니다'));
+            (ver.given ? '판단 반대 — 근거 0점' : '판단 문장 없음 — 판단 0점'));
         }
       }
       // 실제 GS 채점: "예/아니오 판정이 틀려, 이유 서술의 정확성과 무관하게
@@ -415,9 +414,193 @@
     return out;
   }
 
+  /* ---------- 서술형이 아닌 칸 ----------
+     객관식 · 빈칸 · 분류 · 미니게임도 결과를 서술형과 같은 모양으로 돌려준다.
+       { must:[{label,score,got,hit,partial,why}], bonus:[], trap:[{label,score,got,hit,please}],
+         flags:[], total, max, percent }
+     그래서 season.js 의 분기 · 진실 발견 · 개념 카드가 형식과 무관하게 돈다.
+  ------------------------------------------------------------------ */
+  function pack(must, trap, flags) {
+    var max = 0, total = 0;
+    must.forEach(function (m) { max += m.score; total += m.got; });
+    (trap || []).forEach(function (t) { total += t.got; });
+    total = Math.max(0, Math.min(max, total));
+    return { must: must, bonus: [], trap: trap || [], flags: flags || [], total: total, max: max,
+             percent: max ? Math.round(total / max * 100) : 0 };
+  }
+
+  /* 객관식 — picked: 원래 보기 순서의 번호 배열
+     한 개 고르기: 정답 보기 하나가 must, 고른 오답은 trap(0점, please 전달)
+     모두 고르기: 정답 보기마다 must, 고른 오답마다 감점. 오답을 두 개 이상 섞으면 명중으로 치지 않는다 */
+  function gradeChoice(part, picked) {
+    picked = (picked || []).slice();
+    var opts = part.options || [];
+    var must = [], trap = [], wrong = 0;
+    if (!part.multi) {
+      var okI = -1;
+      opts.forEach(function (o, i) { if (o.ok && okI < 0) okI = i; });
+      var ok = opts[okI] || {};
+      var right = picked.length === 1 && picked[0] === okI;
+      var sc = part.score || 20;
+      must.push({ label: part.label || ok.label || ok.t, score: sc, got: right ? sc : 0,
+                  hit: right, partial: false, why: part.why || ok.why });
+      picked.forEach(function (i) {
+        var o = opts[i];
+        if (o && !o.ok) trap.push({ label: o.label || ('오답 — ' + o.t), score: 0, got: 0, hit: true, please: !!o.please });
+      });
+    } else {
+      opts.forEach(function (o, i) {
+        var on = picked.indexOf(i) >= 0;
+        if (o.ok) {
+          var s = o.score || 10;
+          must.push({ label: o.label || o.t, score: s, got: on ? s : 0, hit: on, partial: false, why: o.why });
+        } else if (on) {
+          wrong++;
+          var pen = o.pen != null ? o.pen : 10;
+          trap.push({ label: o.label || ('오답 — ' + o.t), score: -pen, got: -pen, hit: true, please: !!o.please });
+        }
+      });
+    }
+    var r = pack(must, trap);
+    if (part.multi && wrong >= 2) {
+      r.must.forEach(function (m) { if (m.hit) { m.hit = false; m.partial = true; } });
+      r.flags.push('오답 ' + wrong + '개 선택 — 명중 인정 안 함');
+    }
+    return r;
+  }
+
+  /* 빈칸 — 본문의 {{정답|허용답}} 을 빈칸으로 쓴다. {{=정답}} 이면 동의어 확장 없이 그 표현만 인정 */
+  function parseCloze(text) {
+    var seg = [], blanks = [], re = /\{\{([^}]+)\}\}/g, last = 0, m;
+    text = String(text || '');
+    while ((m = re.exec(text))) {
+      if (m.index > last) seg.push(text.slice(last, m.index));
+      var body = m[1], exact = body.charAt(0) === '=';
+      if (exact) body = body.slice(1);
+      var alts = body.split('|').map(function (s) { return s.trim(); }).filter(Boolean);
+      seg.push({ blank: blanks.length });
+      blanks.push({ ans: alts, exact: exact });
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) seg.push(text.slice(last));
+    return { seg: seg, blanks: blanks };
+  }
+
+  function bare(s) { return norm(s).replace(new RegExp(SENT, 'g'), ''); }
+
+  function sameWord(given, blank) {
+    var g = bare(given);
+    if (!g) return false;
+    var cands = blank.exact ? blank.ans : expand(blank.ans);
+    for (var j = 0; j < cands.length; j++) {
+      var c = bare(cands[j]);
+      if (!c) continue;
+      if (g === c) return true;
+      if (c.length >= 4 && Math.abs(c.length - g.length) <= 1) {
+        var cj = toJamo(c), gj = toJamo(g);
+        if (ed(gj, cj, 2) <= (c.length >= 7 ? 2 : 1)) return true;
+      }
+    }
+    return false;
+  }
+
+  function choseong(word) {
+    var o = '', s = String(word || '');
+    for (var i = 0; i < s.length; i++) {
+      var c = s.charCodeAt(i) - 0xAC00;
+      o += (c >= 0 && c <= 11171) ? CHO[(c / 588) | 0] : s.charAt(i);
+    }
+    return o;
+  }
+
+  /* values: 빈칸 순서대로 입력값 / hints: 초성 힌트를 본 빈칸 번호
+     part.labels: [{label, need:[빈칸번호], score, why}] — 없으면 빈칸마다 하나씩
+     힌트를 본 빈칸은 절반만 인정하고, 명중(hit)으로 치지 않는다 */
+  function gradeCloze(part, values, hints) {
+    values = values || []; hints = hints || [];
+    var P = parseCloze(part.text);
+    var ok = P.blanks.map(function (b, i) { return sameWord(values[i], b); });
+    var groups = part.labels && part.labels.length ? part.labels : P.blanks.map(function (b, i) {
+      return { label: b.ans[0], need: [i], score: 10 };
+    });
+    var must = groups.map(function (gr) {
+      var need = gr.need || [];
+      var s = gr.score || 10;
+      var right = need.filter(function (i) { return ok[i]; }).length;
+      var hinted = need.some(function (i) { return hints.indexOf(i) >= 0 && ok[i]; });
+      var got = need.length ? Math.round(s * right / need.length) : 0;
+      if (hinted) got = Math.round(got / 2);
+      var full = right === need.length && need.length > 0;
+      return { label: gr.label, score: s, got: got, hit: full && !hinted,
+               partial: !(full && !hinted) && got > 0, why: gr.why };
+    });
+    var r = pack(must, []);
+    r.blanks = P.blanks.map(function (b, i) { return { ans: b.ans, given: values[i] || '', ok: ok[i], hint: hints.indexOf(i) >= 0 }; });
+    return r;
+  }
+
+  /* 분류 — assign[i] = 항목 i 에 고른 분류 번호
+     item.wrong = { 분류번호: {label, pen, please} } 로 특정 오분류를 감점 · 회사 태도에 연결할 수 있다 */
+  function gradeSort(part, assign) {
+    assign = assign || [];
+    var must = [], trap = [];
+    (part.items || []).forEach(function (it, i) {
+      var s = it.score || 10, a = assign[i];
+      var hit = a === it.cat;
+      must.push({ label: it.label || (it.t + ' — ' + part.cats[it.cat]), score: s, got: hit ? s : 0,
+                  hit: hit, partial: false, why: it.why });
+      if (a != null && !hit && it.wrong && it.wrong[a]) {
+        var w = it.wrong[a], pen = w.pen != null ? w.pen : 0;
+        trap.push({ label: w.label, score: -pen, got: -pen, hit: true, please: !!w.please });
+      }
+    });
+    return pack(must, trap);
+  }
+
+  /* 한 칸을 형식에 맞게 채점한다.
+     ans = { text, pick, picked, values, hints, assign, mini }
+     돌려주는 모양은 gradeParts 의 parts[i] 와 같다 */
+  function gradeAny(part, ans) {
+    ans = ans || {};
+    var t = part.type || 'write', r;
+    function wrapR(x) { return { label: part.key, verdict: null, verdictGot: 0, verdictMax: 0, res: x,
+                                 total: x.total, max: x.max, percent: x.percent }; }
+    if (t === 'choice') return wrapR(gradeChoice(part, ans.picked));
+    if (t === 'cloze') return wrapR(gradeCloze(part, ans.values, ans.hints));
+    if (t === 'sort') return wrapR(gradeSort(part, ans.assign));
+    if (t === 'mini') {
+      r = ans.mini && global.MINIS && global.MINIS[part.game]
+        ? global.MINIS[part.game].grade(ans.mini.model, ans.mini.state)
+        : pack([], []);
+      return wrapR(r);
+    }
+    if (t === 'judge') {
+      r = grade(ans.text, part.rubric || {}, { maxChars: part.maxChars || 120, form: part.form || 'short' });
+      var vMax = part.verdictScore != null ? part.verdictScore : 15;
+      var given = ans.pick || null, exp = part.verdict ? part.verdict.answer : null;
+      var correct = !!given && given === exp;
+      var body = (given && !correct) ? 0 : r.total;
+      if (!given) r.flags.push('판단을 고르지 않음 — 판단 0점');
+      else if (!correct) r.flags.push('판단 반대 — 근거 0점');
+      var tot = body + (correct ? vMax : 0), mx = r.max + vMax;
+      return { label: part.key, verdict: { given: given, expected: exp, correct: correct },
+               verdictGot: correct ? vMax : 0, verdictMax: vMax, bodyZero: !!given && !correct,
+               res: r, total: tot, max: mx, percent: mx ? Math.round(tot / mx * 100) : 0 };
+    }
+    return gradeParts([{ text: ans.text }], [part], part.form).parts[0];
+  }
+
   global.AE = {
     grade: grade,
     gradeParts: gradeParts,
+    gradeAny: gradeAny,
+    gradeChoice: gradeChoice,
+    gradeCloze: gradeCloze,
+    gradeSort: gradeSort,
+    parseCloze: parseCloze,
+    sameWord: sameWord,
+    choseong: choseong,
+    pack: pack,
     readVerdict: readVerdict,
     norm: norm,
     toJamo: toJamo,

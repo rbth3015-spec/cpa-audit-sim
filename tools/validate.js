@@ -1,36 +1,119 @@
 /* 감사 시즌 2026 — 콘텐츠 · 채점 · 분기 검증
    실행:  node tools/validate.js
 
-   1. 구조      모든 좌석 × 판본에서 칸·화자·라벨이 제대로 이어지는가
-   2. 모범답안   칸마다 모범답안이 80점 미만이면 채점기준에 결함이 있다
+   1. 구조      모든 좌석 × 판본에서 칸 · 화자 · 라벨 · 형식별 필드 · 단서가 제대로 이어지는가
+   2. 정답 채점  칸마다 정답(모범답안 · 정답 보기 · 정답 빈칸 · 정답 분류 · 완벽한 미니게임)이 80점 이상인가
    3. 판별력    정답 / 오답 / 부분점수 / 나열 / 판단 반대가 제대로 갈리는가
    4. 경우의 수  성향 × 좌석 × 시즌을 돌려 엔딩이 실제로 갈리는지 본다
-                 (게임 화면과 똑같은 js/season.js 를 쓴다) */
+   5. 돌발 업무  data/cases.js — 구조 · 정답 · 판단을 뒤집은 답의 판별력
+   6. 인물 · 이야기  화자 · 방 · 사실 · 판정 카드 · 장면 도입 · 저장
+   7. 문구      대사 · 메신저가 한 줄을 넘지 않는가 (경고만)
+   (게임 화면과 똑같은 js/engine.js · js/minis.js · js/season.js 를 쓴다) */
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 const ctx = { console, Math, JSON, Date }; ctx.window = ctx; vm.createContext(ctx);
-for (const f of ['data/lexicon.js', 'data/scenes1.js', 'data/scenes2.js', 'data/truth.js', 'js/engine.js', 'js/season.js'])
+for (const f of ['data/lexicon.js', 'data/cast.js', 'data/scenes1.js', 'data/scenes2.js', 'data/truth.js', 'data/cases.js',
+                 'data/minis.js', 'data/story.js', 'data/deck.js', 'data/raon.js', 'js/engine.js', 'js/minis.js',
+                 'js/story.js', 'js/season.js', 'data/seasons.js'])
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
-const { AE, SCENES, TRUTH, EPILOGUE, SEASON, LEXICON, CAST } = ctx;
+ctx.SEASONS.use(process.env.SEASON || 'seorin');     // SEASON=raon node tools/validate.js
+const { AE, EPILOGUE, SEASON, CAST, CASES, MINIS, STORY, DECK } = ctx;
+const { SCENES, TRUTH, STORYDATA, COMPANY } = ctx;
+console.log(`■ 감사 대상 — ${COMPANY.name} (${ctx.SEASONS.current().id})`);
 const SEATS = Object.keys(SEASON.SEATS);
+const TYPES = ['write', 'judge', 'choice', 'cloze', 'sort', 'mini'];
 
-let bad = 0;
+let bad = 0, warn = 0;
 const fail = m => { console.log('  ✕ ' + m); bad++; };
 const vids = sc => sc.variants ? sc.variants.map(v => v.id) : [null];
 const fresh = seat => SEASON.create({ seed: 1, seat: seat || 'senior' });
-const gradePart = (p, text) => AE.gradeParts([{ text }], [p], p.form);
+const grade = (p, ans) => AE.gradeAny(p, ans);
+
+/* 형식별 정답 */
+function keyAnswer(p) {
+  switch (p.type) {
+    case 'judge': return { text: p.model, pick: p.verdict && p.verdict.answer };
+    case 'choice': return { picked: p.options.map((o, i) => o.ok ? i : -1).filter(i => i >= 0) };
+    case 'cloze': return { values: AE.parseCloze(p.text).blanks.map(b => b.ans[0]) };
+    case 'sort': return { assign: p.items.map(it => it.cat) };
+    case 'mini': return { mini: perfectMini(p.game) };
+    default: return { text: p.model };
+  }
+}
+function perfectMini(game) {
+  const M = MINIS[game].build(4242, null);
+  if (game === 'count') {
+    const TICK = { none: 'none', miss: 'miss', diff: 'diff', dmg: 'flag', cons: 'flag' };
+    const tested = {};
+    const ex = Object.keys(M.racks).filter(l => M.racks[l].ex);
+    ex.forEach((l, i) => { tested[l] = { dir: M.racks[l].ex === 'miss' ? 'floor' : (i % 2 ? 'floor' : 'sheet'), tick: TICK[M.racks[l].ex] }; });
+    Object.keys(M.racks).filter(l => !M.racks[l].ex && !M.racks[l].empty).slice(0, 3)
+      .forEach((l, i) => { tested[l] = { dir: i ? 'sheet' : 'floor', tick: 'ok' }; });
+    return { model: M, state: { tested } };
+  }
+  if (game === 'jet') return { model: M, state: { on: ['after', 'rare', 'cutoff'] } };
+  if (game === 'cutoff') {
+    const flag = {};
+    M.rows.forEach(r => { if (r.error) flag[r.id] = true; });
+    return { model: M, state: { flag } };
+  }
+  return { model: M, state: {} };
+}
+
+/* 단서는 상황 · 자료 원문의 부분 문자열이어야 한다 */
+function textOf(it) {
+  const parts = [it.situation || ''];
+  (it.exhibits || []).forEach(x => {
+    if (x.type === 'table') { parts.push((x.head || []).join(' ')); (x.rows || []).forEach(r => parts.push(r.join(' '))); }
+    if (x.type === 'kv') (x.items || []).forEach(r => parts.push(r.join(' ')));
+    if (x.type === 'memo') parts.push(x.body || '');
+  });
+  return parts.join('\n');
+}
+
+function checkPart(tag, p) {
+  if (!TYPES.includes(p.type)) fail(`${tag} 모르는 형식: ${p.type}`);
+  if (!CAST[p.who]) fail(`${tag} 묻는 사람 없음: ${p.who}`);
+  if (!p.say) fail(`${tag} 대사 없음`);
+  if (!p.ask) fail(`${tag} 지시문 없음`);
+  if (!p.rubric || !p.rubric.must || !p.rubric.must.length) fail(`${tag} 채점 논점 없음`);
+  if (p.type === 'write' || p.type === 'judge') {
+    if (!p.model) fail(`${tag} 모범답안 없음`);
+    if (p.verdict && !['yes', 'no'].includes(p.verdict.answer)) fail(`${tag} verdict.answer 오류`);
+  }
+  if (p.type === 'judge' && !(p.verdict && p.verdict.label && p.verdict.label.yes && p.verdict.label.no)) fail(`${tag} judge 인데 판단 문구 없음`);
+  if (p.type === 'choice') {
+    const ok = p.options.filter(o => o.ok).length;
+    if (!p.options.length || p.options.some(o => !o.t)) fail(`${tag} 보기 문구 없음`);
+    if (!p.multi && ok !== 1) fail(`${tag} 한 개 고르기인데 정답 ${ok}개`);
+    if (p.multi && ok < 2) fail(`${tag} 모두 고르기인데 정답 ${ok}개`);
+    if (p.options.length < 4) fail(`${tag} 보기가 ${p.options.length}개 — 4개 이상`);
+  }
+  if (p.type === 'cloze') {
+    const P = AE.parseCloze(p.text);
+    if (!P.blanks.length) fail(`${tag} 빈칸 없음`);
+    (p.labels || []).forEach(l => (l.need || []).forEach(i => { if (i >= P.blanks.length) fail(`${tag} 라벨 "${l.label}" 이 없는 빈칸 ${i} 참조`); }));
+  }
+  if (p.type === 'sort') {
+    if (!p.cats || p.cats.length < 2) fail(`${tag} 분류가 2개 미만`);
+    p.items.forEach(it => { if (!(it.cat >= 0 && it.cat < p.cats.length)) fail(`${tag} 항목 분류 번호 오류: ${it.t}`); });
+  }
+  if (p.type === 'mini' && !MINIS[p.game]) fail(`${tag} 없는 미니게임: ${p.game}`);
+}
 
 /* ── 1. 구조 ───────────────────────────────────────────── */
 console.log('═══ 구조 검증');
 const labelsOf = {};
+const typeCount = {};
 SCENES.forEach(sc => {
   ['id', 'day', 'chapter', 'art', 'area', 'standards', 'prompt', 'ref', 'cost']
     .forEach(k => { if (sc[k] == null) fail(`${sc.id} 필드 누락: ${k}`); });
   labelsOf[sc.id] = new Set();
   // 동적 장면은 상태에 따라 라벨이 바뀌므로 원본 칸의 라벨도 모은다
-  if (typeof sc.parts === 'function') vids(sc).forEach(vid => {
+  vids(sc).forEach(vid => {
     const v = vid ? sc.variants.find(x => x.id === vid) : { id: '-' };
-    sc.parts(v, fresh()).forEach(p => p.rubric.must.forEach(m => labelsOf[sc.id].add(m.label)));
+    const raw = typeof sc.parts === 'function' ? sc.parts(v, fresh()) : (sc.parts || []);
+    raw.forEach(p => ((p.rubric && p.rubric.must) || []).forEach(m => labelsOf[sc.id].add(m.label)));
   });
   SEATS.forEach(seat => vids(sc).forEach(vid => {
     const tag = `${sc.id}/${vid || '-'}/${seat}`;
@@ -40,15 +123,13 @@ SCENES.forEach(sc => {
       if (seat === 'partner' && it.speaker === 'partner') fail(`${tag} 파트너 자리인데 파트너가 말한다`);
       if (!it.line) fail(`${tag} 장면 대사 없음`);
       if (!it.parts.length) fail(`${tag} 칸이 없음`);
+      const src = textOf(it);
+      (it.clues || []).forEach(c => { if (src.indexOf(c) < 0) fail(`${tag} 단서가 원문에 없음: ${c}`); });
       it.parts.forEach(p => {
-        if (!CAST[p.who]) fail(`${tag} ${p.key} 묻는 사람 없음: ${p.who}`);
+        checkPart(`${tag} ${p.key}`, p);
         if (seat === 'partner' && p.who === 'partner') fail(`${tag} ${p.key} 파트너 자리인데 파트너가 묻는다`);
-        if (!p.say) fail(`${tag} ${p.key} 대사 없음`);
-        if (!p.ask) fail(`${tag} ${p.key} 지시문 없음`);
-        if (!p.model) fail(`${tag} ${p.key} 모범답안 없음`);
-        if (!p.rubric.must || !p.rubric.must.length) fail(`${tag} ${p.key} 필수 논점 없음`);
-        if (p.verdict && !['yes', 'no'].includes(p.verdict.answer)) fail(`${tag} ${p.key} verdict.answer 오류`);
         p.rubric.must.forEach(m => labelsOf[sc.id].add(m.label));
+        if (seat === (sc.view || 'senior')) typeCount[p.type] = (typeCount[p.type] || 0) + 1;
       });
     } catch (e) { fail(`${tag} 예외: ${e.message}`); }
   }));
@@ -67,69 +148,100 @@ TRUTH.forEach(t => ['detect', 'verify'].forEach(key => {
     else if (!labelsOf[sid].has(lab)) fail(`진실 ${t.id}.${key} — ${sid} 에 없는 라벨: ${lab}`);
   });
 }));
-let nParts = 0, nWhy = 0;
-SCENES.forEach(sc => vids(sc).forEach(vid => {
-  const it = SEASON.resolve(sc, fresh(), vid);
-  nParts += it.parts.length;
-  it.parts.forEach(p => p.rubric.must.forEach(m => { if (m.why) nWhy++; }));
-}));
-console.log(`  장면 ${SCENES.length} · 좌석 ${SEATS.length} · 칸 ${nParts}(판본 포함) · 개념 카드 ${nWhy} · 진실 ${TRUTH.length}`);
+const cards = SEASON.cardIndex();
+console.log(`  장면 ${SCENES.length} · 형식 ${Object.entries(typeCount).map(([k, n]) => k + ' ' + n).join(' · ')} (판본 포함, 장면 시점 기준)`);
+console.log(`  개념 카드 ${cards.length}장 · 진실 ${TRUTH.length} · 미니게임 ${Object.keys(MINIS).join(', ')}`);
 console.log(bad ? `  → 문제 ${bad}건` : '  → 이상 없음');
 
-/* ── 2. 모범답안 자가채점 ─────────────────────────────── */
-console.log('\n═══ 모범답안 자가채점 (칸마다 80점 미만이면 채점기준 결함)');
+/* ── 2. 정답 자가채점 ─────────────────────────────────── */
+console.log('\n═══ 정답 자가채점 (칸마다 80점 미만이면 채점기준 결함)');
 let low = 0;
 function reportLow(tag, g) {
   low++;
-  const p = g.parts[0];
   console.log(`  ${String(g.percent).padStart(3)}점  ${tag}`);
-  const miss = p.res.must.filter(m => !m.hit).map(m => m.label + (m.partial ? '(절반)' : m.negated ? '(부정문)' : ''));
-  const trap = (p.res.trap || []).filter(t => t.hit).map(t => t.label);
+  const miss = g.res.must.filter(m => !m.hit).map(m => m.label + (m.partial ? '(절반)' : m.negated ? '(부정문)' : ''));
+  const trap = (g.res.trap || []).filter(t => t.hit).map(t => t.label);
   if (miss.length) console.log(`         누락: ${miss.join(' / ')}`);
   if (trap.length) console.log(`         오탐: ${trap.join(' / ')}`);
-  if (p.verdict && !p.verdict.correct) console.log(`         판단 추출 실패 (given=${p.verdict.given}, expected=${p.verdict.expected})`);
-  if (g.flags.length) console.log(`         플래그: ${g.flags.join(' | ')}`);
+  if (g.verdict && !g.verdict.correct) console.log(`         판단 실패 (given=${g.verdict.given}, expected=${g.verdict.expected})`);
+  if (g.res.flags && g.res.flags.length) console.log(`         플래그: ${g.res.flags.join(' | ')}`);
 }
 SCENES.forEach(sc => {
-  if (sc.dynamic) return;
+  if (sc.dynamic === 'opinion') return;
   vids(sc).forEach(vid => {
-    const it = SEASON.resolve(sc, fresh(), vid);
+    const it = SEASON.resolve(sc, fresh(sc.view), vid);
     it.parts.forEach(p => {
-      const g = gradePart(p, p.model);
-      if (g.percent < 80) reportLow(`${sc.id}${vid ? '/' + vid : ''} ${p.key} ${p.ask}`, g);
+      const g = grade(p, keyAnswer(p));
+      if (g.percent < 80) reportLow(`${sc.id}${vid ? '/' + vid : ''} ${p.key} [${p.type}] ${p.ask}`, g);
     });
   });
 });
+// 형식별 오답은 낮아야 한다
+SCENES.forEach(sc => vids(sc).forEach(vid => {
+  if (sc.dynamic) return;
+  const it = SEASON.resolve(sc, fresh(sc.view), vid);
+  it.parts.forEach(p => {
+    let g = null;
+    if (p.type === 'choice') g = grade(p, { picked: p.options.map((o, i) => o.ok ? -1 : i).filter(i => i >= 0).slice(0, p.multi ? 3 : 1) });
+    if (p.type === 'cloze') g = grade(p, { values: [] });
+    if (p.type === 'sort') g = grade(p, { assign: p.items.map(it2 => (it2.cat + 1) % p.cats.length) });
+    if (p.type === 'judge') g = grade(p, { text: p.model, pick: p.verdict.answer === 'yes' ? 'no' : 'yes' });
+    if (g && g.percent > 30) fail(`${sc.id}${vid ? '/' + vid : ''} ${p.key} [${p.type}] 오답인데 ${g.percent}점`);
+  });
+}));
 
 /* ── 3. 판별력 ────────────────────────────────────────── */
 console.log('\n═══ 판별력 (칸 단위)');
-function run(label, id, vid, pi, text) {
-  const it = SEASON.resolve(SCENES.find(x => x.id === id), fresh(), vid);
-  const g = gradePart(it.parts[pi], text);
-  const p = g.parts[0];
-  const tr = (p.res.trap || []).filter(t => t.hit).map(t => t.label);
-  const half = p.res.must.filter(m => m.partial).length;
-  const note = [p.verdict && !p.verdict.correct ? '판단오답→근거0' : '', half ? `절반 ${half}` : '',
-                p.res.structure && p.res.structure.listing ? '나열판정' : '', tr.length ? '감점: ' + tr.join(', ') : '']
+function run(label, id, vid, pi, ans) {
+  const sc = SCENES.find(x => x.id === id);
+  if (!sc) return;                     // 다른 회사에는 없는 장면
+  const it = SEASON.resolve(sc, fresh(sc.view), vid);
+  const p = it.parts[pi];
+  const g = grade(p, typeof ans === 'string' ? { text: ans } : ans);
+  const tr = (g.res.trap || []).filter(t => t.hit).map(t => t.label);
+  const half = g.res.must.filter(m => m.partial).length;
+  const note = [g.verdict && !g.verdict.correct ? '판단오답' : '', half ? `절반 ${half}` : '',
+                g.res.structure && g.res.structure.listing ? '나열판정' : '', tr.length ? '감점: ' + tr.join(', ') : '']
                .filter(Boolean).join(' · ');
   console.log(`  ${String(g.percent).padStart(3)}점  ${label}${note ? '   [' + note + ']' : ''}`);
 }
 run('s3③ 제3자 조회 — 정답', 's3', null, 2, '제3자가 보관하는 재고이므로 임가공업체에 조회하거나 직접 검사한다.');
 run('s3③ 회사 명세서 수용 — 오답', 's3', null, 2, '거래처 명세서만으로 충분하므로 명세서로 갈음한다.');
-run('s3② 부분점수 (한정어 누락)', 's3', null, 1, '실사 과정을 관찰하고 재고를 검사한다.');
-run('s3① 키워드 나열', 's3', null, 0, '재고실사입회 보관장소 실사시기');
-run('s5/BIAS① 편의 있음 — 정답', 's5', 'BIAS', 0, '가정이 모두 한 방향으로 일관되게 바뀌었으므로 경영진의 편의의 징후가 존재한다.');
-run('s5/BIAS① 편의 없음 — 판단 반대', 's5', 'BIAS', 0, '시장 변화를 반영한 것이므로 편의의 징후로 보기 어렵다.');
-run('s5/CLEAN① 편의 없음 — 정답', 's5', 'CLEAN', 0, '할인율이 우량회사채 수익률과 맞고 방향이 혼재하므로 편의의 징후로 보기 어렵다.');
-run('s5/CLEAN① 편의 있음 — 판단 반대', 's5', 'CLEAN', 0, '가정이 변경되었으므로 편의의 징후가 존재한다.');
-run('s8① ⓐ 정답', 's8', null, 0, 'ⓐ는 보고기간말 존재하던 상황의 증거이므로 수정을 요하는 사건이며 대손충당금을 추가로 인식한다.');
-run('s8① ⓐ 분류 반대', 's8', null, 0, 'ⓐ는 수정을 요하지 않는 사건이므로 주석에 공시한다.');
-run('s1① 판단 반대', 's1', null, 0, '조직이 분리되어 있으므로 훼손위협이 발생하지 않는다.');
+run('s3① 모두 고르기 — 정답 2 + 함정 1', 's3', null, 0, { picked: [0, 1, 2] });
+run('s3① 모두 고르기 — 전부 선택', 's3', null, 0, { picked: [0, 1, 2, 3, 4] });
+run('s2② 빈칸 — 오타 허용', 's2', null, 1, { values: ['무력화', '유의적 위험', '실증 절차'] });
+run('s2② 빈칸 — 힌트 사용', 's2', null, 1, { values: ['무력화', '유의적 위험', '실증절차'], hints: [0] });
+run('s5/BIAS① 편의 있음 — 정답', 's5', 'BIAS', 0, { pick: 'yes', text: '네 가정이 모두 채무를 줄이는 한 방향으로 일관되게 바뀌었다.' });
+run('s5/BIAS① 편의 없음 — 판단 반대', 's5', 'BIAS', 0, { pick: 'no', text: '네 가정이 모두 채무를 줄이는 한 방향으로 일관되게 바뀌었다.' });
+run('s8① 분류 — ⓐ ⓑ 뒤바꿈', 's8', null, 0, { assign: [1, 0] });
+run('s1① 판단 반대', 's1', null, 0, { pick: 'no', text: '조직이 분리되어 있으므로 문제되지 않는다.' });
+run('s2③ 분개 테스트 — 조건 전부', 's2', null, 2, { mini: { model: MINIS.jet.build(1), state: { on: ['after', 'weekend', 'self', 'exec', 'round', 'blank', 'rare', 'cutoff', 'big'] } } });
+run('s3② 재고 실사 — 표본만 세고 틱 없음', 's3', null, 1, { mini: { model: MINIS.count.build(1), state: { tested: { 'A-1': { dir: 'sheet' }, 'B-1': { dir: 'floor' } } } } });
 
 /* ── 4. 경우의 수 시뮬레이션 ──────────────────────────── */
 function lcg(seed) { let a = seed >>> 0; return () => ((a = (a * 1664525 + 1013904223) >>> 0) / 4294967296); }
 const TRUTH_LABELS = new Set([].concat(...TRUTH.map(t => [].concat(t.detect ? t.detect.need : [], t.verify ? t.verify.need : []))));
 const isConfront = (it, m) => (it.sc.confront || []).includes(m.label);
+
+/* 메신저 선택 — 성향마다 고르는 방식이 다르다 (윤리 판정: hawk 는 옳은 쪽, dove 는 틀린 쪽) */
+const PICK = {
+  right: (b) => { const i = b.choice.opts.findIndex(o => o.ok === true); return i >= 0 ? i : 0; },
+  wrong: (b) => { const i = b.choice.opts.findIndex(o => o.ok === false); return i >= 0 ? i : b.choice.opts.length - 1; },
+  random: (b, r) => Math.floor(r() * b.choice.opts.length),
+  skip: () => -1
+};
+const storyTally = { beat: {}, fate: {}, flag: {} };
+function storyAt(S, at, how, r) {
+  STORY.beatsAt(S, at).forEach(b => {
+    storyTally.beat[b.id] = (storyTally.beat[b.id] || 0) + 1;
+    b.msgs.forEach(m => STORY.log(S, b, m));
+    if (b.choice) {
+      const i = PICK[how](b, r);
+      if (i >= 0) STORY.choose(S, b, i);
+    }
+    STORY.markSeen(S, b);
+  });
+}
 
 const PERSONAS = {
   hawk:    { pct: () => 88, must: () => true, trap: () => false, verdict: () => true },
@@ -139,7 +251,7 @@ const PERSONAS = {
   lazy:    { pct: () => 44, must: (it, m, r) => r() < 0.4, trap: () => false, verdict: (it, p, r) => r() < 0.5 },
   blind:   { pct: () => 70, must: (it, m) => !TRUTH_LABELS.has(it.sc.id + '#' + m.label), trap: () => false, verdict: () => true },
   verbose: { pct: () => 70, must: (it, m, r) => r() < 0.7, trap: () => false, verdict: () => true,
-             meta: r => ({ over: 260, timedOut: r() < 0.4 }) },
+             meta: r => ({ over: 260, timedOut: r() < 0.4 ? 1 : 0 }) },
   hedge:   { pct: () => 82, must: () => true, trap: (it, t) => it.sc.dynamic === 'opinion' && /^오답 의견/.test(t.label), verdict: () => true },
   slip:    { pct: () => 86, must: (it, m) => !(it.sc.dynamic === 'opinion' && / 표명$/.test(m.label)),
              trap: (it, t) => it.sc.dynamic === 'opinion' && /^오답 의견/.test(t.label), verdict: () => true }
@@ -150,7 +262,7 @@ function synth(it, P, r) {
   const parts = it.parts.map(p => ({
     res: {
       must: p.rubric.must.map(m => ({ label: m.label, hit: !!P.must(it, m, r), why: m.why })),
-      trap: (p.rubric.trap || []).map(t => ({ label: t.label, hit: !!P.trap(it, Object.assign({}, t), st) }))
+      trap: (p.rubric.trap || []).map(t => ({ label: t.label, score: t.score, please: t.please, hit: !!P.trap(it, Object.assign({}, t), st) }))
     },
     verdict: p.verdict ? { correct: !!P.verdict(it, p, r), given: 'x', expected: p.verdict.answer } : null
   }));
@@ -168,17 +280,22 @@ Object.entries(PERSONAS).forEach(([name, P]) => SEATS.forEach(seat => {
     const S = SEASON.create({ seed: seed * 7919, seat });
     const r = lcg(seed * 31 + name.length + seat.length);
     const path = [];
+    const how = { hawk: 'right', blind: 'right', hedge: 'right', slip: 'right', dove: 'wrong', lazy: 'skip' }[name] || 'random';
+    storyAt(S, 'pro', how, r);
     SCENES.forEach((sc, i) => {
       S.i = i;
       const it = SEASON.resolve(sc, S);
-      if (sc.dynamic) it.parts.forEach(p => {       // 이 상태에서 생성된 모범답안도 80점 이상이어야 한다
-        const g = gradePart(p, p.model);
+      if (sc.dynamic) it.parts.forEach(p => {       // 이 상태에서 생성된 정답도 80점 이상이어야 한다
+        const g = grade(p, keyAnswer(p));
         if (g.percent < 80 && dynLow < 6) { dynLow++; reportLow(`${sc.id} ${p.key} ${p.ask} (${name}/${seat} seed ${seed})`, g); }
       });
       if (it.v && it.v.id !== '-') path.push(sc.id + ':' + it.v.id);
-      SEASON.apply(S, it, [], synth(it, P, r), P.meta ? P.meta(r) : { over: 0, timedOut: false });
+      SEASON.apply(S, it, [], synth(it, P, r), P.meta ? P.meta(r) : { over: 0, timedOut: 0 });
+      storyAt(S, sc.id, how, r);
     });
     const E = SEASON.epilogue(S);
+    (E.people || []).forEach(f => { storyTally.fate[f.who + ': ' + f.t] = 1; });
+    Object.keys(S.flags).forEach(f => { storyTally.flag[f] = (storyTally.flag[f] || 0) + 1; });
     bump('감리 결과', E.audit.title);
     bump('회사의 운명', E.company.id);
     bump('커리어', E.career.id);
@@ -197,8 +314,8 @@ Object.entries(PERSONAS).forEach(([name, P]) => SEATS.forEach(seat => {
   }
 }));
 
-if (!low && !dynLow) console.log('\n  → 모든 칸의 모범답안이 80점 이상 (동적 장면 포함)');
-else console.log(`\n  → 모범답안 보정 필요 ${low + dynLow}건`);
+if (!low && !dynLow) console.log('\n  → 모든 칸의 정답이 80점 이상 (동적 장면 포함)');
+else console.log(`\n  → 정답 채점 보정 필요 ${low + dynLow}건`);
 
 console.log(`\n═══ 경우의 수 — 성향 ${Object.keys(PERSONAS).length}종 × 좌석 ${SEATS.length} × 시즌 ${SEEDS}개`);
 const show = k => {
@@ -241,5 +358,170 @@ reach('감리 결과', EPILOGUE.audit.map(a => a.title), tally['감리 결과'])
 reach('회사의 운명', EPILOGUE.company.map(a => a.id), tally['회사의 운명']);
 reach('커리어', EPILOGUE.career.map(a => a.id), tally['커리어']);
 reach('정답 의견', SEASON.OPINIONS, tally['정답 의견']);
+reach('메신저 대화', STORYDATA.BEATS.map(b => b.id), storyTally.beat);
+reach('사람들의 1년 뒤', [].concat(...STORYDATA.FATES.map(f => f.list.map(x => f.who + ': ' + x.t))), storyTally.fate);
+{
+  // 이야기가 세우는 표지는 회사마다 다르다 — 대화 데이터에서 모은다
+  const want = new Set();
+  STORYDATA.BEATS.forEach(b => (b.choice ? b.choice.opts : []).forEach(o => {
+    [].concat((o.fx || {}).flag || []).forEach(f => want.add(f));
+  }));
+  reach('이야기 표지', [...want], storyTally.flag);
+}
 
-if (bad) { console.log(`\n구조 오류 ${bad}건`); process.exitCode = 1; }
+// 저장했다가 불러와도 같은 상태인가
+{
+  const S = SEASON.create({ seed: 31337 });
+  S.i = 3; S.gauge.E = 61; S.flags.fraud_alert = true; S.hits['s2#기간귀속 절차 확대'] = 1; S.truths[2].found = true;
+  S.papers.push({ id: 's1', parts: [] });
+  const R = SEASON.restore(JSON.parse(JSON.stringify(SEASON.snapshot(S))));
+  const same = R.i === 3 && R.gauge.E === 61 && R.flags.fraud_alert && R.hits['s2#기간귀속 절차 확대'] &&
+               R.truths[2].found && R.truths[2].def === S.truths[2].def && R.papers.length === 1 &&
+               R.truths.every((t, i) => t.active === S.truths[i].active && t.amount === S.truths[i].amount);
+  if (!same) fail('저장 → 불러오기 후 상태가 다르다');
+  else console.log('  저장 · 이어하기: 이상 없음');
+}
+
+/* ── 5. 돌발 업무 ─────────────────────────────────────── */
+console.log('\n═══ 돌발 업무 (data/cases.js)');
+{
+  let caseBad = 0, caseParts = 0, flips = 0, flipBad = 0;
+  const ids = new Set(), tags = {}, ctypes = {};
+  const cfail = m => { console.log('  ✕ ' + m); caseBad++; bad++; };
+  (CASES || []).forEach(c => {
+    if (ids.has(c.id)) cfail(`${c.id} id 중복`);
+    ids.add(c.id);
+    tags[c.tag] = (tags[c.tag] || 0) + 1;
+    ['id', 'tag', 'chapter', 'area', 'brief', 'art', 'view', 'speaker', 'line', 'situation', 'ref']
+      .forEach(k => { if (c[k] == null) cfail(`${c.id} 필드 누락: ${k}`); });
+    const it = SEASON.resolve(c, fresh(c.view));
+    if (!CAST[it.speaker]) cfail(`${c.id} 화자 없음: ${it.speaker}`);
+    const src = textOf(it);
+    (it.clues || []).forEach(k => { if (src.indexOf(k) < 0) cfail(`${c.id} 단서가 원문에 없음: ${k}`); });
+    it.parts.forEach(p => {
+      caseParts++;
+      ctypes[p.type] = (ctypes[p.type] || 0) + 1;
+      const tag = `${c.id}${p.key}`;
+      const before = bad;
+      checkPart(tag, p);
+      caseBad += bad - before;
+      if ((p.type === 'write' || p.type === 'judge') && (!p.guide || !p.guide.length)) cfail(`${tag} 답안 양식(guide) 없음`);
+      const g = grade(p, keyAnswer(p));
+      if (g.percent < 80) { cfail(`${tag} 정답이 ${g.percent}점`); reportLow(`${tag} ${p.ask}`, g); }
+      // 판단을 뒤집은 답 — 근거가 같아도 0점에 가까워야 한다
+      let gf = null;
+      if (p.type === 'judge') gf = grade(p, { text: p.model, pick: p.verdict.answer === 'yes' ? 'no' : 'yes' });
+      else if (p.type === 'write' && p.verdict && p.verdict.label) {
+        const L = p.verdict.label;
+        const right = p.verdict.answer === 'yes' ? L.yes : L.no, wrong = p.verdict.answer === 'yes' ? L.no : L.yes;
+        if (p.model.indexOf(right) >= 0) gf = grade(p, { text: p.model.replace(right, wrong) });
+      }
+      if (gf) { flips++; if (gf.percent > 30) { flipBad++; cfail(`${tag} 판단을 뒤집어도 ${gf.percent}점`); } }
+    });
+  });
+  console.log(`  ${CASES.length}건 · 칸 ${caseParts}개 (${Object.entries(ctypes).map(([k, n]) => k + ' ' + n).join(' · ')})`);
+  console.log(`  분야 ${Object.keys(tags).length}개 (${Object.entries(tags).map(([k, n]) => k + ' ' + n).join(' · ')})`);
+  console.log(`  판단을 뒤집은 답 ${flips}개 중 30점 넘는 답 ${flipBad}개`);
+  console.log(caseBad ? `  → 문제 ${caseBad}건` : '  → 이상 없음');
+  const S1 = SEASON.create({ seed: 4242 }), S2 = SEASON.create({ seed: 4242 });
+  S1.i = S2.i = 1;
+  const o1 = SEASON.offer(S1, 3).map(c => c.id).join(','), o2 = SEASON.offer(S2, 3).map(c => c.id).join(',');
+  if (o1 !== o2) fail('같은 시즌 코드인데 요청 카드가 다르다');
+  const oTags = SEASON.offer(SEASON.create({ seed: 77 }), 3).map(c => c.tag);
+  if (new Set(oTags).size !== oTags.length) fail('요청 카드 분야가 겹친다: ' + oTags.join(', '));
+}
+
+/* ── 6. 인물 · 이야기 ─────────────────────────────────── */
+console.log('\n═══ 인물 · 이야기 (data/cast.js · data/story.js)');
+{
+  const before = bad;
+  const factIds = new Set();
+  Object.entries(CAST).forEach(([k, c]) => {
+    ['name', 'role', 'avatar', 'group'].forEach(f => { if (!c[f]) fail(`인물 ${k} 필드 누락: ${f}`); });
+    (c.facts || []).forEach(f => { if (factIds.has(f.id)) fail(`인물 사실 id 중복: ${f.id}`); factIds.add(f.id); });
+  });
+  const ats = new Set(['pro'].concat(SCENES.map(sc => sc.id)));
+  const ids = new Set();
+  const S0 = SEASON.create({ seed: 5 });
+  const who = k => { if (k && k !== 'me' && !CAST[k]) fail(`대화 화자 없음: ${k}`); };
+  STORYDATA.BEATS.forEach(b => {
+    if (ids.has(b.id)) fail(`대화 id 중복: ${b.id}`);
+    ids.add(b.id);
+    if (!ats.has(b.at)) fail(`${b.id} at 오류: ${b.at}`);
+    if (!(b.room === 'team' || (b.room === 'talk' && b.place) || (/^dm:/.test(b.room) && CAST[b.room.slice(3)]))) fail(`${b.id} 방 오류: ${b.room}`);
+    (b.facts || []).forEach(f => { if (!factIds.has(f)) fail(`${b.id} 없는 인물 사실: ${f}`); });
+    let rb;
+    try { rb = STORY.resolveBeat(b, S0); } catch (e) { fail(`${b.id} 풀기 예외: ${e.message}`); return; }
+    if (!rb.msgs.length) fail(`${b.id} 메시지 없음`);
+    rb.msgs.forEach(m => who(m.from));
+    if (b.choice) {
+      if (b.choice.opts.length < 2 || b.choice.opts.length > 4) fail(`${b.id} 답장 수 ${b.choice.opts.length}`);
+      const judged = b.choice.opts.some(o => o.ok === true || o.ok === false);
+      if (judged && !b.choice.card) fail(`${b.id} 판정이 있는데 개념 카드 없음`);
+      if (judged && b.choice.opts.filter(o => o.ok === true).length !== 1) fail(`${b.id} 옳은 답장이 1개가 아님`);
+      b.choice.opts.forEach(o => {
+        (o.reply || []).forEach(m => who(m.from));
+        Object.keys(o.fx || {}).forEach(k => { if (!['bond', 'R', 'E', 'T', 'C', 'flag', 'fact'].includes(k)) fail(`${b.id} 모르는 fx: ${k}`); });
+        Object.keys((o.fx || {}).bond || {}).forEach(k => { if (STORYDATA.BONDS[k] == null) fail(`${b.id} 관계 없는 인물: ${k}`); });
+        [].concat((o.fx || {}).fact || []).forEach(f => { if (!factIds.has(f)) fail(`${b.id} 없는 인물 사실: ${f}`); });
+      });
+    }
+  });
+  SCENES.forEach(sc => { if (!STORYDATA.OPEN[sc.id]) fail(`${sc.id} 장면 도입 없음`); });
+  STORYDATA.FATES.forEach(f => { if (!CAST[f.who]) fail(`1년 뒤 — 없는 인물: ${f.who}`); });
+  // 판본마다 장면 도입 문구가 나오는가
+  SCENES.forEach(sc => vids(sc).forEach(vid => {
+    const v = vid ? sc.variants.find(x => x.id === vid) : { id: '-' };
+    const o = STORY.opener(sc, S0, v);
+    if (!o || !o.text) fail(`${sc.id}/${vid || '-'} 장면 도입 문구 없음`);
+  }));
+  // 저장 → 불러오기에 이야기 기록이 남는가
+  // (회사마다 대화 id 가 다르다 — 처음으로 대화가 있는 시점을 쓴다)
+  const S1 = SEASON.create({ seed: 99 });
+  const at1 = ['pro'].concat(SCENES.map(sc => sc.id)).find(a => STORY.beatsAt(S1, a).length);
+  const b1 = at1 ? STORY.beatsAt(S1, at1) : [];
+  b1.forEach(b => { STORY.choose(S1, b, 1); STORY.markSeen(S1, b); });
+  const R1 = SEASON.restore(JSON.parse(JSON.stringify(SEASON.snapshot(S1))));
+  const lostSeen = b1.filter(b => !R1.story.seen[b.id]).map(b => b.id);
+  const bondSame = Object.keys(S1.bond || {}).every(k => R1.bond[k] === S1.bond[k]);
+  if (!b1.length) fail('저장 검사 — 대화가 하나도 없다');
+  else if (lostSeen.length || !bondSame) fail('저장 → 불러오기 후 이야기 상태가 다르다' + (lostSeen.length ? ' (' + lostSeen.join(', ') + ')' : ''));
+  // 암기 카드
+  const dids = new Set(), dstd = {};
+  DECK.forEach(c => {
+    if (dids.has(c.id)) fail(`암기 카드 id 중복: ${c.id}`);
+    dids.add(c.id);
+    ['std', 'tag', 'q'].forEach(f => { if (!c[f]) fail(`암기 카드 ${c.id} 필드 누락: ${f}`); });
+    if (!Array.isArray(c.a) || !c.a.length) fail(`암기 카드 ${c.id} 뒷면 없음`);
+    if (c.q.length > 46) warn++;
+    dstd[c.std] = (dstd[c.std] || 0) + 1;
+  });
+  const cardsN = STORY.cards().length;
+  console.log(`  인물 ${Object.keys(CAST).length}명 · 대화 ${STORYDATA.BEATS.length}개 · 판정 카드 ${cardsN}장 · 1년 뒤 ${STORYDATA.FATES.length}명`);
+  console.log(`  암기 카드 ${DECK.length}장 · 묶음 ${Object.keys(dstd).length}개 (${Object.entries(dstd).slice(0, 6).map(([k, n]) => k + ' ' + n).join(' · ')} …)`);
+  console.log(bad > before ? `  → 문제 ${bad - before}건` : '  → 이상 없음');
+}
+
+/* ── 7. 문구 ──────────────────────────────────────────── */
+console.log('\n═══ 문구 (대사는 한 줄 · 42자 이내 권장)');
+{
+  const long = [];
+  const chk = (tag, s) => { if (s && s.length > 42) long.push(`${tag} (${s.length}자) ${s}`); };
+  SCENES.concat(CASES).forEach(sc => vids(sc).forEach(vid => {
+    const it = SEASON.resolve(sc, fresh(sc.view), vid);
+    chk(`${sc.id}${vid ? '/' + vid : ''} 첫 대사`, it.line);
+    it.parts.forEach(p => chk(`${sc.id}${vid ? '/' + vid : ''}${p.key}`, p.say));
+  }));
+  const S0 = SEASON.create({ seed: 5 });
+  STORYDATA.BEATS.forEach(b => {
+    const rb = STORY.resolveBeat(b, S0);
+    rb.msgs.forEach(m => { if (m.t && m.t.length > 36) long.push(`메신저 ${b.id} (${m.t.length}자) ${m.t}`); });
+    (b.choice ? b.choice.opts : []).forEach(o => { if (o.t.length > 36) long.push(`답장 ${b.id} (${o.t.length}자) ${o.t}`); });
+  });
+  warn += long.length;
+  long.slice(0, 12).forEach(l => console.log('  ! ' + l));
+  console.log(long.length ? `  → 긴 대사 ${long.length}건 (경고)` : '  → 이상 없음');
+}
+
+if (bad) console.log(`\n문제 ${bad}건`);
+process.exitCode = bad ? 1 : 0;
