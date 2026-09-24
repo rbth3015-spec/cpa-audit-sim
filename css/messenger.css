@@ -150,6 +150,7 @@ img.mood-tense { filter: grayscale(1) contrast(1.1); animation: jit .25s 2; }
 .chap.out::after { transform: none; }
 .chap .ch-cam { position: absolute; inset: 0; }
 .chap .ch-bg { position: absolute; inset: -5%; background: center/cover no-repeat; filter: grayscale(1) brightness(.62); animation: kb 7s linear both; }
+video.ch-bg { width: 110%; height: 110%; object-fit: cover; }
 @keyframes kb { from { transform: scale(1.02); } to { transform: scale(1.1); } }
 .chap::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, rgba(14, 12, 11, .15) 0%, rgba(14, 12, 11, .55) 45%, rgba(14, 12, 11, .95) 100%); }
 .chap > .ch-in { position: relative; z-index: 2; max-width: 980px; }

@@ -266,7 +266,10 @@
     if (sheet && $('#screen-play').hidden) sheet = null;
     var late = sheet ? 420 : 0;                        // 종이가 넘어가는 동안 안쪽 연출을 미룬다
     d.className = 'chap' + (late ? ' late' : '') + (moved ? ' pov' : '');
-    d.innerHTML = '<div class="ch-cam"><div class="ch-bg" style="background-image:url(' + o.img + ')"></div></div>' +
+    // 영상이 있는 장면은 막 뒤에서 움직인다 (화재 현장의 연기 등)
+    var bgEl = o.vid ? '<video class="ch-bg" src="' + o.vid + '" poster="' + o.img + '" autoplay muted loop playsinline></video>'
+      : '<div class="ch-bg" style="background-image:url(' + o.img + ')"></div>';
+    d.innerHTML = '<div class="ch-cam">' + bgEl + '</div>' +
       (o.no ? '<span class="ch-no' + (o.prevNo ? ' two' : '') + '"><span class="roll">' + (o.prevNo ? '<b>' + esc(o.prevNo) + '</b>' : '') + '<b>' + esc(o.no) + '</b></span></span>' : '') +
       (o.track != null ? chapterTrack(o.track) : '') +
       '<div class="ch-in"><div class="ch-kick"><span class="bar"></span>' + esc(o.kick) + '</div><h2>' + esc(o.title) + '</h2>' +
@@ -448,7 +451,11 @@
     show('home');
 
     var v = $('#title-v');
-    if (v) v.addEventListener('ended', function () { v.classList.add('done'); });
+    if (v) v.addEventListener('ended', function () {
+      v.classList.add('done');
+      var k = $('.title-key');
+      if (k) k.classList.add('on');
+    });
 
     $('#screen-home').onclick = function (e) {
       var b = e.target.closest('[data-act]');
@@ -648,7 +655,7 @@
       kick: '장면 ' + pad(S.i + 1) + ' / ' + window.SCENES.length, title: sc.chapter,
       at: op && op.at, place: op && op.place, text: op ? op.text : (it.line ? '“' + it.line + '”' : ''),
       sub: it.line ? '“' + it.line + '”' : '', seat: SEASON.SEATS[it.seat].name,
-      seatId: it.seat, seatFrom: from, img: sceneImg(sc.art)
+      seatId: it.seat, seatFrom: from, img: sceneImg(sc.art), vid: window.ART.video(sc.art)
     });
   }
 
@@ -1436,8 +1443,14 @@
       .sort(function (x, y) { return x.p - y.p; }).slice(0, 8);
 
     var dec = S.decision;
+    // 진실을 잡아내고(발견 · 수정) 감리에서 지적이 없으면 — 세상이 컬러로 돌아온다
+    var happy = a.tone === 'ok' && E.rows.some(function (r) { return r.state === 'found' || r.state === 'fixed'; });
+    var bg = window.ART.sceneSrc(happy ? 'dawn' : a.tone === 'bad' ? 'fss' : 'review');
     $('#screen-end').innerHTML =
-      '<div class="end"><article class="notice">' +
+      '<div class="end' + (happy ? ' happy' : '') + '">' +
+      '<div class="end-bg" aria-hidden="true"><i class="eb-m" style="background-image:url(' + bg + ')"></i>' +
+        (happy ? '<i class="eb-c" style="background-image:url(' + bg + ')"></i>' : '') + '</div>' +
+      '<article class="notice">' +
         '<header class="n-head"><div><span class="k">감사인 감리 결과 통지 · 1년 뒤</span><h1>' + esc(window.COMPANY.name + ' ' + window.COMPANY.fy.replace(/년.*/, '년') + ' 회계연도 감사') + '</h1></div>' +
           '<dl><div><dt>시즌</dt><dd>' + S.seed + '</dd></div><div><dt>정답 의견</dt><dd>' + esc(dec ? dec.kind + (S.opinionOK ? ' · 맞힘' : ' · 틀림') : '미표명') + '</dd></div>' +
           '<div><dt>편철 조서</dt><dd>' + papers.length + '장</dd></div></dl></header>' +
@@ -1480,6 +1493,7 @@
         '<footer class="n-foot">' +
           (P.wrong.length ? '<button type="button" class="btn" data-act="retry">오답 다시 풀기 <kbd>' + P.wrong.length + '</kbd></button>' : '') +
           '<button type="button" class="btn ' + (P.wrong.length ? 'ghost' : '') + '" data-act="new">새 시즌</button>' +
+          '<button type="button" class="btn ' + (happy ? 'cr-go' : 'ghost') + '" data-act="credits">엔딩 크레딧</button>' +
           '<button type="button" class="btn ghost" data-act="binder">조서 보기</button>' +
           '<button type="button" class="btn ghost" data-act="copy">첨삭 요청 복사 · 전체</button>' +
           '<span class="spacer"></span><button type="button" class="btn ghost" data-act="home">홈</button>' +
@@ -1490,18 +1504,79 @@
     E.rows.forEach(function (r, i) {
       if (r.state === 'found' || r.state === 'fixed') setTimeout(function () { FX.play('stampSm'); }, 700 + i * 350);
     });
+    if (happy) setTimeout(bloom, 1500);
     var seasonRef = S;
     mode = null;
     $('#screen-end').onclick = function (e) {
       var b = e.target.closest('[data-act]');
       if (!b) return;
       var act = b.getAttribute('data-act');
-      if (act === 'retry') startPractice(wrongUnits(), '오답 노트');
+      if (act === 'credits') credits(happy, E);
+      else if (act === 'retry') startPractice(wrongUnits(), '오답 노트');
       else if (act === 'new') newSeason();
       else if (act === 'binder') openBinder(null, 'B');
       else if (act === 'copy') copyOut(feedback(seasonRef.papers || []), b);
       else if (act === 'home') home();
     };
+  }
+
+  /* 해피엔딩 — '종결' 도장에서 붉은 잉크가 퍼지고, 그 자리부터 색이 번진다 */
+  function bloom() {
+    var end = $('#screen-end .end'), st = $('#screen-end .n-grade .stamp');
+    if (!end || $('#screen-end').hidden) return;
+    var r = st ? st.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 3, width: 0, height: 0 };
+    var x = r.left + r.width / 2, y = r.top + r.height / 2;
+    end.style.setProperty('--bx', (x / innerWidth * 100).toFixed(1) + '%');
+    end.style.setProperty('--by', (y / innerHeight * 100).toFixed(1) + '%');
+    var ink = document.createElement('i');
+    ink.className = 'ink';
+    ink.style.left = x + 'px';
+    ink.style.top = y + 'px';
+    document.body.appendChild(ink);
+    setTimeout(function () { ink.remove(); }, 1200);
+    end.classList.add('bloom');
+    FX.play('reveal');
+  }
+
+  /* 엔딩 크레딧 — 영화처럼. 해피엔딩이면 컬러로 흐르고, 관계가 깊어진 사람은 웃는 얼굴로 나온다 */
+  function credits(color, E) {
+    var O = window.CAST_ORDER || {}, seen = {};
+    var bond = (E.ctx && E.ctx.bond) || {};
+    var groups = [['세종회계법인', O.team], [window.COMPANY.name, O.client], ['그리고', O.outside]];
+    function mood(k) {
+      if (bond[k] == null) return null;
+      return bond[k] >= 60 ? 'good' : bond[k] < 25 ? 'bad' : null;
+    }
+    var vid = color && window.ART.video('finale');
+    var bg = vid ? '<video class="cr-bg" src="' + vid + '" poster="' + window.ART.sceneSrc('dawn') + '" autoplay muted loop playsinline></video>'
+      : '<img class="cr-bg" src="' + window.ART.sceneSrc(color ? 'dawn' : 'fss') + '" alt="">';
+    var people = groups.map(function (g) {
+      var who = (g[1] || []).filter(function (k) { if (seen[k] || !window.CAST[k] || k === 'staff') return false; seen[k] = 1; return true; });
+      if (!who.length) return '';
+      return '<span class="cr-k">' + esc(g[0]) + '</span>' + who.map(function (k) {
+        var c = cast(k);
+        return '<div class="cr-p">' + window.ART.face(k, mood(k), 'cr-av') +
+          '<div><span>' + esc(c.role) + '</span><b>' + esc(c.name) + '</b></div></div>';
+      }).join('');
+    }).join('');
+    var d = document.createElement('div');
+    d.className = 'credits' + (color ? ' color' : '');
+    d.innerHTML = bg +
+      '<div class="cr-open"><span>' + (color ? '1년 뒤 · 새벽' : '1년 뒤') + '</span><p>' + esc(E.career.text) + '</p></div>' +
+      '<div class="cr-roll">' + people +
+        '<span class="cr-k">그 뒤</span><p>' + esc(E.company.text) + '</p>' +
+        '<span class="cr-k">연출 · 문제</span><p class="cr-small">CPA 2차 회계감사 기출과 회계감사기준의 취지를 바탕으로 새로 썼습니다. 회사 · 인물 · 사건은 허구입니다.</p>' +
+        '<div class="cr-last"><img src="' + window.ART.sceneSrc('key') + '" alt=""><h2>감사 시즌<em>2026</em></h2>' +
+          '<div class="cr-end">' + (color ? '종결' : '끝') + '</div></div>' +
+      '</div><span class="cr-skip">클릭 · Esc</span>';
+    document.body.appendChild(d);
+    FX.play('chapter');
+    setTimeout(function () { d.classList.add('rolling'); }, 3600);   // 여는 한 줄을 읽을 시간
+    function close() { document.removeEventListener('keydown', onKey, true); d.remove(); }
+    function onKey(e) { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); close(); } }
+    document.addEventListener('keydown', onKey, true);
+    d.addEventListener('click', close);
+    $('.cr-roll', d).addEventListener('animationend', function () { setTimeout(close, 4000); });
   }
 
   /* ============================================================
@@ -1698,5 +1773,42 @@
     }
   });
 
-  home();
+  /* ============================================================
+     시작 연출 — 스튜디오 표식 → 허구 고지 → 타이틀 (브라우저 창마다 한 번)
+     아무 키나 누르거나 누르면 다음으로 넘어간다
+     ============================================================ */
+  function boot(then) {
+    var seen = false;
+    try { seen = sessionStorage.getItem('auditSim.boot') === '1'; sessionStorage.setItem('auditSim.boot', '1'); } catch (e) { /* 저장 안 됨 */ }
+    if (seen || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return then();
+    var d = document.createElement('div');
+    d.className = 'boot';
+    d.innerHTML =
+      '<div class="bt-card bt-logo"><svg viewBox="0 0 120 80" aria-hidden="true"><path d="M14 44 L44 70 L106 10"/></svg>' +
+        '<b>TICKMARK</b><span>틱마크 스튜디오</span></div>' +
+      '<div class="bt-card bt-note"><p>이 이야기는 허구입니다.</p>' +
+        '<small>등장하는 회사 · 인물 · 사건은 실제와 관계가 없으며, 감사 절차와 기준서 논점은 CPA 2차 시험 범위를 따릅니다.</small>' +
+        '<small class="bt-hp">소리를 켜고 헤드폰을 권장합니다</small></div>';
+    document.body.appendChild(d);
+    var step = 0, t = null;
+    function next() {
+      clearTimeout(t);
+      step++;
+      if (step === 1) { d.classList.add('s1'); FX.play('stamp'); t = setTimeout(next, 2300); }
+      else if (step === 2) { d.classList.add('s2'); t = setTimeout(next, 3200); }
+      else { done(); }
+    }
+    function done() {
+      document.removeEventListener('keydown', onKey, true);
+      then();
+      d.classList.add('out');
+      setTimeout(function () { d.remove(); }, 900);
+    }
+    function onKey(e) { e.preventDefault(); e.stopPropagation(); next(); }
+    document.addEventListener('keydown', onKey, true);
+    d.addEventListener('click', next);
+    t = setTimeout(next, 500);
+  }
+
+  boot(home);
 })();

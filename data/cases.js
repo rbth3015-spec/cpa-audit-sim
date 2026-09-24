@@ -754,7 +754,7 @@
   {
     id: 'c23', tag: '실증절차', chapter: '작년이랑 똑같이', area: '감사절차 수행과 결과 보고', src: '2025 기출 7-2 변형',
     brief: '5년째 같은 절차, 세금계산서, 한 곳만 입회한 실증절차', cost: 6,
-    art: 'warehouse', view: 'senior', speaker: 'assoc', standards: ['KSA 330', 'KSA 500', 'KSA 501'],
+    art: 'subcon', view: 'senior', speaker: 'assoc', standards: ['KSA 330', 'KSA 500', 'KSA 501'],
     ref: 'KSA 330 · 500 · 501',
     line: '거상 매출·재고 실증절차 조서 올렸습니다.',
     situation: '유통 상장사 ㈜거상은 5년째 같은 회계법인이 감사하고 있다. 상품은 지역 거점영업소에서 출고하면서 세금계산서를 발행하고, 그 시점에 수익을 인식한다. 재고는 물류창고 1곳과 거점영업소 5곳에 나뉘어 있다.',

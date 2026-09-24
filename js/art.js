@@ -280,7 +280,9 @@
      움직임을 줄이도록 설정한 기기에서는 정지 화면만 보여준다. */
   function title() {
     var still = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    return photo('title.jpg', 'title-still') +
+    // 영상이 끝나면 키 비주얼(밤 11시의 감사팀)로 천천히 넘어간다
+    var key = SCENE_PHOTO.key ? '<img class="title-key' + (still ? ' on' : '') + '" src="' + DIR + 'scene-key.jpg" alt="" decoding="async">' : '';
+    return photo('title.jpg', 'title-still') + key +
       '<video id="title-v" class="title-v" src="' + DIR + 'title.mp4" poster="' + DIR + 'title.jpg"' +
       ' muted playsinline preload="auto"' + (still ? '' : ' autoplay') + '></video>';
   }
@@ -295,6 +297,8 @@
     portrait: function (kind) { return CARD_PHOTO[kind] ? photo('card-' + kind + '.jpg', 'portrait') : card(kind, 'portrait'); },
     hasFace: function (who) { return !!FACE_PHOTO[avatarKey(who)]; },
     title: title,
+    // 짧은 영상 (assets/<키>.mp4) — 없으면 null
+    video: function (k) { return (MAN.video || []).indexOf(k) >= 0 ? DIR + k + '.mp4' : null; },
     ring: ring,
     has: function (k) { return !!SCENES[k] || !!SCENE_PHOTO[k]; }
   };

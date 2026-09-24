@@ -175,7 +175,7 @@ window.SCENES = (window.SCENES || []).concat([
 /* ── 8. 후속사건 ────────────────────────────────────────── */
 {
   id: 's8', day: '20×7. 3. 4.', chapter: '후속사건',
-  art: 'night', view: 'senior', area: '감사절차 수행과 결과 보고', standards: ['KSA 560'],
+  art: 'fire', view: 'senior', area: '감사절차 수행과 결과 보고', standards: ['KSA 560'],
   speaker: 'manager', cost: 7,
   line: '발행 직전에 두 건 터졌어요. 성격이 달라 보여요.',
   situation: '재무제표일은 20×6년 12월 31일, 감사보고서일 예정일은 20×7년 3월 12일이다. 다음 두 사건이 확인되었다.',
@@ -241,7 +241,7 @@ window.SCENES = (window.SCENES || []).concat([
 /* ── 9. 왜곡표시 평가 ★발견한 진실과 회사 태도에 따라 집계가 달라진다 ── */
 {
   id: 's9', day: '20×7. 3. 8.', chapter: '왜곡표시의 평가',
-  art: 'meeting', view: 'partner', area: '감사절차 수행과 결과 보고', standards: ['KSA 450', 'KSA 320'],
+  art: 'board', view: 'partner', area: '감사절차 수행과 결과 보고', standards: ['KSA 450', 'KSA 320'],
   speaker: 'cfo', cost: 8,
   line: '이 정도는 개별적으로 중요하지 않잖아요.',
   situation: '감사 중 식별된 왜곡표시를 집계하였다.',
