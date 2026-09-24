@@ -1,6 +1,6 @@
 /* tools/images.py 가 만든 파일 — 손으로 고치지 않는다 */
 window.ASSETS = {
-  scene: ['board', 'ceo', 'clinic', 'dawn', 'desk', 'fire', 'fss', 'gureum', 'lab', 'meeting', 'night', 'noc', 'office', 'raonhq', 'report', 'review', 'server', 'subcon', 'warehouse'],
+  scene: ['board', 'ceo', 'clinic', 'dawn', 'desk', 'fire', 'fss', 'gureum', 'key', 'lab', 'meeting', 'night', 'noc', 'office', 'raonhq', 'report', 'review', 'server', 'subcon', 'warehouse'],
   face: ['acc2', 'ceo', 'ceo2', 'cfo', 'chair', 'clin', 'eqr', 'fss', 'gceo', 'gcfo', 'itops', 'kyuri', 'manager', 'nexton', 'partner', 'pred', 'raon', 'sales', 'sipm', 'staff', 'sua', 'warehouse'],
   card: ['acc2', 'ceo', 'ceo2', 'cfo', 'chair', 'clin', 'eqr', 'fss', 'gceo', 'gcfo', 'itops', 'kyuri', 'manager', 'nexton', 'partner', 'pred', 'raon', 'sales', 'sipm', 'staff', 'sua', 'warehouse'],
   video: ['finale', 'fire'],
