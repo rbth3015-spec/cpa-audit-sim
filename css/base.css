@@ -223,3 +223,7 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0ms !important; transition-duration: .01ms !important; }
 }
+
+/* 사진 원본은 컬러 — 배경으로 깔리는 사진도 흑백으로 (해피엔딩에서만 색이 돌아온다) */
+.slate, .banner, .req-img { background-color: #6e6b68 !important; background-blend-mode: luminosity; }
+img.art { filter: grayscale(1); }

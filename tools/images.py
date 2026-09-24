@@ -11,7 +11,13 @@
      인물 표정   image/character/<인물키>-<표정>.png     예) cfo-bad.png → face-cfo-bad.jpg
                  표정: good(웃음·만족) · bad(굳음·불쾌) · tense(긴장·걱정)
      장면        image/background/<장면키>.png          예) ceo.png  → scene-ceo.jpg
+     영상        image/video/<키>.mp4                   finale(해피엔딩 크레딧) · <장면키>(장면 도입 배경)
+     표정 시트   image/sheet/<인물키>.png               2x2 한 장 — 기본 · 웃음(good) · 굳음(bad) · 긴장(tense)
+                 → face-<키>.jpg · card-<키>.jpg · face-<키>-good/bad/tense.jpg (같은 키의 character/ 사진보다 우선)
+                 칸 사이 여백을 찾아 넷으로 나누고, 얼굴을 찾아(opencv 가 있으면) 같은 배율로 자른다.
    이름만 맞으면 표를 고칠 필요 없다. 구도가 어긋나면 아래 FACE_BOX / SCENE_BOX 에 그 파일만 적는다.
+
+   사진은 컬러로 두어도 된다 — 게임은 CSS 로 흑백으로 보여 주고, 해피엔딩에서만 색을 푼다.
 
    crop = (왼쪽, 위, 오른쪽, 아래) — 원본 가로·세로에 대한 비율.
    원본 오른쪽 아래 구석의 생성기 표식이 들어가지 않게 잡는다.
@@ -59,7 +65,7 @@ DEFAULT_CARD = (.22, .08, .78, .78)
 DEFAULT_SCENE = (0, .04, 1, .82)
 # 파일별로 구도를 고쳐야 할 때만 적는다  예) 'sua': ((.3, .1, .7, .5), (.2, .05, .8, .8))
 FACE_BOX = {}
-SCENE_BOX = {}
+SCENE_BOX = {'clinic': (0, .3, 1, .72)}   # 두 장이 붙어 나와 오른쪽만 남긴 세로 원본
 
 SCENE_W = 1600
 FACE, CARD = (160, 160), (400, 500)
@@ -108,6 +114,89 @@ def person(key, path, face, card, mood=None):
         return
     save(cut(path, face), f'face-{key}.jpg', FACE)
     save(cut(path, card), f'card-{key}.jpg', CARD)
+
+
+SHEET_MOODS = (None, 'good', 'bad', 'tense')      # 2x2 시트의 칸 순서 — 왼위 · 오른위 · 왼아래 · 오른아래
+
+
+def _gutter(prof, n):
+    """가운데 35~65% 에서 가장 고른 줄(칸 사이 여백) — 여백이 없으면 한가운데"""
+    lo, hi = int(n * .35), int(n * .65)
+    i = lo + int(np.argmin(prof[lo:hi]))
+    a = b = i
+    while a > 0 and prof[a - 1] < 14:
+        a -= 1
+    while b < n - 1 and prof[b + 1] < 14:
+        b += 1
+    if b - a < 2 or abs((a + b) / 2 - n / 2) > n * .05:
+        return n // 2, n // 2
+    return a, b + 1
+
+
+def _trim(p):
+    """칸 바깥의 여백 · 테두리 선을 걷어낸다"""
+    g = np.asarray(p.convert('L'), dtype=np.float32)
+    t, bm, l, r = 0, g.shape[0], 0, g.shape[1]
+    while t < bm - 10 and g[t, l:r].std() < 14:
+        t += 1
+    while bm > t + 10 and g[bm - 1, l:r].std() < 14:
+        bm -= 1
+    while l < r - 10 and g[t:bm, l].std() < 14:
+        l += 1
+    while r > l + 10 and g[t:bm, r - 1].std() < 14:
+        r -= 1
+    k = int(.012 * (r - l))
+    return p.crop((l + k, t + k, r - k, bm - k))
+
+
+def _panels(path):
+    im = Image.open(path).convert('RGB')
+    g = np.asarray(im.convert('L'), dtype=np.float32)
+    x0, x1 = _gutter(g.std(0), g.shape[1])
+    y0, y1 = _gutter(g.std(1), g.shape[0])
+    W, H = im.size
+    return [_trim(im.crop(b)) for b in ((0, 0, x0, y0), (x1, 0, W, y0), (0, y1, x0, H), (x1, y1, W, H))]
+
+
+try:
+    import cv2
+    _CASC = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+except Exception:                          # opencv 가 없으면 칸 가운데를 얼굴로 본다
+    cv2 = _CASC = None
+
+
+def _face(p):
+    """(가운데 x, 가운데 y, 폭) — 칸 위쪽 절반에서 가장 큰 얼굴"""
+    w, h = p.size
+    if _CASC is not None:
+        a = cv2.cvtColor(np.asarray(p), cv2.COLOR_RGB2GRAY)
+        f = [r for r in _CASC.detectMultiScale(a, 1.08, 6, minSize=(w // 6, w // 6)) if r[1] + r[3] / 2 < h * .55]
+        if f:
+            x, y, fw, fh = max(f, key=lambda r: r[2] * r[3])
+            return x + fw / 2, y + fh / 2, fw
+    return w / 2, h * .36, w * .36
+
+
+def _box(p, cx, top, bw, bh):
+    """칸 밖으로 나가지 않게 밀어 넣는다"""
+    w, h = p.size
+    s = min(1, w / bw, h / bh)
+    bw, bh = bw * s, bh * s
+    l = min(max(0, cx - bw / 2), w - bw)
+    t = min(max(0, top), h - bh)
+    return p.crop((round(l), round(t), round(l + bw), round(t + bh)))
+
+
+def sheet(key, path):
+    ps = _panels(path)
+    fs = [_face(p) for p in ps]
+    fw = fs[0][2]                          # 네 칸 모두 기본 칸의 얼굴 크기로 — 표정이 바뀌어도 배율이 같다
+    for p, (cx, cy, _), mood in zip(ps, fs, SHEET_MOODS):
+        side = fw * 1.6
+        tag = f'-{mood}' if mood else ''
+        save(_box(p, cx, cy - side * .48, side, side), f'face-{key}{tag}.jpg', FACE)
+        if not mood:
+            save(_box(p, cx, cy - fw * 1.15, fw * 2.6, fw * 3.25), f'card-{key}.jpg', CARD)
 
 
 NAME = re.compile(r'^([a-z][a-z0-9_]*)(?:-(good|bad|tense))?\.(png|jpe?g|webp)$', re.I)
@@ -159,6 +248,13 @@ def main():
             person(key, p, face, card)
             done_face.add(key)
 
+    print('표정 시트')
+    for p in sorted((SRC / 'sheet').glob('*')):
+        m = named(p)
+        if not m or m.group(2):
+            continue
+        sheet(m.group(1).lower(), p)       # 같은 키의 character/ 사진을 덮어쓴다
+
     print('타이틀')
     p = source(TITLE_STILL[0], required=False)
     if p:
@@ -167,6 +263,11 @@ def main():
     if v:
         shutil.copyfile(v, OUT / 'title.mp4')
         print(f'  {"title.mp4":26} (복사)')
+
+    print('영상')
+    for v in sorted((SRC / 'video').glob('*.mp4')):   # image/video/<키>.mp4 → assets/<키>.mp4 (장면 도입 · 엔딩)
+        shutil.copyfile(v, OUT / v.name)
+        print(f'  {v.name:26} (복사)')
 
     write_manifest()
 
@@ -187,6 +288,7 @@ def write_manifest():
         else:
             face.append(k)
     face.sort()
+    video = sorted(p.stem for p in OUT.glob('*.mp4') if p.stem != 'title')
     for k in mood:
         mood[k].sort()
 
@@ -197,6 +299,7 @@ def write_manifest():
             f'  scene: {js(scene)},\n'
             f'  face: {js(face)},\n'
             f'  card: {js(card)},\n'
+            f'  video: {js(video)},\n'
             '  mood: {' + ', '.join(f"{k}: {js(v)}" for k, v in sorted(mood.items())) + '}\n'
             '};\n')
     (OUT / 'manifest.js').write_text(body, encoding='utf-8')

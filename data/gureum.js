@@ -151,7 +151,7 @@
   /* ── 1. 감사계획 — 벤치마크와 IT 환경 ────────── */
   {
     id: 'g1', day: '20×6. 10. 22.', chapter: '감사계획', tag: '중요성',
-    art: 'office', view: 'partner', area: '감사계획과 위험평가', standards: ['KSA 320', 'KSA 315', 'KSA 402'],
+    art: 'gureum', view: 'partner', area: '감사계획과 위험평가', standards: ['KSA 320', 'KSA 315', 'KSA 402'],
     speaker: 'manager', cost: 7,
     line: '이사님, 구름결 계획입니다. 이익 변동이 큽니다.',
     situation: '㈜구름결은 기업용 협업 소프트웨어를 구독형(SaaS)으로 팔고, 공공·금융기관의 시스템 구축(SI)을 수행한다. 매출은 3년째 꾸준히 늘었지만 세전이익은 전기 12억원에서 당기 88억원으로 크게 움직였다. 구독료 결제는 결제대행사 ㈜나루페이가 처리하고 정산 자료만 회사로 보낸다. 연간 거래 340만 건은 과금 시스템이 자동으로 수익을 인식한다.',
@@ -306,7 +306,7 @@
   /* ── 3. 데이터 분석 — 무결성과 결합 ─────────── */
   {
     id: 'g3', day: '20×7. 1. 13.', chapter: '데이터 분석', tag: 'IT·데이터',
-    art: 'server', view: 'staff', area: '회계감사 관련 정보기술', standards: ['KSA 500', 'KSA 330'],
+    art: 'noc', view: 'staff', area: '회계감사 관련 정보기술', standards: ['KSA 500', 'KSA 330'],
     speaker: 'kyuri', cost: 9,
     variants: [
       { id: 'ORPHAN', label: '짝 없는 청구 1,284건', when: function (S) { return !!S.active.ghost_bill; },

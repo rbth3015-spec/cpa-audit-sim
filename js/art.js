@@ -295,6 +295,8 @@
     portrait: function (kind) { return CARD_PHOTO[kind] ? photo('card-' + kind + '.jpg', 'portrait') : card(kind, 'portrait'); },
     hasFace: function (who) { return !!FACE_PHOTO[avatarKey(who)]; },
     title: title,
+    // 짧은 영상 (assets/<키>.mp4) — 없으면 null
+    video: function (k) { return (MAN.video || []).indexOf(k) >= 0 ? DIR + k + '.mp4' : null; },
     ring: ring,
     has: function (k) { return !!SCENES[k] || !!SCENE_PHOTO[k]; }
   };
