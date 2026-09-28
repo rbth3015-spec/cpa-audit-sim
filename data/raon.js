@@ -203,7 +203,7 @@
     speaker: 'manager', cost: 8,
     variants: [
       { id: 'OPEN', label: '조서 열람 가능', when: function (S) { return !!S.flags.pred_open; },
-        line: '한터에서 조서 보여 준대. 오전에 다녀오자.',
+        line: '한터에서 조서 보여 준대요. 오전에 같이 가실래요?',
         body: '전임감사인이 감사조서 열람에 협조하기로 하였다. 열람 결과 20×5년 개발비에 대한 감사절차는 수행되었으나, 매입채무의 완전성에 대한 절차가 누락된 것이 확인되었다. 기초 개발비 잔액은 214억원, 기초 매입채무는 96억원이다.',
         clues: ['매입채무의 완전성에 대한 절차가 누락', '기초 개발비 잔액은 214억원'] },
       { id: 'SHUT', label: '조서 열람 무산',
@@ -414,7 +414,7 @@
     ],
     parts: [
       { type: 'sort',
-        say: '계약을 쪼개 보자. 대가별로 언제 수익이야?',
+        say: '계약을 쪼개 봐야겠죠? 대가별로 언제 수익인지요.',
         ask: '계약의 각 대가가 수익으로 인식되는 시점을 분류하시오.',
         cats: ['계약 체결 시점', '의무 이행에 따라', '인식하지 않음'],
         items: [
@@ -430,7 +430,7 @@
         ] },
 
       { type: 'write',
-        say: '이 수익, 위험은 어떻게 볼까?',
+        say: '이 수익, 위험은 어떻게 볼까요?',
         ask: '기술이전 수익에서 식별되는 위험과 그에 대한 감사절차를 서술하시오. 확인할 증거를 포함하시오.',
         guide: ['위험 — 무엇을, 어느 수준으로', '절차 — 무엇을 확인'], maxChars: 110, timeLimit: 105,
         rubric: {
@@ -516,7 +516,7 @@
         model: '계약서를 직접 확인하여 상환 청구권이 누구에게 있는지 등 조건을 파악하고 부채와 자본의 분류가 적정한지 판단하며, 내재파생상품의 분리 여부를 확인한다.' },
 
       { type: 'choice',
-        say: '평가 자체는 어떻게 검증하지?',
+        say: '평가 자체는 어떻게 검증하죠?',
         ask: '관측 불가능한 투입변수가 사용된 공정가치 평가에 대한 감사인의 대응으로 가장 적절한 것은?',
         label: '독립적 추정치 개발 또는 방법·가정·자료 테스트', score: 22,
         why: '회계추정치 대응 — 경영진의 방법·가정·자료 테스트 / 감사인의 독립적 추정치(범위) 개발 / 보고서일까지의 사건 확인',
@@ -729,27 +729,27 @@
     },
 
     BEATS: [
-      { id: 'raon_pro', at: 'pro', room: 'team', time: '10. 30. (금) 18:20', bg: 'office',
+      { id: 'raon_pro', at: 'pro', room: 'team', pov: 'partner', time: '10. 30. (금) 18:20', bg: 'office',
         msgs: [
           { sys: '유가온 님이 방을 만들었습니다' },
-          { from: 'manager', t: '라온바이오 지정 건. 초도야.' },
+          { from: 'manager', t: '라온바이오 지정 건입니다. 초도감사입니다.' },
           { from: 'partner', t: '전임이 작년에 한정의견을 냈네. 사유부터 보게.' },
           { from: 'assoc', t: '바이오는 처음인데요… 임상 단계부터 공부할게요.' },
           { from: 'kyuri', t: '전표는 적어요. 대신 계약서가 많겠네요.' }
         ],
         choice: { opts: [
-          { t: '전임감사인에게 먼저 연락해 볼게요.', fx: { bond: { pred: 8, manager: 3 } },
-            reply: [{ from: 'manager', t: '그래. 회사 동의부터 받고.' }] },
-          { t: '계약서 원본부터 받아 둡시다.', fx: { E: 1, bond: { manager: 4 } },
-            reply: [{ from: 'manager', t: '목록 만들어서 보낼게.' }] },
-          { t: '임상 자료는 제가 볼게요.', fx: { bond: { assoc: 5 } },
-            reply: [{ from: 'assoc', t: '저도 같이 볼게요 선배!' }] }
+          { t: '전임감사인에게는 내가 먼저 연락하지.', fx: { bond: { pred: 8, manager: 3 } },
+            reply: [{ from: 'manager', t: '네. 회사 동의부터 받아 두겠습니다.' }] },
+          { t: '계약서 원본부터 받아 두게.', fx: { E: 1, bond: { manager: 4 } },
+            reply: [{ from: 'manager', t: '목록 만들어서 요청하겠습니다.' }] },
+          { t: '임상 자료는 한결 씨가 나랑 같이 보세.', fx: { bond: { assoc: 5 } },
+            reply: [{ from: 'assoc', t: '넵! 같이 보겠습니다, 이사님!' }] }
         ] } },
 
-      { id: 'raon_fee', at: 'r1', room: 'dm:raon', time: '11. 3. (화) 09:40', bg: 'office',
+      { id: 'raon_fee', at: 'r1', room: 'dm:raon', pov: 'partner', time: '11. 3. (화) 09:40', bg: 'office',
         facts: ['r_fee'],
         msgs: [
-          { from: 'raon', t: '재무이사 최도현입니다. 지정 잘 부탁드립니다.' },
+          { from: 'raon', t: '이사님, 재무이사 최도현입니다. 지정 잘 부탁드립니다.' },
           { from: 'raon', t: '전임 보수가 조금 밀려 있는데, 저희 사정 아시죠.' },
           { from: 'raon', t: '이번 보수는 좀 낮춰 주시면 바로 집행하겠습니다.', mood: 'good' }
         ],
@@ -768,9 +768,9 @@
               reply: [{ from: 'raon', t: '그렇게 봐 주시면 감사하죠.' }] }
           ] } },
 
-      { id: 'raon_pred', at: 'r1', room: 'dm:pred', time: '11. 6. (금) 16:10', bg: 'desk',
+      { id: 'raon_pred', at: 'r1', room: 'dm:pred', pov: 'partner', time: '11. 6. (금) 16:10', bg: 'desk',
         msgs: [
-          { from: 'pred', t: '한터회계법인 서정범입니다.' },
+          { from: 'pred', t: '정 이사님, 한터회계법인 서정범입니다.' },
           { from: 'pred', t: '작년 개발비 건은… 말씀드릴 수 있는 범위가 있습니다.' },
           { from: 'pred', t: '조서 열람은 회사 동의가 있어야 하고요.' }
         ],
@@ -789,22 +789,22 @@
               reply: [{ from: 'pred', t: '…그러시죠.' }] }
           ] } },
 
-      { id: 'raon_clin', at: 'r3', room: 'dm:clin', time: '1. 16. (금) 20:05', bg: 'lab',
+      { id: 'raon_clin', at: 'r3', room: 'dm:clin', pov: 'assoc', time: '1. 16. (금) 20:05', bg: 'lab',
         facts: ['c_doc'],
         msgs: [
-          { from: 'clin', t: '임상개발본부 오예린입니다.' },
+          { from: 'clin', t: '회계사님, 임상개발본부 오예린입니다.' },
           { from: 'clin', t: '요청하신 3상 승인 문서 올렸습니다.' },
           { from: 'clin', t: '…승인일은 7월 3일이에요. 그 전 지출은 저도 모릅니다.', mood: 'tense' }
         ],
         choice: { opts: [
-          { t: '문서 고맙습니다. 날짜는 저희가 맞춰 보겠습니다.', fx: { bond: { clin: 18 }, E: 1 },
+          { t: '문서 감사합니다, 본부장님. 날짜는 저희가 맞춰 보겠습니다.', fx: { bond: { clin: 18 }, E: 1 },
             reply: [{ from: 'clin', t: '필요한 자료 있으면 말씀 주세요.' }] },
           { t: '그 전 지출은 누가 자산화하라고 했습니까?', fx: { bond: { clin: -8 } },
             reply: [{ from: 'clin', t: '제가 말씀드릴 부분은 아닌 것 같습니다.' }] },
           { t: '확인했습니다.', reply: [{ sys: '읽음' }] }
         ] } },
 
-      { id: 'raon_inside', at: 'r4', room: 'dm:assoc', time: '2. 2. (월) 22:40', bg: 'night',
+      { id: 'raon_inside', at: 'r4', room: 'dm:assoc', pov: 'manager', time: '2. 2. (월) 22:40', bg: 'night',
         when: function (S) { return true; },
         msgs: [
           { from: 'assoc', t: '선배, 아까 임상본부장님이 하신 말 있잖아요.' },
@@ -827,7 +827,7 @@
               reply: [{ from: 'assoc', t: '저희는 없어요. 친구는… 알겠습니다.' }] }
           ] } },
 
-      { id: 'raon_ceo', at: 'r6', room: 'talk', place: '대표이사실', time: '2. 23. (월) 15:00', bg: 'ceo',
+      { id: 'raon_ceo', at: 'r6', room: 'talk', pov: 'manager', place: '대표이사실', time: '2. 23. (월) 15:00', bg: 'ceo',
         facts: ['b_stake'],
         msgs: [
           { from: 'ceo2', t: '앉으세요. 우리 회사 데이터는 좋습니다.' },
@@ -849,7 +849,7 @@
               reply: [{ from: 'ceo2', t: '좋습니다. 남 팀장이 정리할 겁니다.' }] }
           ] } },
 
-      { id: 'raon_eqr', at: 'r7', room: 'dm:eqr', time: '3. 17. (화) 17:30', bg: 'report',
+      { id: 'raon_eqr', at: 'r7', room: 'dm:eqr', pov: 'partner', time: '3. 17. (화) 17:30', bg: 'report',
         msgs: function (S) {
           return [
             { from: 'eqr', t: '품질관리실 오세진입니다. 조서 봤습니다.' },

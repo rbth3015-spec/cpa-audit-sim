@@ -22,7 +22,16 @@
 .msgr-rail { background: #1b1918; color: #d9d5d3; display: flex; flex-direction: column; min-height: 0; }
 .mr-h { padding: 18px 18px 14px; border-bottom: 1px solid #2d2a28; }
 .mr-h b { display: block; font: 800 15px/1 var(--display); color: #f3f2f2; letter-spacing: -.01em; }
-.mr-me { display: block; margin-top: 8px; font: 500 11px/1 var(--mono); color: #8d8784; }
+/* 이 대화의 「나」 — 대화마다 바뀔 수 있다 */
+.mr-me { display: grid; grid-template-columns: 28px minmax(0, 1fr); grid-template-rows: auto auto; gap: 4px 10px; align-items: center; margin-top: 12px; font: 500 11px/1 var(--mono); color: #8d8784; }
+.mr-me .mr-av { grid-row: 1 / 3; width: 28px; height: 28px; }
+.mr-me span b { display: block; font: 700 13px/1 var(--sans); color: #f3f2f2; margin-bottom: 4px; }
+.mr-me em { grid-column: 2; justify-self: start; font: 800 10px/1 var(--sans); font-style: normal; letter-spacing: .06em; color: #fff; background: var(--red); padding: 3px 6px; }
+.mm-r { display: flex; align-items: center; gap: 14px; }
+.mm-pov { display: inline-flex; align-items: center; gap: 8px; padding: 3px 3px 3px 3px; border: 1px solid var(--line); background: var(--bg); }
+.mm-pov .mr-av { width: 26px; height: 26px; }
+.mm-pov b { font: 700 13px/1 var(--sans); }
+.mm-pov em { font: 800 10px/1 var(--sans); font-style: normal; letter-spacing: .06em; color: #fff; background: var(--red); padding: 5px 6px; }
 .mr-list { list-style: none; margin: 0; padding: 8px 0; }
 .mr-list li { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 18px; font: 600 13px/1.2 var(--sans); color: #aaa4a1; }
 .mr-list li.on { background: #2b2725; color: #fff; box-shadow: inset 3px 0 0 var(--red); }
@@ -213,31 +222,28 @@ video.ch-bg { width: 110%; height: 110%; object-fit: cover; }
 /* 슬레이트 도장 자리 버그 — 한 줄 폭으로 */
 .slate .seat { align-self: flex-start; }
 
-/* ---------- 내 자리 (장면 도입 · 상황 칸) ----------
-   칸마다 면이 둘(.fc.a · .fc.b). 자리가 바뀌면 .flip 으로 뒤집힌다 */
+/* ---------- 나의 시점 (장면 도입 · 상황 칸) ----------
+   세 사람 얼굴은 늘 보이고, 시점인 사람 칸에 붉은 「나의 시점」 표가 붙는다 */
 .ch-seats { margin-top: 24px; animation: rise .5s calc(var(--d0) + .35s) both; }
-.ch-seats > .k { color: #ff8a76; letter-spacing: .1em; margin-bottom: 10px; }
+.ch-seats > .k { color: #ff8a76; letter-spacing: .1em; margin-bottom: 16px; }
 .seats { display: flex; gap: 8px; align-items: stretch; }
 .seats .st {
-  position: relative; display: grid; grid-template-areas: "f"; align-items: center;
-  padding: 8px 28px 8px 8px; border: 1px solid rgba(243, 242, 242, .3);
-  background: rgba(20, 18, 17, .5); min-width: 150px; transition: background .28s, border-color .28s;
+  position: relative; display: grid; grid-template-columns: 42px minmax(0, 1fr); grid-template-rows: auto auto; gap: 0 10px; align-items: center;
+  padding: 9px 30px 9px 9px; border: 1px solid rgba(243, 242, 242, .3);
+  background: rgba(20, 18, 17, .5); min-width: 160px; transition: background .28s, border-color .28s;
 }
-.seats .st .fc {
-  grid-area: f; display: grid; grid-template-columns: 38px minmax(0, 1fr); grid-template-rows: auto auto; gap: 0 10px; align-items: center;
-  transition: opacity .26s, transform .32s var(--ease);
-}
-.seats .st .fc.b { opacity: 0; transform: translateY(10px); }
-.seats .st.flip .fc.a { opacity: 0; transform: translateY(-10px); }
-.seats .st.flip .fc.b { opacity: 1; transform: none; }
-.seats .st .st-av { grid-row: 1 / 3; width: 38px; height: 38px; object-fit: cover; filter: grayscale(1); }
-.seats .st .fc > b { font: 700 14px/1.2 var(--sans); color: #f3f2f2; align-self: end; }
-.seats .st .fc > span:not(.st-av) { font: 500 11px/1.2 var(--mono); color: rgba(243, 242, 242, .6); align-self: start; }
+.seats .st .st-av { grid-row: 1 / 3; width: 42px; height: 42px; object-fit: cover; filter: grayscale(1) brightness(.8); transition: filter .3s; }
+.seats .st > b { font: 700 14px/1.2 var(--sans); color: #f3f2f2; align-self: end; }
+.seats .st > span:not(.st-av) { font: 500 11px/1.2 var(--mono); color: rgba(243, 242, 242, .6); align-self: start; }
 .seats .st.me { background: var(--red); border-color: var(--red); }
-.seats .st.me .fc > b, .seats .st.me .fc > span:not(.st-av) { color: #fff; }
-.seats .st .me-av { background: #fff; color: var(--red); display: grid; place-items: center; }
-.seats .st .me-av b { font: 800 16px/1 var(--sans); color: var(--red); }
-.seats .st .me-av::after { display: none; }
+.seats .st.me .st-av { filter: grayscale(1) contrast(1.05); }
+.seats .st.me > b, .seats .st.me > span:not(.st-av) { color: #fff; }
+.seats .st .pov-tag {
+  position: absolute; left: 8px; top: -10px; font: 800 10px/1 var(--sans); font-style: normal; letter-spacing: .06em;
+  color: var(--red); background: #fff; padding: 4px 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, .35);
+  opacity: 0; transform: translateY(5px); transition: opacity .2s, transform .25s var(--ease);
+}
+.seats .st.me .pov-tag { opacity: 1; transform: none; }
 .seats .st.landed { animation: seatLand .55s var(--ease) both; }
 @keyframes seatLand {
   0% { transform: scale(.9); box-shadow: 0 0 0 0 rgba(255, 86, 60, .75); }
@@ -251,35 +257,46 @@ video.ch-bg { width: 110%; height: 110%; object-fit: cover; }
 .seats .st .rank { position: absolute; top: 7px; right: 8px; color: #f3f2f2; }
 .seats .st.me .rank i { opacity: .9; }
 
-/* 건너가는 「나」 */
-.hop-tok { position: fixed; z-index: 91; width: 38px; height: 38px; pointer-events: none; transition: transform .56s cubic-bezier(.55, 0, .3, 1); }
+/* 건너가는 「나의 시점」 표 */
+.hop-tok { position: fixed; z-index: 91; pointer-events: none; transition: transform .56s cubic-bezier(.55, 0, .3, 1); }
 .hop-tok i {
-  display: grid; place-items: center; width: 100%; height: 100%; background: #fff; color: var(--red);
-  font: 800 16px/1 var(--sans); font-style: normal;
-  box-shadow: 0 0 0 3px var(--red), 0 12px 26px rgba(0, 0, 0, .55);
+  display: block; background: #fff; color: var(--red); white-space: nowrap;
+  font: 800 10px/1 var(--sans); font-style: normal; letter-spacing: .06em; padding: 4px 6px;
+  box-shadow: 0 0 0 2px var(--red), 0 12px 26px rgba(0, 0, 0, .55);
   animation: hopArc .56s cubic-bezier(.3, 0, .3, 1) both;
 }
 @keyframes hopArc { 0% { transform: none; } 50% { transform: translateY(-34px) scale(1.18) rotate(-8deg); } 100% { transform: none; } }
 
-/* 상황 칸 — 말하는 사람 맞은편에 내 자리 */
+/* 상황 칸 맨 위 — 나의 시점. 이 장면의 「나」가 누구인지 사진 · 이름 · 자리로 */
 .who { position: relative; }
-.me-chip {
-  position: relative; align-self: start; justify-self: end; display: inline-flex; align-items: center; gap: 6px;
-  font: 800 12px/1 var(--sans); color: #fff; background: var(--red); padding: 6px 8px; white-space: nowrap;
+.pov-bar {
+  display: flex; align-items: center; gap: 10px; margin: -2px 0 16px; padding: 5px 6px 5px 5px;
+  background: var(--panel-2); border-left: 3px solid var(--red);
 }
-.me-chip em { font: 500 11px/1 var(--mono); font-style: normal; opacity: .9; }
-.me-chip .rank { color: #fff; margin-left: 1px; }
-.me-chip .rank i { height: 8px; opacity: .8; }
-/* 자리가 바뀐 장면 — 옛 자리 이름이 위로 빠지고 새 이름이 올라온다. 둘레가 한 번 번진다 */
-.me-chip .mr { display: inline-grid; height: 1.15em; overflow: hidden; vertical-align: -3px; }
-.me-chip .mr > * { grid-area: 1 / 1; font: inherit; text-decoration: none; align-self: center; }
-.me-chip .mr s { animation: mrOut .38s .8s var(--ease) both; }
-.me-chip .mr b { animation: mrIn .38s .8s var(--ease) both; }
+.pov-bar .pv-av { flex: none; width: 34px; height: 34px; overflow: hidden; }
+.pov-bar .pv-av .av { display: block; width: 34px; height: 34px; object-fit: cover; filter: grayscale(1) contrast(1.05); }
+.pov-bar .pv-t { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pov-bar .pv-t > b, .pov-bar .mr b, .pov-bar .mr s { font: 800 15px/1 var(--sans); color: var(--ink); }
+.pov-bar .pv-t > span { font: 500 12px/1 var(--mono); color: var(--dim); }
+.pov-bar .rank { color: var(--red); }
+.pov-bar .rank i { height: 8px; opacity: .85; }
+.pov-bar .pv-tag {
+  margin-left: auto; font: 800 11px/1 var(--sans); font-style: normal; letter-spacing: .06em;
+  color: #fff; background: var(--red); padding: 5px 8px; white-space: nowrap;
+}
+/* 시점이 바뀐 장면 — 옛 사람 이름이 위로 빠지고 새 사람이 올라온다. 사진이 한 번 뒤집히고 표 둘레가 번진다 */
+.pov-bar .mr { display: inline-grid; height: 1.15em; overflow: hidden; }
+.pov-bar .mr > * { grid-area: 1 / 1; text-decoration: none; align-self: center; }
+.pov-bar .mr s { animation: mrOut .38s .8s var(--ease) both; }
+.pov-bar .mr b { animation: mrIn .38s .8s var(--ease) both; }
 @keyframes mrOut { to { transform: translateY(-120%); opacity: 0; } }
 @keyframes mrIn { from { transform: translateY(120%); opacity: 0; } to { transform: none; opacity: 1; } }
-.me-chip.moved { animation: chipRing 1.3s .75s both; }
+.pov-bar.moved .pv-av .av { animation: povFlip .6s .75s var(--ease) both; }
+@keyframes povFlip { 0% { transform: rotateY(0); } 50% { transform: rotateY(90deg); filter: grayscale(1) brightness(1.6); } 100% { transform: none; } }
+.pov-bar.moved .pv-tag { animation: chipRing 1.3s .95s both; }
 @keyframes chipRing { from { box-shadow: 0 0 0 0 rgba(236, 48, 19, .65); } to { box-shadow: 0 0 0 16px rgba(236, 48, 19, 0); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .chap.whip .ch-cam, .hop-tok, .hop-tok i, .ch-no .roll, .seats .st.landed, .me-chip.moved { animation: none !important; transition: none !important; }
+  .chap.whip .ch-cam, .hop-tok, .hop-tok i, .ch-no .roll, .seats .st.landed, .pov-bar.moved .pv-av .av, .pov-bar.moved .pv-tag, .pov-bar .mr > * { animation: none !important; transition: none !important; }
+  .pov-bar .mr s { display: none; }
 }

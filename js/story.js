@@ -58,7 +58,7 @@
     // 판정이 걸린 답장은 시즌마다 순서를 섞는다 — "첫 번째가 정답"으로 외우지 못하게
     if (ch && ch.card) shuffle(opts, hash((S.seed || 0) + ':' + b.id));
     return {
-      id: b.id, at: b.at, room: b.room, name: roomName(b.room, b.place), mode: b.room === 'talk' ? 'talk' : 'chat',
+      id: b.id, at: b.at, room: b.room, pov: b.pov || null, name: roomName(b.room, b.place), mode: b.room === 'talk' ? 'talk' : 'chat',
       who: roomWho(b.room), place: b.place || null, time: b.time || '', bg: b.bg || 'desk', facts: b.facts || [],
       msgs: msgs,
       choice: ch ? { card: ch.card || null, opts: opts } : null
@@ -91,7 +91,9 @@
 
   function log(S, beat, m) {
     init(S);
-    S.story.chat.push({ b: beat.id, room: beat.room, name: beat.name, time: beat.time, from: m.from || null, sys: m.sys || null, t: m.t });
+    var e = { b: beat.id, room: beat.room, name: beat.name, time: beat.time, from: m.from || null, sys: m.sys || null, t: m.t };
+    if (m.me) e.me = 1;                            // 그 대화의 시점 인물이 한 말
+    S.story.chat.push(e);
     if (S.story.chat.length > 400) S.story.chat = S.story.chat.slice(-400);
   }
 

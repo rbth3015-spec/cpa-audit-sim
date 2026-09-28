@@ -45,6 +45,9 @@
     senior:  { id: 'senior', name: '시니어', role: '업무 배분 · 판단 취합', trust: '파트너의 신뢰', time: 1.0, company: 1.0 },
     partner: { id: 'partner', name: '업무수행이사', role: '결론 · 회사와 지배기구 상대', trust: '품질관리실의 신뢰', time: 1.15, company: 1.35 }
   };
+  /* 자리마다 그 자리에 앉은 사람 — 그 장면은 이 사람의 시점이다 */
+  var SEAT_WHO = { partner: 'partner', senior: 'manager', staff: 'assoc' };
+  function povOf(seat) { return SEAT_WHO[seat] || SEAT_WHO.senior; }
 
   var FLAG_TEXT = {
     fraud_alert: '분개 데이터 전수 추출 시작',
@@ -86,6 +89,7 @@
   function seatWho(w, S) {
     if (S.seat === 'partner' && w === 'partner') return 'manager';
     if (S.seat === 'senior' && w === 'manager') return 'assoc';
+    if (S.seat === 'staff' && w === 'assoc') return 'manager';
     return w;
   }
 
@@ -767,7 +771,7 @@
     create: create, resolve: resolve, apply: apply, combine: combine, epilogue: epilogue,
     sideOpen: sideOpen, offer: offer, applySide: applySide,
     misstatements: misstatements, decide: decide, band: band, dday: dday, asker: asker, reviewer: reviewer,
-    seatWho: seatWho, bySeat: bySeat, viewOf: viewOf, rng: rng,
+    seatWho: seatWho, bySeat: bySeat, viewOf: viewOf, rng: rng, povOf: povOf, SEAT_WHO: SEAT_WHO,
     snapshot: snapshot, restore: restore, cardIndex: cardIndex, resetCards: resetCards,
     SEATS: SEATS, FLAG_TEXT: FLAG_TEXT, MAT: MAT, OPINIONS: OPINIONS, KEYS: KEYS,
     SIDE_AFTER: SIDE_AFTER, sideKeys: sideKeys, mat: mat,

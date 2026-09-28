@@ -189,8 +189,8 @@
 .np-img, .n-sign .av { transition: filter 2.2s 1.1s; }
 .end.bloom .np-img, .end.bloom .n-sign .av { filter: none; }
 /* 도장에서 붉은 잉크가 한 번 퍼진다 */
-.ink { position: fixed; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--red); pointer-events: none; z-index: 5; animation: ink 1.1s ease-out forwards; }
-@keyframes ink { from { transform: scale(1); opacity: .85; } to { transform: scale(90); opacity: 0; } }
+.ink-drop { position: fixed; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--red); pointer-events: none; z-index: 5; animation: inkDrop 1.1s ease-out forwards; }
+@keyframes inkDrop { from { transform: scale(1); opacity: .85; } to { transform: scale(90); opacity: 0; } }
 
 /* ── 엔딩 크레딧 ──────────────────────────────────── */
 .credits { position: fixed; inset: 0; z-index: 60; background: #0b0a09; color: #f3f2f2; overflow: hidden; cursor: pointer; animation: fadeIn 1.2s both; }
@@ -227,7 +227,7 @@
 @keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(236, 48, 19, .25); } }
 @media (prefers-reduced-motion: reduce) {
   .end.bloom .end-bg .eb-c { animation: none; --r: 170%; }
-  .ink { display: none; }
+  .ink-drop { display: none; }
   .credits.rolling .cr-roll { animation: none; }
   .cr-roll { top: 0; bottom: 0; overflow-y: auto; padding: 40px 0; }
   .boot { display: none; }

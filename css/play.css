@@ -248,20 +248,39 @@ table.tb tr.sum td { font-weight: 700; color: var(--red-2); border-top: 1px soli
 .opt.dimmed { opacity: .55; }
 
 /* 빈칸 */
-.cz { margin-top: 16px; padding: 18px 20px; background: var(--panel-2); border-left: 3px solid var(--strong); font: 400 19px/2.35 var(--serif); }
+.cz { margin-top: 16px; padding: 18px 20px; background: var(--panel-2); border-left: 3px solid var(--strong); font: 400 19px/2.35 var(--serif); transition: line-height .35s var(--ease), padding .35s var(--ease); }
+/* 힌트를 처음 열면 줄 사이가 벌어져 초성 칸 자리가 생긴다 */
+.cz.hinting { line-height: 3.2; padding-bottom: 26px; }
 .cz .src { display: block; font: 600 11px/1 var(--mono); letter-spacing: .04em; color: var(--dim); margin-bottom: 6px; }
-.bl { position: relative; display: inline-block; white-space: nowrap; }
+.bl { position: relative; display: inline-block; white-space: nowrap; line-height: 1.3; }
 .bl input {
   font: 700 18px/1.3 var(--serif); color: var(--red-2); background: var(--panel); border: 0; border-bottom: 2px solid var(--ink);
-  padding: 2px 6px; text-align: center; outline: 0; min-width: 5ch;
+  padding: 2px 6px; text-align: center; outline: 0; min-width: 5ch; transition: border-color .2s, background .2s;
 }
+.bl input::placeholder { color: var(--rule); font: 600 14px/1 var(--sans); }
 .bl input:focus { border-bottom-color: var(--red); background: var(--red-soft); }
-.bl .hint { position: absolute; top: -18px; right: 0; font: 600 10px/1 var(--mono); color: var(--dim); border: 1px solid var(--line); background: var(--panel); padding: 2px 4px; opacity: 0; transition: opacity .15s; }
-.bl:hover .hint, .bl:focus-within .hint { opacity: 1; }
-.bl .ch { position: absolute; top: -20px; left: 0; font: 700 11px/1 var(--mono); color: var(--warn); letter-spacing: .1em; }
-.bl.ok input { color: var(--good); border-bottom-color: var(--good); background: var(--good-soft); }
-.bl.no input { color: var(--red-2); border-bottom-color: var(--red); text-decoration: line-through; background: var(--red-soft); }
-.bl .ans { position: absolute; left: 0; top: -22px; font: 700 14px/1 var(--serif); color: var(--red-2); white-space: nowrap; animation: ink .6s both; }
+.bl input:focus::placeholder { color: var(--red); opacity: .55; }
+/* 초성 힌트 — 칸 바로 아래 글자 수만큼 칸이 깔린다. 입력한 만큼 채워진다 */
+.bl.hinted input { border-bottom-color: var(--warn); }
+.bl.hinted input:focus { border-bottom-color: var(--warn); background: var(--warn-soft); }
+.bl .cho { position: absolute; left: 50%; top: calc(100% + 4px); transform: translateX(-50%); display: flex; gap: 2px; pointer-events: none; }
+.bl .cho i {
+  font: 700 12px/1 var(--sans); font-style: normal; color: var(--warn); background: var(--panel); border: 1px solid var(--warn);
+  min-width: 19px; height: 19px; padding: 0 3px; display: grid; place-items: center; border-radius: 3px;
+  animation: choIn .3s var(--ease) both; transition: background .15s, border-color .15s, opacity .15s;
+}
+.bl .cho i.sp { background: none; border: 0; min-width: 7px; padding: 0; }
+.bl .cho i.on { background: var(--warn-soft); }
+@keyframes choIn { from { opacity: 0; transform: translateY(-5px); } }
+.cz-hint b { font: 700 15px/1 var(--sans); color: var(--warn); margin-right: 2px; }
+.cz-hint small { font: 600 11px/1 var(--mono); color: var(--dim); margin-left: 6px; }
+.cz-hint:disabled { opacity: .5; cursor: default; }
+/* 채점 뒤 — 빈칸 자리에 바로 적는다 */
+.bl .v { display: inline-block; font: 700 18px/1.3 var(--serif); padding: 2px 8px; border-bottom: 2px solid; }
+.bl.ok .v { color: var(--good); border-color: var(--good); background: var(--good-soft); }
+.bl.no .v { color: var(--red-2); border-color: var(--red); background: var(--red-soft); animation: ink .6s .1s both; }
+.bl.no s { font: 400 15px/1 var(--serif); color: var(--dim); margin-right: 6px; text-decoration-color: var(--red); text-decoration-thickness: 2px; }
+.bl .h { font: 700 10px/1 var(--sans); font-style: normal; color: var(--warn); border: 1px solid var(--warn); padding: 2px 4px; margin-left: 4px; vertical-align: 4px; }
 
 /* 분류 */
 table.sort { width: 100%; border-collapse: collapse; margin-top: 16px; }

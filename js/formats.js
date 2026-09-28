@@ -250,43 +250,73 @@
   }
 
   /* ── 빈칸 ────────────────────────────────────────────── */
+  var CIRC = '①②③④⑤⑥⑦⑧⑨⑩';
+  function circ(i) { return CIRC.charAt(i) || String(i + 1); }
+  // 초성 칸 — 글자 수만큼 칸을 깔고 칸마다 초성을 적는다 (띄어쓰기는 빈 틈)
+  function choTiles(word) {
+    var AE = global.AE, n = 0;
+    return String(word).split('').map(function (c) {
+      if (/\s/.test(c)) return '<i class="sp"></i>';
+      return '<i style="animation-delay:' + (n++ * 45) + 'ms">' + esc(AE.choseong(c)) + '</i>';
+    }).join('');
+  }
   function clozeMount(host, p, api) {
-    var P = global.AE.parseCloze(p.text), hints = [];
+    var P = global.AE.parseCloze(p.text), hints = [], at = 0;
     var html = P.seg.map(function (s) {
       if (typeof s === 'string') return esc(s);
       var b = P.blanks[s.blank], w = Math.max(5, b.ans[0].length + 2);
-      return '<span class="bl" data-b="' + s.blank + '"><input data-i="' + s.blank + '" size="' + w + '" autocomplete="off" spellcheck="false" aria-label="빈칸 ' + (s.blank + 1) + '">' +
-        '<button type="button" class="hint" data-h="' + s.blank + '" tabindex="-1">초성</button></span>';
+      return '<span class="bl" data-b="' + s.blank + '"><input data-i="' + s.blank + '" size="' + w + '" placeholder="' + circ(s.blank) + '" autocomplete="off" spellcheck="false" aria-label="빈칸 ' + (s.blank + 1) + '"></span>';
     }).join('');
     host.innerHTML =
       '<p class="ask">' + esc(p.ask) + '</p>' +
-      '<ul class="reqs"><li class="lim">빈칸 ' + P.blanks.length + '</li><li class="lim">Tab · Enter 다음 칸</li><li class="lim">초성 힌트 = 절반 점수</li></ul>' +
-      '<div class="cz">' + (p.src ? '<span class="src">' + esc(p.src) + '</span>' : '') + html + '</div>' + goBar();
-    var inputs = qa(host, '.bl input');
+      '<ul class="reqs"><li class="lim">빈칸 ' + P.blanks.length + '</li><li class="lim">Tab · Enter 다음 칸</li><li class="lim">초성 힌트 = 그 칸 절반</li></ul>' +
+      '<div class="cz">' + (p.src ? '<span class="src">' + esc(p.src) + '</span>' : '') + html + '</div>' +
+      '<div class="go"><button type="button" class="btn" data-act="submit">제출 <kbd>Ctrl Enter</kbd></button>' +
+      '<button type="button" class="btn ghost cz-hint" data-act="hint"><b data-k="hn">' + circ(0) + '</b> <span data-k="ht">초성 보기</span><small data-k="hs">그 칸 ½</small></button>' +
+      '<span class="err" data-k="err"></span></div>';
+    var inputs = qa(host, '.bl input'), hb = q(host, '[data-act="hint"]');
+    function drawHint() {
+      var used = hints.indexOf(at) >= 0;
+      q(hb, '[data-k="hn"]').textContent = circ(at);
+      q(hb, '[data-k="ht"]').textContent = used ? '초성 공개됨' : '초성 보기';
+      q(hb, '[data-k="hs"]').textContent = used ? '' : '그 칸 ½';
+      hb.disabled = used;
+    }
+    function fill(i) {
+      var span = inputs[i].parentNode, tiles = qa(span, '.cho i:not(.sp)');
+      var n = inputs[i].value.replace(/\s/g, '').length;
+      tiles.forEach(function (t, k) { t.classList.toggle('on', k < n); });
+    }
+    function reveal(i) {
+      if (hints.indexOf(i) >= 0) return;
+      hints.push(i);
+      var span = inputs[i].parentNode, ans = P.blanks[i].ans[0];
+      var cho = document.createElement('span');
+      cho.className = 'cho';
+      cho.setAttribute('aria-label', '초성 ' + global.AE.choseong(ans));
+      cho.innerHTML = choTiles(ans);
+      span.appendChild(cho);
+      span.classList.add('hinted');
+      q(host, '.cz').classList.add('hinting');
+      inputs[i].placeholder = '';
+      fill(i);
+      sound(api, 'flip');
+      drawHint();
+      inputs[i].focus();
+    }
     inputs.forEach(function (inp, i) {
+      inp.addEventListener('focus', function () { at = i; drawHint(); });
       inp.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey)) {
           e.preventDefault();
           if (inputs[i + 1]) inputs[i + 1].focus(); else q(host, '[data-act="submit"]').focus();
         }
       });
-      inp.addEventListener('input', function () { err(host, ''); sound(api, 'type'); });
+      inp.addEventListener('input', function () { err(host, ''); sound(api, 'type'); if (hints.indexOf(i) >= 0) fill(i); });
     });
-    host.addEventListener('click', function (e) {
-      var h = e.target.closest('[data-h]');
-      if (!h || !host.contains(h)) return;
-      var i = +h.getAttribute('data-h');
-      if (hints.indexOf(i) >= 0) return;
-      hints.push(i);
-      var span = h.parentNode;
-      var ch = document.createElement('span');
-      ch.className = 'ch';
-      ch.textContent = global.AE.choseong(P.blanks[i].ans[0]);
-      span.appendChild(ch);
-      h.remove();
-      sound(api, 'flip');
-      inputs[i].focus();
-    });
+    // 버튼을 누르는 순간 칸의 포커스가 빠지지 않게 — 어느 칸의 힌트인지 그대로 남는다
+    hb.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    hb.addEventListener('click', function () { reveal(at); });
     function values() { return inputs.map(function (x) { return x.value; }); }
     function submit() {
       if (!values().some(function (v) { return v.trim(); })) { err(host, '빈칸이 모두 비어 있음'); inputs[0].focus(); return; }
@@ -297,29 +327,23 @@
     return { answer: function () { return { values: values(), hints: hints.slice() }; }, refresh: function () {}, destroy: off };
   }
 
+  // 채점 뒤 — 빈칸 자리에 바로 적는다. 틀린 답은 줄을 긋고 옆에 정답, 힌트를 본 칸은 '초성' 표시
   function clozeReview(host, p, ans, g) {
-    var blanks = (g.res && g.res.blanks) || [];
+    var blanks = (g.res && g.res.blanks) || [], hinted = ans.hints || [];
     qa(host, '.bl').forEach(function (span) {
       var i = +span.getAttribute('data-b'), b = blanks[i] || {};
-      var inp = span.querySelector('input');
-      inp.disabled = true;
-      span.classList.add(b.ok ? 'ok' : 'no');
-      var hb = span.querySelector('.hint');
-      if (hb) hb.remove();
-      var ch = span.querySelector('.ch');
-      if (ch) ch.remove();
-      if (!b.ok) {
-        var a = document.createElement('span');
-        a.className = 'ans';
-        a.textContent = b.ans[0];
-        span.appendChild(a);
-        if (!inp.value) inp.value = '—';
-      }
+      var inp = span.querySelector('input'), mine = inp ? inp.value.trim() : '';
+      var right = (b.ans && b.ans[0]) || '';
+      var tag = hinted.indexOf(i) >= 0 ? '<i class="h">초성</i>' : '';
+      span.className = 'bl ' + (b.ok ? 'ok' : 'no');
+      span.innerHTML = b.ok
+        ? '<span class="v">' + esc(mine) + '</span>' + tag
+        : (mine ? '<s>' + esc(mine) + '</s>' : '') + '<span class="v">' + esc(right) + '</span>' + tag;
     });
     qa(host, '.go, .reqs').forEach(function (el) { el.remove(); });
     return {
       model: '',
-      mine: '<span class="k">내 답</span><p>' + (ans.values || []).map(function (v, i) { return (i + 1) + '. ' + esc(v || '—'); }).join('  ') + '</p>'
+      mine: '<span class="k">내 답</span><p>' + (ans.values || []).map(function (v, i) { return circ(i) + ' ' + esc(v || '—'); }).join('   ') + '</p>'
     };
   }
 

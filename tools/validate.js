@@ -533,6 +533,13 @@ if (!process.env.SEASON && !process.env.NO_LAB) {
   (lab.stdout || '').split('\n').filter(l => /평균|벗어난 칸/.test(l)).forEach(l => console.log('  ' + l.trim()));
   if (lab.status) { bad++; console.log('  ✕ 채점 띠를 벗어난 칸이 너무 많다 — node tools/gradelab.js --bad'); }
   else console.log('  → 이상 없음');
+
+  /* 존칭 — 직급 아래에서 위로 반말, 시점 인물과 안 맞는 부름말 (tools/honorifics.js) */
+  console.log('\n═══ 존칭 (누가 누구에게 — 시점 인물 기준)');
+  const hon = require('child_process').spawnSync(process.execPath, [path.join(ROOT, 'tools', 'honorifics.js')], { encoding: 'utf8' });
+  (hon.stdout || '').split('\n').filter(l => /✕|고칠 것/.test(l)).slice(0, 12).forEach(l => console.log('  ' + l.trim()));
+  if (hon.status) { bad++; console.log('  ✕ 존칭이 어긋난 대사 — node tools/honorifics.js'); }
+  else console.log('  → 이상 없음');
 }
 
 process.exitCode = bad ? 1 : 0;

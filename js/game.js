@@ -59,49 +59,49 @@
   function typing(e) { var t = e.target; return t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT'); }
   var TYPE_NAME = SEASON.TYPE_NAME;
 
-  /* ---------- 내 자리 ----------
-     장면마다 앉는 자리가 바뀐다. 말로 설명하지 않고 팀 자리 세 칸으로 보여 준다. */
+  /* ---------- 나의 시점 ----------
+     장면마다 시점이 바뀐다 — 그 자리에 앉은 사람이 그 장면의 「나」다.
+     세 사람 얼굴은 늘 보이고, 붉은 「나의 시점」 표가 사람 사이를 건너간다. */
   var SEAT_SLOTS = [
     { seat: 'partner', who: 'partner' },
     { seat: 'senior', who: 'manager' },
     { seat: 'staff', who: 'assoc' }
   ];
   var prevSeat = null;
-  // 자리가 바뀌면 옛 자리 칸은 「나」→ 원래 사람, 새 자리 칸은 원래 사람 →「나」로 뒤집힌다 (면 a → 면 b)
+  function rankBars(seat) { return '<i class="rank">' + new Array(4 - ['partner', 'senior', 'staff'].indexOf(seat)).join('<i></i>') + '</i>'; }
   function seatTiles(seat, from) {
     var moved = from && from !== seat;
-    return '<div class="seats' + (moved ? ' moving' : '') + '">' + SEAT_SLOTS.map(function (s, k) {
-      var name = SEASON.SEATS[s.seat].name, c = cast(s.who);
-      var me = '<span class="st-av ph me-av"><b>나</b></span><b>나</b><span>' + esc(name) + '</span>';
-      var them = av(s.who, null, 'st-av') + '<b>' + esc(c.name) + '</b><span>' + esc(name) + '</span>';
-      var rank = '<i class="rank">' + new Array(4 - k).join('<i></i>') + '</i>';
-      function face(x, cls) { return '<span class="fc ' + cls + '">' + x + '</span>'; }
-      if (moved && s.seat === from) return '<div class="st me from">' + face(me, 'a') + face(them, 'b') + rank + '</div>';
-      if (moved && s.seat === seat) return '<div class="st to">' + face(them, 'a') + face(me, 'b') + rank + '</div>';
-      return '<div class="st' + (s.seat === seat ? ' me' : '') + '">' + face(s.seat === seat ? me : them, 'a') + rank + '</div>';
+    return '<div class="seats' + (moved ? ' moving' : '') + '">' + SEAT_SLOTS.map(function (s) {
+      var c = cast(s.who), cls = 'st';
+      if (moved) cls += s.seat === from ? ' me from' : s.seat === seat ? ' to' : '';
+      else if (s.seat === seat) cls += ' me';
+      return '<div class="' + cls + '">' + av(s.who, null, 'st-av') +
+        '<b>' + esc(c.name) + '</b><span>' + esc(SEASON.SEATS[s.seat].name) + '</span>' +
+        rankBars(s.seat) + '<em class="pov-tag">나의 시점</em></div>';
     }).join('') + '</div>';
   }
+  function povName(seat) { return cast(SEASON.povOf(seat)).name; }
 
-  /* 「나」가 옛 자리에서 새 자리로 건너간다 — 배경이 한 번 휙 돌고, 도장처럼 내려앉는다 */
+  /* 「나의 시점」 표가 옛 사람에게서 새 사람에게로 건너간다 — 배경이 한 번 휙 돌고, 도장처럼 내려앉는다 */
   function seatHop(root, wait, alive) {
     var box = $('.seats.moving', root);
     if (!box) return null;
     var a = $('.st.from', box), b = $('.st.to', box), tok = null, t1 = null, t2 = null;
     function land() {
       if (tok) { tok.remove(); tok = null; }
-      a.classList.remove('me'); a.classList.add('flip');
-      b.classList.add('me', 'flip', 'landed');
+      a.classList.remove('me');
+      b.classList.add('me', 'landed');
     }
     t1 = setTimeout(function () {
       if (!alive()) return;
-      var r0 = $('.fc.a .st-av', a).getBoundingClientRect(), r1 = $('.fc.a .st-av', b).getBoundingClientRect();
+      var r0 = $('.pov-tag', a).getBoundingClientRect(), r1 = $('.pov-tag', b).getBoundingClientRect();
       tok = document.createElement('span');
       tok.className = 'hop-tok';
-      tok.innerHTML = '<i>나</i>';
+      tok.innerHTML = '<i>나의 시점</i>';
       tok.style.left = r0.left + 'px';
       tok.style.top = r0.top + 'px';
       document.body.appendChild(tok);
-      a.classList.remove('me'); a.classList.add('flip');
+      a.classList.remove('me');
       root.classList.add('whip');
       FX.play('hop');
       void tok.offsetWidth;
@@ -238,7 +238,9 @@
     d.className = 'slate';
     if (o.img) d.style.backgroundImage = 'url(' + o.img + ')';
     d.innerHTML = '<span class="kick">' + esc(o.kick) + '</span><h2>' + esc(o.title) + '</h2>' +
-      (o.sub ? '<p>' + esc(o.sub) + '</p>' : '') + (o.seat ? '<span class="seat">내 자리 · ' + esc(o.seat) + '</span>' : '');
+      (o.sub ? '<p>' + esc(o.sub) + '</p>' : '') +
+      (o.seatId ? '<span class="seat">' + av(SEASON.povOf(o.seatId), null, 'sl-av') + '<b>' + esc(povName(o.seatId)) + '</b>' + esc(SEASON.SEATS[o.seatId].name) + '<em>나의 시점</em></span>'
+        : o.seat ? '<span class="seat">' + esc(o.seat) + '</span>' : '');
     document.body.appendChild(d);
     FX.play('open');
     var done = false;
@@ -278,7 +280,7 @@
       (o.at || o.place ? '<div class="ch-where">' + (o.at ? '<span>' + esc(o.at) + '</span>' : '') + (o.place ? '<b>' + esc(o.place) + '</b>' : '') + '</div>' : '') +
       '<p class="ch-text"><span class="tx"></span><span class="cur"></span></p>' +
       (o.seatId ? '<div class="ch-seats"><span class="k">' +
-        (moved ? '자리 이동 · ' + esc(SEASON.SEATS[o.seatFrom].name) + ' → ' + esc(SEASON.SEATS[o.seatId].name) : '내 자리') +
+        (moved ? '시점 이동 · ' + esc(povName(o.seatFrom)) + ' → ' + esc(povName(o.seatId)) : '나의 시점 · ' + esc(povName(o.seatId))) +
         '</span>' + seatTiles(o.seatId, o.seatFrom) + '</div>' : '') +
       '<div class="ch-foot"><span class="ch-skip">클릭 · Enter</span></div></div>';
     document.body.appendChild(d);
@@ -716,12 +718,15 @@
       });
       return out;
     }
-    // 자리가 바뀐 장면이면 칩의 자리 이름이 옛 자리에서 새 자리로 굴러 바뀐다
-    var seatName = esc(SEASON.SEATS[it.seat].name), was = cur.seatFrom && cur.seatFrom !== it.seat ? SEASON.SEATS[cur.seatFrom] : null;
-    var html = '<div class="who" id="who"><span class="who-av">' + av(it.speaker) + '</span><div class="who-t"><div class="nm"></div><div class="say"></div></div>' +
-      '<span class="me-chip' + (was ? ' moved' : '') + '" title="이 장면에서 내가 앉는 자리">나<em>' +
-        (was ? '<span class="mr"><s>' + esc(was.name) + '</s><b>' + seatName + '</b></span>' : seatName) + '</em>' +
-        '<i class="rank">' + new Array(4 - ['partner', 'senior', 'staff'].indexOf(it.seat)).join('<i></i>') + '</i></span></div>' +
+    // 나의 시점 — 이 장면의 「나」가 누구인지 사진 · 이름 · 자리로. 시점이 바뀐 장면이면 옛 사람 이름이 빠지고 새 사람이 들어온다
+    var pov = SEASON.povOf(it.seat), pc = cast(pov);
+    var was = cur.seatFrom && cur.seatFrom !== it.seat ? cast(SEASON.povOf(cur.seatFrom)) : null;
+    var html = '<div class="pov-bar' + (was ? ' moved' : '') + '" title="이 장면은 ' + esc(pc.name) + '의 시점">' +
+        '<span class="pv-av">' + av(pov, null, 'av') + '</span>' +
+        '<span class="pv-t">' + (was ? '<span class="mr"><s>' + esc(was.name) + '</s><b>' + esc(pc.name) + '</b></span>' : '<b>' + esc(pc.name) + '</b>') +
+          '<span>' + esc(SEASON.SEATS[it.seat].name) + '</span>' + rankBars(it.seat) + '</span>' +
+        '<em class="pv-tag">나의 시점</em></div>' +
+      '<div class="who" id="who"><span class="who-av">' + av(it.speaker) + '</span><div class="who-t"><div class="nm"></div><div class="say"></div></div></div>' +
       (it.note ? '<p class="note">' + esc(it.note) + '</p>' : '') +
       '<div class="lbl" style="margin-top:18px"><span>상황</span>' + (clues.length ? '<span>단서 <b id="clue-n">0</b> / ' + clues.length + '</span>' : '') + '</div>' +
       tipBox('clue', clues.length) +
@@ -1535,7 +1540,7 @@
     end.style.setProperty('--bx', (x / innerWidth * 100).toFixed(1) + '%');
     end.style.setProperty('--by', (y / innerHeight * 100).toFixed(1) + '%');
     var ink = document.createElement('i');
-    ink.className = 'ink';
+    ink.className = 'ink-drop';
     ink.style.left = x + 'px';
     ink.style.top = y + 'px';
     document.body.appendChild(ink);
