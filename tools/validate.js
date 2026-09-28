@@ -525,4 +525,14 @@ console.log('\n═══ 문구 (대사는 한 줄 · 42자 이내 권장)');
 }
 
 if (bad) console.log(`\n문제 ${bad}건`);
+/* 채점 띠 — 같은 뜻인데 0점인지, 반대로 퍼주는지 (tools/gradelab.js)
+   SEASON 을 지정하지 않은 기본 실행에서만 돌린다. NO_LAB=1 로 끌 수 있다. */
+if (!process.env.SEASON && !process.env.NO_LAB) {
+  console.log('\n═══ 채점 띠 (모범답안 · 용어 뭉뚱그림 · 방향만 · 딴 문항)');
+  const lab = require('child_process').spawnSync(process.execPath, [path.join(ROOT, 'tools', 'gradelab.js')], { encoding: 'utf8' });
+  (lab.stdout || '').split('\n').filter(l => /평균|벗어난 칸/.test(l)).forEach(l => console.log('  ' + l.trim()));
+  if (lab.status) { bad++; console.log('  ✕ 채점 띠를 벗어난 칸이 너무 많다 — node tools/gradelab.js --bad'); }
+  else console.log('  → 이상 없음');
+}
+
 process.exitCode = bad ? 1 : 0;

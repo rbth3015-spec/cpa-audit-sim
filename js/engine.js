@@ -97,6 +97,55 @@
     return out;
   }
 
+  /* ---------- 용어 계층 ----------
+     정확한 용어(내부통제) 대신 상위어(통제)만 썼는지 본다.
+     틀린 게 아니라 덜 정확한 것이므로 만점 대신 일부만 준다. data/lexicon.js 의 TERM_TREE */
+  function hypersOf(kw) {
+    var tree = global.TERM_TREE || {}, out = [], seen = {};
+    [].concat(kw || []).forEach(function (k) {
+      var n = norm(k);
+      for (var exact in tree) {
+        if (!Object.prototype.hasOwnProperty.call(tree, exact) || norm(exact) !== n) continue;
+        tree[exact].forEach(function (h) { if (!seen[h]) { seen[h] = 1; out.push(h); } });
+      }
+    });
+    return out;
+  }
+
+  /* ---------- 라벨 낱말 겹침 ----------
+     채점 라벨("경영진 거부의 타당성 평가")의 뜻 있는 낱말이 답안에 얼마나 들어 있는지.
+     핵심 용어를 못 썼어도 방향은 잡은 답을 0점으로 두지 않기 위한 것이다. */
+  var STOPW = /^(그|및|또는|등|대한|관한|여부|경우|사항|것|때|중|내|시|위해|따라|관련|모두|각각)$/;
+  var JOSA = /(의|을|를|이|가|은|는|에|와|과|로|으로|에서|에게|까지|부터|에는|와의|과의)$/;
+  function contentWords(s) {
+    return String(s || '')
+      .replace(/[ⓐ-ⓩ①-⑳·—\-()[\],.]/g, ' ')
+      .split(/\s+/).map(norm)
+      .map(function (w) { return w.length >= 3 ? w.replace(JOSA, '') : w; })   // 조사 떼기
+      .filter(function (w) { return w.length >= 2 && !STOPW.test(w); });
+  }
+  function overlap(ws, hay) {
+    if (!ws.length) return 0;
+    var hit = 0;
+    ws.forEach(function (w) { if (hay.indexOf(w) >= 0) hit++; });
+    return hit / ws.length;
+  }
+
+  /* ---------- 모범답안과의 닮음 ----------
+     글자 2-gram 코사인. 학습 없이 계산만으로 "핀트는 맞다" 를 가려낸다. */
+  function bare0(s) { return String(s || '').replace(/\s/g, '').length; }
+  function grams(s) {
+    var t = norm(s), m = {};
+    for (var i = 0; i < t.length - 1; i++) { var g = t.substr(i, 2); m[g] = (m[g] || 0) + 1; }
+    return m;
+  }
+  function cosine(a, b) {
+    var dot = 0, na = 0, nb = 0, k;
+    for (k in a) { if (Object.prototype.hasOwnProperty.call(a, k)) { na += a[k] * a[k]; if (b[k]) dot += a[k] * b[k]; } }
+    for (k in b) { if (Object.prototype.hasOwnProperty.call(b, k)) nb += b[k] * b[k]; }
+    return (na && nb) ? dot / Math.sqrt(na * nb) : 0;
+  }
+
   /* ---------- 부정 표현 ---------- */
   var NEG = /(하지않|되지않|지않|않는|않다|않음|아니|없|불필요|필요없|생략|무시|제외|안해도|말아야|배제|못하|못한|어렵)/;
 
@@ -259,25 +308,60 @@
     var R = { must: [], bonus: [], trap: [], flags: [] };
     var mustGot = 0, mustMax = 0, mustHits = 0, negCount = 0;
 
+    /* 점수 사다리 — 같은 뜻인데 말이 다르다고 0점을 주지 않는다.
+         full  정확한 용어            100%
+         hyper 상위어만 씀            60%   (통제 → 내부통제)
+         half  한정어가 빠짐          50%   (채점표의 half)
+         part  채점표에 적어 둔 변형  45%
+         aim   라벨 낱말이 절반 이상  40%   (방향은 잡았다)
+       부분 점수 합계는 아래에서 만점의 절반까지만 인정한다. */
+    var TIER = { hyper: 0.6, half: 0.5, part: 0.45, aim: 0.4 };
+    var partials = [], partialGot = 0;
     (rubric.must || []).forEach(function (it) {
       mustMax += it.score;
       var r = evalItem(hay, it);
-      var got = 0, partial = false;
-      if (r.hit) { got = it.score; mustHits++; }
-      else if (it.half) {
-        // 핵심어는 있으나 한정어가 빠진 경우 절반만 준다.
-        // 실제 GS 채점의 "문장 완성도에 따라 점수를 차등 부여" 를 옮긴 것.
-        var h = evalItem(hay, { kw: it.half, negOk: it.negOk, notBefore: it.notBefore, fuzzy: it.fuzzy });
-        if (h.hit) { got = Math.round(it.score / 2); partial = true; mustHits++; r = h; }
+      var got = 0, tier = null, note = null;
+      function tryKw(kws, name, fuzzy) {
+        if (tier || !kws || !kws.length) return;
+        var g = evalItem(hay, { kw: kws, negOk: it.negOk, notBefore: it.notBefore, fuzzy: fuzzy !== false && it.fuzzy });
+        if (g.hit) { tier = name; r = g; got = Math.round(it.score * TIER[name]); }
       }
-      mustGot += got;
+      if (r.hit) { got = it.score; tier = 'full'; }
+      else {
+        var hyper = hypersOf(it.kw);
+        tryKw(hyper, 'hyper', false);
+        if (tier === 'hyper') note = '용어: ' + (r.matched || '') + ' → ' + [].concat(it.kw)[0];
+        tryKw(it.half, 'half');
+        tryKw(it.part, 'part');
+        if (!tier) {
+          var lw = contentWords(it.label);
+          if (lw.length >= 3 && overlap(lw, hay) >= 0.6) {
+            tier = 'aim'; got = Math.round(it.score * TIER.aim); note = '방향은 맞음 — 기준서 용어로';
+          }
+        }
+      }
+      var partial = !!tier && tier !== 'full';
+      if (tier) mustHits++;
+      if (partial) { partialGot += got; } else { mustGot += got; }
       if (r.negated) negCount++;
       // hit 은 만점일 때만 true. 분기·진실 발견이 이 값을 근거로 삼기 때문이다.
-      R.must.push({ label: it.label, score: it.score, got: got,
-                    hit: !partial && got === it.score, partial: partial,
-                    negated: !!r.negated, nearMiss: !!r.nearMiss,
-                    fuzzy: !!r.fuzzy, matched: r.matched, hint: it.hint, why: it.why });
+      var row = { label: it.label, score: it.score, got: got,
+                  hit: tier === 'full', partial: partial, tier: tier, note: note,
+                  negated: !!r.negated, nearMiss: !!r.nearMiss,
+                  fuzzy: !!r.fuzzy, matched: r.matched, hint: it.hint, why: it.why };
+      R.must.push(row);
+      if (partial) partials.push(row);
     });
+
+    // 부분 점수 상한 — 정확히 쓴 것 없이 부분 점수만으로 절반을 넘길 수 없다
+    var pCap = Math.round(mustMax * 0.5);
+    if (partialGot > pCap && partialGot > 0) {
+      var k = pCap / partialGot;
+      partialGot = 0;
+      partials.forEach(function (row) { row.got = Math.round(row.got * k); partialGot += row.got; });
+      R.flags.push('부분 점수 상한 — 만점의 절반까지만');
+    }
+    mustGot += partialGot;
 
     var bCap = (rubric.bonusCap != null) ? rubric.bonusCap : 15;
     var bRaw = 0;
@@ -301,7 +385,30 @@
                     hit: r.hit, matched: r.matched });
     });
 
+    /* 라벨에 하나도 안 걸렸지만 모범답안과 닮은 답 — 닮은 만큼만, 최대 30%.
+       함정에 걸렸으면 주지 않는다. 학습 없이 글자 2-gram 으로만 잰다. */
+    if (mustHits === 0 && mustMax > 0 && opt.model && trapGot === 0 && bare0(raw) >= 10) {
+      var sim = cosine(grams(raw), grams(opt.model));
+      if (sim >= 0.5) {
+        var aimGot = Math.round(mustMax * Math.min(0.25, 0.1 + (sim - 0.5) * 0.6));
+        mustGot += aimGot;
+        R.aim = { sim: Math.round(sim * 100) / 100, got: aimGot };
+        R.flags.push('방향은 맞음 — 기준서 용어로 다시 (+' + aimGot + ')');
+      }
+    }
+
     var st = structure(raw, mustHits, opt.form);
+    // 구조 점수는 글솜씨가 아니라 내용에 붙는다.
+    // 논점을 하나도 못 짚은 답(딴 문항 답안 포함)에 문장 점수를 주지 않는다.
+    var mustRatio = mustMax ? Math.min(1, mustGot / mustMax) : 0;
+    if (st.points) {
+      var keep = mustHits === 0 ? 0 : Math.min(1, 0.35 + mustRatio);
+      if (keep < 1) {
+        st.points = Math.round(st.points * keep);
+        st.detail = st.detail.map(function (d) { return [d[0], Math.round(d[1] * keep), d[2]]; });
+        if (mustHits === 0) R.flags.push('논점을 짚지 못함 — 문장 점수 없음');
+      }
+    }
     R.structure = st;
     if (st.listing) R.flags.push('용어 나열 — 75%까지만 인정');
     if (negCount)   R.flags.push('부정문으로 쓴 논점 ' + negCount + '개 — 인정 안 함');
@@ -379,7 +486,8 @@
     var out = { parts: [], total: 0, max: 0, flags: [], hits: [] };
     (parts || []).forEach(function (p, i) {
       var a = answers[i] || {};
-      var r = grade(a.text, p.rubric || {}, { maxChars: p.maxChars || 120, form: p.form || form });
+      var r = grade(a.text, p.rubric || {}, { maxChars: p.maxChars || 120, form: p.form || form,
+                                              model: typeof p.model === 'string' ? p.model : null });
 
       // 판단은 버튼이 아니라 답안 문장에서 읽는다
       var vMax = 0, vGot = 0, vWrong = false, ver = null;
@@ -575,7 +683,8 @@
       return wrapR(r);
     }
     if (t === 'judge') {
-      r = grade(ans.text, part.rubric || {}, { maxChars: part.maxChars || 120, form: part.form || 'short' });
+      r = grade(ans.text, part.rubric || {}, { maxChars: part.maxChars || 120, form: part.form || 'short',
+                                                model: typeof part.model === 'string' ? part.model : null });
       var vMax = part.verdictScore != null ? part.verdictScore : 15;
       var given = ans.pick || null, exp = part.verdict ? part.verdict.answer : null;
       var correct = !!given && given === exp;
