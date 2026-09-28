@@ -3,8 +3,10 @@
   "configurations": [
     {
       "name": "audit-sim",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8765"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "tools/serve.mjs"
+      ],
       "port": 8765
     }
   ]

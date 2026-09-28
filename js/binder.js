@@ -21,15 +21,16 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   };
+  // 탭 색은 모서리 띠 3px 로만 쓴다 — 종이에서 크게 튀지 않는 낮은 채도
   var TABS = [
-    { id: 'A', name: '개요', c: '#e9e3d4' },
-    { id: 'B', name: '조서', c: '#dfe6dc' },
-    { id: 'C', name: '증거', c: '#e6dcd8' },
-    { id: 'D', name: '메모', c: '#d9dbe4' },
-    { id: 'E', name: '카드', c: '#efe3c8' },
-    { id: 'F', name: '오답', c: '#e8d6d2' },
-    { id: 'G', name: '인물', c: '#dcd6e6' },
-    { id: 'H', name: '암기', c: '#d6e2e6' }
+    { id: 'A', name: '개요', c: '#8d8676' },
+    { id: 'B', name: '조서', c: '#7f8a80' },
+    { id: 'C', name: '증거', c: '#8e7f79' },
+    { id: 'D', name: '메모', c: '#7c8190' },
+    { id: 'E', name: '카드', c: '#9a8a63' },
+    { id: 'F', name: '오답', c: '#94726c' },
+    { id: 'G', name: '인물', c: '#847b94' },
+    { id: 'H', name: '암기', c: '#6f8a90' }
   ];
   var TYPE = { write: '서술', judge: '판단', choice: '객관식', cloze: '빈칸', sort: '분류', mini: '미니게임' };
 

@@ -84,10 +84,136 @@
     try { (SOUNDS[name] || SOUNDS.click)(); } catch (e) { /* 소리는 실패해도 게임은 계속 */ }
   }
 
+  /* ---------- 배경음 ----------------------------------------
+     음원 파일 없이 합성한다. 밤 사무실의 공기 한 겹 · 가끔 울리는 한 음 ·
+     시간이 얼마 안 남으면 도는 초침. 끊기는 데 없이 계속 흐른다.
+       FX.music('scene' | 'end' | null)   틀기 · 바꾸기 · 끄기
+       FX.tension(0~1)                    쫓기는 정도 (남은 시간 · 회사 태도)
+  ------------------------------------------------------------ */
+  var BGM = { mood: null, want: null, bus: null, nodes: [], timer: 0, tension: 0 };
+  var SCALE = [261.63, 311.13, 349.23, 392.00, 466.16];    // 단조 5음 — 밝지 않게
+
+  function bgmStop(fade) {
+    if (BGM.timer) { clearTimeout(BGM.timer); BGM.timer = 0; }
+    var bus = BGM.bus, list = BGM.nodes;
+    BGM.bus = null; BGM.nodes = []; BGM.mood = null;
+    if (!bus || !ctx) return;
+    var t = ctx.currentTime;
+    bus.gain.cancelScheduledValues(t);
+    bus.gain.setValueAtTime(bus.gain.value || 0.0001, t);
+    bus.gain.exponentialRampToValueAtTime(0.0001, t + (fade == null ? 1.1 : fade));
+    setTimeout(function () {
+      list.forEach(function (n) { try { n.stop ? n.stop() : n.disconnect(); } catch (e) { /* 이미 멈춤 */ } });
+      try { bus.disconnect(); } catch (e) { /* 이미 끊김 */ }
+    }, ((fade == null ? 1.1 : fade) + 0.2) * 1000);
+  }
+
+  /* 한 음 — 느리게 들어와 길게 사라진다 */
+  function bgmNote(freq, vol, dur) {
+    if (!BGM.bus) return;
+    var t0 = ctx.currentTime;
+    var o = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter();
+    o.type = 'sine'; o.frequency.value = freq;
+    f.type = 'lowpass'; f.frequency.value = 1200;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.35);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(f); f.connect(g); g.connect(BGM.bus);
+    o.start(t0); o.stop(t0 + dur + 0.1);
+  }
+
+  /* 다음 한 음을 예약한다 — 쫓길수록 자주, 엔딩이면 더 드물게 */
+  function bgmSchedule() {
+    if (!BGM.bus) return;
+    var end = BGM.mood === 'end';
+    var gap = (end ? 9000 : 6500) - BGM.tension * 2600 + Math.random() * (end ? 7000 : 5000);
+    BGM.timer = setTimeout(function () {
+      if (!BGM.bus) return;
+      var i = Math.floor(Math.random() * SCALE.length);
+      var oct = Math.random() < (end ? 0.75 : 0.45) ? 0.5 : 1;
+      bgmNote(SCALE[i] * oct, 0.05 + BGM.tension * 0.03, 2.4 + Math.random() * 1.6);
+      // 쫓기면 초침이 돈다
+      if (BGM.tension > 0.62 && !end) {
+        var n = 0, beat = setInterval(function () {
+          if (!BGM.bus || n++ > 6 || BGM.tension <= 0.62) { clearInterval(beat); return; }
+          noise(0, 0.02, 0.03 + BGM.tension * 0.02, 3200);
+        }, 1000);
+      }
+      bgmSchedule();
+    }, Math.max(2200, gap));
+  }
+
+  function music(mood) {
+    BGM.want = mood || null;                       // 소리를 껐다 켜면 여기로 돌아온다
+    if (!mood) { bgmStop(); return; }
+    if (!on) return;
+    if (!wake()) return;
+    if (BGM.mood === mood && BGM.bus) return;
+    bgmStop(0.5);
+    setTimeout(function () {
+      if (!on || !ctx) return;
+      var end = mood === 'end';
+      var bus = ctx.createGain();
+      bus.gain.setValueAtTime(0.0001, ctx.currentTime);
+      bus.gain.exponentialRampToValueAtTime(end ? 0.5 : 0.62, ctx.currentTime + 2.2);
+      bus.connect(master);
+
+      var lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = end ? 180 : 240; lp.Q.value = 0.7;
+      lp.connect(bus);
+
+      // 드론 두 겹 — 5도로 살짝 어긋나게
+      var base = end ? 49 : 55;
+      [[base, 0.08, 'sine'], [base * 1.5, 0.045, 'triangle'], [base * 2.01, 0.025, 'sine']].forEach(function (d) {
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = d[2]; o.frequency.value = d[0];
+        o.detune.value = (Math.random() * 8 - 4);
+        g.gain.value = d[1];
+        o.connect(g); g.connect(lp);
+        o.start(); BGM.nodes.push(o);
+      });
+
+      // 공기 — 아주 낮게 깔리는 잡음
+      var len = Math.floor(ctx.sampleRate * 4), buf = ctx.createBuffer(1, len, ctx.sampleRate), d0 = buf.getChannelData(0);
+      for (var i = 0, last = 0; i < len; i++) {
+        last = (last + (Math.random() * 2 - 1) * 0.08) * 0.985;      // 갈색 잡음에 가깝게
+        d0[i] = last;
+      }
+      var air = ctx.createBufferSource(), ag = ctx.createGain(), af = ctx.createBiquadFilter();
+      air.buffer = buf; air.loop = true;
+      af.type = 'lowpass'; af.frequency.value = 620;
+      ag.gain.value = end ? 0.5 : 0.36;
+      air.connect(af); af.connect(ag); ag.connect(bus);
+      air.start(); BGM.nodes.push(air);
+
+      // 아주 느린 숨 — 드론이 미세하게 부풀었다 가라앉는다
+      var lfo = ctx.createOscillator(), lg = ctx.createGain();
+      lfo.frequency.value = 0.045; lg.gain.value = end ? 40 : 55;
+      lfo.connect(lg); lg.connect(lp.frequency);
+      lfo.start(); BGM.nodes.push(lfo);
+
+      BGM.bus = bus; BGM.mood = mood;
+      bgmSchedule();
+    }, BGM.bus ? 520 : 0);
+  }
+
+  function tension(v) {
+    // 배경음이 조여 오는 정도 — 남은 시간이 줄면 1 에 가까워진다
+    BGM.tension = Math.max(0, Math.min(1, +v || 0));
+  }
+
+  // 화면이 가려지면 멈추고, 돌아오면 이어서 튼다
+  global.addEventListener('visibilitychange', function () {
+    if (!ctx) return;
+    if (document.hidden) { try { ctx.suspend(); } catch (e) { /* 무시 */ } }
+    else if (on) { try { ctx.resume(); } catch (e) { /* 무시 */ } }
+  });
+
   function setOn(v) {
     on = !!v;
     try { localStorage.setItem(KEY, on ? '1' : '0'); } catch (e) { /* 저장 안 됨 */ }
-    if (on) { wake(); play('tick'); }
+    if (on) { wake(); play('tick'); if (BGM.want) music(BGM.want); }
+    else bgmStop(0.4);
   }
 
   /* 숫자 굴리기 */
@@ -112,5 +238,11 @@
     el.classList.add('shake');
   }
 
-  global.FX = { play: play, setOn: setOn, isOn: function () { return on; }, roll: roll, shake: shake };
+  global.FX = { play: play, setOn: setOn, isOn: function () { return on; }, roll: roll, shake: shake,
+                music: music, tension: tension,
+                // 소리가 실제로 도는지 보는 용도 (검증 스크립트 · 디버그)
+                state: function () {
+                  return { ctx: ctx ? ctx.state : 'none', mood: BGM.mood, want: BGM.want,
+                           playing: !!BGM.bus, voices: BGM.nodes.length, tension: BGM.tension };
+                } };
 })(window);

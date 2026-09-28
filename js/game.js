@@ -53,6 +53,8 @@
   function show(id) {
     ['home', 'play', 'end'].forEach(function (k) { $('#screen-' + k).hidden = k !== id; });
     window.scrollTo(0, 0);
+    // 배경음 — 화면에 맞춰 바뀐다 (홈은 조용히)
+    FX.music(id === 'play' ? 'scene' : id === 'end' ? 'end' : null);
   }
   function typing(e) { var t = e.target; return t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT'); }
   var TYPE_NAME = SEASON.TYPE_NAME;
@@ -920,6 +922,8 @@
     el.classList.toggle('pause', !run);
     el.classList.toggle('hot', run && clock.left <= 30);
     el.classList.toggle('jit', run && clock.left <= 10);
+    // 남은 시간이 줄수록 배경음이 조여 온다
+    FX.tension(run && clock.max ? 1 - clock.left / clock.max : 0);
   }
 
   /* ---------- 제출 · 채점 ---------- */
@@ -1017,9 +1021,11 @@
     (r.must || []).forEach(function (m) {
       var cls = m.hit ? 'ok' : m.partial ? 'half' : 'no';
       var got = zero ? 0 : m.got;
+      // 부분 점수를 준 이유를 한 줄로 — 다음엔 정확한 용어를 쓰게 만드는 자리다
+      var note = m.partial && m.note ? '<small class="tier">' + esc(m.note) + '</small>' : '';
       var why = !m.hit && m.why ? '<small>' + esc(m.why) + '</small>' : '';
       var hint = !m.hit && !m.why && m.hint ? '<small>' + esc(m.hint) + '</small>' : '';
-      rows += '<tr class="' + cls + '"><td class="m">' + (m.hit ? '✓' : m.partial ? '◐' : '✗') + '</td><th>' + esc(m.label) + why + hint +
+      rows += '<tr class="' + cls + '"><td class="m">' + (m.hit ? '✓' : m.partial ? '◐' : '✗') + '</td><th>' + esc(m.label) + note + why + hint +
         '</th><td class="p">' + (m.hit ? '+' + got : got + ' / ' + m.score) + '</td></tr>';
     });
     (r.bonus || []).forEach(function (b) {
