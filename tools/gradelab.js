@@ -3,6 +3,7 @@
      node tools/gradelab.js            세 회사 + 돌발 업무 전부
      node tools/gradelab.js raon       한 회사만
      node tools/gradelab.js --bad      밴드를 벗어난 칸만
+   node tools/gradelab.js --why=s3③  한 칸의 네 답안을 논점별로 펼쳐 본다
 
    모범답안 하나에서 네 가지 답안을 자동으로 만들어 점수가 어느 띠에 떨어지는지 본다.
      ① 모범답안 그대로            80 ~ 100   정확히 쓴 답
@@ -23,28 +24,32 @@ for (const f of ['data/lexicon.js', 'data/cast.js', 'data/scenes1.js', 'data/sce
 const { AE, SEASON, SEASONS, TERM_TREE, CASES } = ctx;
 const only = process.argv.slice(2).filter(a => !a.startsWith('--'))[0] || null;
 const badOnly = process.argv.includes('--bad');
+// --why=s3③ — 그 칸의 네 답안이 논점마다 어떻게 채점됐는지 펼친다
+const WHY = ((process.argv.find(a => a.startsWith('--why=')) || '').split('=')[1]) || null;
 
 const BAND = {
   model: [80, 100, '모범답안'],
-  blur: [45, 85, '용어 뭉뚱그림'],
-  aim: [15, 50, '방향만'],
+  blur: [45, 92, '용어 뭉뚱그림'],      // 정답 표현을 상위어로 ("내부통제" → "통제")
+  drop: [0, 80, '용어 빠뜨림'],        // 상위어가 없어 정답 표현을 아예 뺀 답 — 그 논점만큼 떨어져야 한다
+  aim: [0, 50, '방향만'],
   off: [0, 20, '딴 문항']
 };
 
-/* 모범답안을 깎아 세 가지 답안을 만든다 */
+/* 모범답안을 깎아 세 가지 답안을 만든다
+   뭉뚱그림 — 배점이 가장 큰 논점 하나를 골라, 그 논점의 정답 표현을 답안에서 전부 뭉뚱그린다.
+     용어 계층(TERM_TREE)에 있으면 상위어로 ("내부통제" → "통제"), 없으면 지운다.
+     정답 표현 하나만 지우고 다른 정답 표현이 남으면 여전히 정확한 답이라 뭉뚱그림이 아니다. */
 function blur(text, must) {
-  let t = text;
-  // 채점표가 실제로 보는 용어만 뭉뚱그린다 — 안 보는 용어를 바꾸면 점수가 안 변해 의미가 없다
-  const watched = new Set();
-  must.forEach(m => [].concat(m.kw || []).forEach(k => watched.add(k)));
-  for (const exact of Object.keys(TERM_TREE || {})) {
-    if (watched.has(exact) && t.includes(exact)) t = t.split(exact).join(TERM_TREE[exact][0]);
-  }
-  if (t === text) {                       // 계층에 없는 용어면 필수어 하나를 지운다
-    const kw = (must[0] && [].concat(must[0].kw)[0]) || '';
-    if (kw && t.includes(kw)) t = t.split(kw).join('');
-  }
-  return t;
+  const alts = m => [].concat(m.kw || []).filter(k => k && text.includes(k)).sort((a, b) => b.length - a.length);
+  const pick = must.filter(m => alts(m).length).sort((a, b) => (b.score || 0) - (a.score || 0))[0];
+  if (!pick) return { text, how: null };
+  let t = text, how = 'drop';
+  alts(pick).forEach(k => {
+    const up = (TERM_TREE || {})[k];
+    if (up && up[0]) how = 'hyper';
+    t = t.split(k).join(up && up[0] ? up[0] : '');
+  });
+  return { text: t.replace(/\s{2,}/g, ' '), how };
 }
 function aim(text, must) {
   let t = text;
@@ -63,10 +68,11 @@ function run(part, otherModel, where) {
   const model = typeof part.model === 'string' ? part.model : null;
   const must = (part.rubric && part.rubric.must) || [];
   if (!model || !must.length) return null;
-  const blurred = blur(model, must);
+  const b = blur(model, must);
   // 뭉뚱그릴 용어가 없으면 그 띠는 잴 수 없다 — 건너뛴다
-  const ans = { model: model, blur: blurred === model ? '' : blurred, aim: aim(model, must), off: otherModel || '' };
-  const out = { where, ask: (part.ask || '').slice(0, 30), score: {}, bad: [] };
+  const ans = { model: model, blur: b.how === 'hyper' ? b.text : '', drop: b.how === 'drop' ? b.text : '',
+                aim: aim(model, must), off: otherModel || '' };
+  const out = { where, ask: (part.ask || '').slice(0, 30), score: {}, bad: [], text: ans };
   for (const kind of Object.keys(BAND)) {
     const text = ans[kind];
     if (!text) continue;
@@ -77,25 +83,37 @@ function run(part, otherModel, where) {
     // 판단 버튼 점수는 빼고 '쓴 내용' 만 잰다 — O·X 는 찍어서도 맞출 수 있다
     const pct = g.res && g.res.max ? Math.round(g.res.total / g.res.max * 100) : g.percent;
     out.score[kind] = pct;
+    if (WHY && where.endsWith(WHY)) {
+      console.log(`\n  [${BAND[kind][2]} ${pct}%] ${text}`);
+      ((g.res && g.res.must) || []).forEach(r => console.log(`     ${(r.tier || (r.hit ? 'full' : '—')).padEnd(5)} ${r.got}/${r.score}  ${r.label}${r.matched ? '  ← ' + r.matched : ''}${r.note ? '  (' + r.note + ')' : ''}`));
+      ((g.res && g.res.trap) || []).filter(r => r.got).forEach(r => console.log(`     함정 ${r.got}  ${r.label}`));
+      ((g.res && g.res.flags) || []).forEach(f => console.log('     · ' + f));
+    }
     const [lo, hi] = BAND[kind];
     if (pct < lo || pct > hi) out.bad.push(`${BAND[kind][2]} ${pct}% (${lo}~${hi})`);
   }
   return out;
 }
 
-/* 회사 하나를 훑는다 */
+/* 회사 하나를 훑는다 — 게임과 같은 길(SEASON.resolve)로 문항을 풀고, 판본마다 따로 잰다 */
 function sweep(label, scenes) {
   const parts = [];
   scenes.forEach(sc => {
-    const list = typeof sc.parts === 'function' ? sc.parts({ id: '-' }, SEASON.create({ seed: 7 })) : (sc.parts || []);
-    list.forEach((p, i) => {
-      if (p.type && p.type !== 'write' && p.type !== 'judge') return;
-      parts.push({ p, where: `${sc.id}${'①②③④'[i] || i}` });
+    const vids = (sc.variants || [{ id: null }]).map(v => v.id);
+    vids.forEach(vid => {
+      let it;
+      try { it = SEASON.resolve(sc, SEASON.create({ seed: 7 }), vid); } catch (e) { return; }
+      (it.parts || []).forEach((p, i) => {
+        if (p.type && p.type !== 'write' && p.type !== 'judge') return;
+        parts.push({ p, sid: sc.id, where: `${sc.id}${vid && vids.length > 1 ? '/' + vid : ''}${'①②③④'[i] || i}` });
+      });
     });
   });
   const rows = [];
   parts.forEach((it, i) => {
-    const other = parts[(i + 3) % parts.length];
+    // 딴 문항 — 다른 장면의 모범답안 (같은 장면의 다른 판본은 같은 물음이라 빼고 고른다)
+    let other = null;
+    for (let k = 3; k < parts.length + 3 && !other; k++) { const o = parts[(i + k) % parts.length]; if (o.sid !== it.sid) other = o; }
     const r = run(it.p, other && typeof other.p.model === 'string' ? other.p.model : null, `${label} ${it.where}`);
     if (r) rows.push(r);
   });
@@ -128,10 +146,13 @@ const bad = rows.filter(r => r.bad.length);
 console.log(`\n  밴드를 벗어난 칸 ${bad.length} / ${rows.length}`);
 (badOnly ? bad : bad.slice(0, 25)).forEach(r => {
   console.log(`   ${r.where.padEnd(18)} ${r.ask}`);
-  console.log(`      모범 ${r.score.model}%  뭉뚱 ${r.score.blur}%  방향 ${r.score.aim}%  딴것 ${r.score.off}%   ← ${r.bad.join(' · ')}`);
+  const f = k => r.score[k] == null ? '—' : r.score[k] + '%';
+  console.log(`      모범 ${f('model')}  뭉뚱 ${f('blur')}  빠뜨림 ${f('drop')}  방향 ${f('aim')}  딴것 ${f('off')}   ← ${r.bad.join(' · ')}`);
 });
-/* 실패 판정은 결정적인 두 띠로만 — '방향만' 이 너무 높거나 '딴 문항' 에 점수가 가면 퍼주는 것이다.
-   모범답안·뭉뚱그림 띠는 문항 쪽 사정(모범답안이 채점어를 덜 담음)이라 경고로만 본다. */
-const strict = rows.filter(r => r.bad.some(b => b.startsWith('방향만') || b.startsWith('딴 문항')));
-console.log(`  이 중 퍼주기로 볼 칸 ${strict.length} (방향만 · 딴 문항 띠)`);
-process.exitCode = strict.length > rows.length * 0.15 ? 1 : 0;
+/* 실패 판정 — 정답을 쓰고도 깎이거나(모범답안 미달), 핵심 없이 점수를 받는(방향만 · 딴 문항이 띠 위) 칸.
+   뭉뚱그림 · 빠뜨림 띠는 문항마다 논점 배점이 달라 경고로만 본다. */
+const over = r => r.bad.some(b => /^(방향만|딴 문항)/.test(b) && +b.match(/(\d+)%/)[1] > BAND[b.startsWith('방향만') ? 'aim' : 'off'][1]);
+const under = r => r.bad.some(b => b.startsWith('모범답안'));
+const strict = rows.filter(r => over(r) || under(r));
+console.log(`  이 중 고칠 칸 ${strict.length} (모범답안 미달 · 방향만 / 딴 문항에 점수가 새는 칸)`);
+process.exitCode = strict.length > rows.length * 0.05 ? 1 : 0;

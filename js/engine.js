@@ -306,7 +306,7 @@
     var hay = norm(raw);
 
     var R = { must: [], bonus: [], trap: [], flags: [] };
-    var mustGot = 0, mustMax = 0, mustHits = 0, negCount = 0;
+    var mustGot = 0, mustMax = 0, mustHits = 0, anyTier = 0, negCount = 0;
 
     /* 점수 사다리 — 같은 뜻인데 말이 다르다고 0점을 주지 않는다.
          full  정확한 용어            100%
@@ -341,7 +341,9 @@
         }
       }
       var partial = !!tier && tier !== 'full';
-      if (tier) mustHits++;
+      // '방향만 맞음'(aim)은 논점을 짚은 것으로 치지 않는다 — 문장 점수 · 가점을 열어 주지 않는다
+      if (tier && tier !== 'aim') mustHits++;
+      if (tier) anyTier++;
       if (partial) { partialGot += got; } else { mustGot += got; }
       if (r.negated) negCount++;
       // hit 은 만점일 때만 true. 분기·진실 발견이 이 값을 근거로 삼기 때문이다.
@@ -387,7 +389,7 @@
 
     /* 라벨에 하나도 안 걸렸지만 모범답안과 닮은 답 — 닮은 만큼만, 최대 30%.
        함정에 걸렸으면 주지 않는다. 학습 없이 글자 2-gram 으로만 잰다. */
-    if (mustHits === 0 && mustMax > 0 && opt.model && trapGot === 0 && bare0(raw) >= 10) {
+    if (anyTier === 0 && mustMax > 0 && opt.model && trapGot === 0 && bare0(raw) >= 10) {
       var sim = cosine(grams(raw), grams(opt.model));
       if (sim >= 0.5) {
         var aimGot = Math.round(mustMax * Math.min(0.25, 0.1 + (sim - 0.5) * 0.6));
@@ -402,7 +404,7 @@
     // 논점을 하나도 못 짚은 답(딴 문항 답안 포함)에 문장 점수를 주지 않는다.
     var mustRatio = mustMax ? Math.min(1, mustGot / mustMax) : 0;
     if (st.points) {
-      var keep = mustHits === 0 ? 0 : Math.min(1, 0.35 + mustRatio);
+      var keep = mustHits === 0 ? 0 : Math.min(1, mustRatio);   // 짚은 논점 비율만큼만
       if (keep < 1) {
         st.points = Math.round(st.points * keep);
         st.detail = st.detail.map(function (d) { return [d[0], Math.round(d[1] * keep), d[2]]; });
@@ -423,7 +425,16 @@
     }
 
     // 가점은 분모에 넣지 않는다. 필수 논점을 다 쓰면 만점이고,
-    // 가점은 놓친 부분을 메워주는 역할만 한다 (만점을 넘지는 않는다).
+    // 가점은 놓친 논점을 메우되 그 3분의 1까지만. 논점을 하나도 못 짚은 답은 가점으로 메우지 않는다
+    // — 곁가지만 써서 점수를 받지 못하게 (실제 채점도 채점 기준 밖의 서술은 거의 인정하지 않는다).
+    var gap = Math.max(0, mustMax - mustGot);
+    var fill = mustHits === 0 ? 0 : Math.min(bonusGot, Math.round(gap / 3));
+    if (bonusGot > fill && gap > 0) {
+      var kb = bonusGot ? fill / bonusGot : 0;
+      R.bonus.forEach(function (b) { b.got = Math.round(b.got * kb); });
+      R.flags.push(fill ? '가점은 놓친 논점의 3분의 1까지만' : '논점 없이 곁가지만 — 가점 없음');
+    }
+    bonusGot = gap > 0 ? fill : bonusGot;
     var max = mustMax + st.max;
     var total = mustGot + bonusGot + trapGot + st.points - lenPen;
     if (st.listing) total = Math.min(total, Math.round(max * 0.75));
