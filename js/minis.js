@@ -623,7 +623,7 @@
     },
 
     mount: function (host, M, api) {
-      var D = M.D, st = { pick: {}, via: {}, act: {}, sent: false };
+      var D = M.D, st = { pick: {}, via: {}, act: {}, sent: false }, fresh = false;
       host.innerHTML =
         '<div class="mg cf">' +
           '<div class="mg-bar"><b>' + esc(D.title) + '</b>' +
@@ -659,8 +659,9 @@
             : '<span class="dim">—</span>';
           var repH = '', actH = '';
           if (rep) {
-            repH = '<span class="rep ' + rep.r + '" style="--i:' + (k++) + '">' + CF_TX[rep.r] +
-              (rep.r === 'diff' ? ' <b>' + rep.v.toFixed(1) + '억</b><small>' + esc(rep.why) + '</small>' : '') + '</span>';
+            // 회신은 발송 직후 한 통씩 도착한다 — 그 뒤 처리 버튼을 눌러 다시 그릴 때는 그대로 둔다
+            repH = '<span class="rep ' + rep.r + (fresh ? '' : ' still') + '" style="--i:' + (k++) + '">' + CF_TX[rep.r] +
+              (rep.r === 'diff' ? ' · 회신 <b>' + rep.v.toFixed(1) + '억</b><small>' + esc(rep.why) + '</small>' : '') + '</span>';
             if (rep.r !== 'ok') actH = '<div class="acts">' + D.acts[rep.r].map(function (a) {
               return '<button type="button" class="act-b' + (st.act[r.id] === a.k ? ' on' : '') + '" data-ak="' + a.k + '" data-id="' + r.id + '">' + esc(a.t) + '</button>';
             }).join('') + '</div>';
@@ -681,7 +682,7 @@
         st.sent = true;
         if (api.spend) api.spend(D.costSec * n);
         api.sound && api.sound('send');
-        draw();
+        fresh = true; draw(); fresh = false;
       }
       host.addEventListener('click', function (e) {
         var b = e.target.closest('[data-pick],[data-via],[data-ak],[data-act]');

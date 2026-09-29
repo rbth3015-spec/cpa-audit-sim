@@ -767,6 +767,15 @@
   }
 
   /* ---------- 상황 · 단서 ---------- */
+  // 나의 시점 표 — 이 장면의 「나」가 누구인지 사진 · 이름 · 자리로
+  function povBar(it, was) {
+    var pov = SEASON.povOf(it.seat), pc = cast(pov);
+    return '<div class="pov-bar' + (was ? ' moved' : '') + '" title="이 장면은 ' + esc(pc.name) + '의 시점">' +
+        '<span class="pv-av">' + av(pov, null, 'av') + '</span>' +
+        '<span class="pv-t">' + (was ? '<span class="mr"><s>' + esc(was.name) + '</s><b>' + esc(pc.name) + '</b></span>' : '<b>' + esc(pc.name) + '</b>') +
+          '<span>' + esc(SEASON.SEATS[it.seat].name) + '</span>' + rankBars(it.seat) + '</span>' +
+        '<em class="pv-tag">나의 시점</em></div>';
+  }
   function numeric(v) { return /^[\s\d,.()%△▲\-−+~×/]*(억원|억|원|만원|백만원|건|%|배|개)?$/.test(String(v)) && /\d/.test(String(v)); }
 
   function drawCase() {
@@ -782,14 +791,9 @@
       });
       return out;
     }
-    // 나의 시점 — 이 장면의 「나」가 누구인지 사진 · 이름 · 자리로. 시점이 바뀐 장면이면 옛 사람 이름이 빠지고 새 사람이 들어온다
-    var pov = SEASON.povOf(it.seat), pc = cast(pov);
+    // 나의 시점 — 시점이 바뀐 장면이면 옛 사람 이름이 빠지고 새 사람이 들어온다
     var was = cur.seatFrom && cur.seatFrom !== it.seat ? cast(SEASON.povOf(cur.seatFrom)) : null;
-    var html = '<div class="pov-bar' + (was ? ' moved' : '') + '" title="이 장면은 ' + esc(pc.name) + '의 시점">' +
-        '<span class="pv-av">' + av(pov, null, 'av') + '</span>' +
-        '<span class="pv-t">' + (was ? '<span class="mr"><s>' + esc(was.name) + '</s><b>' + esc(pc.name) + '</b></span>' : '<b>' + esc(pc.name) + '</b>') +
-          '<span>' + esc(SEASON.SEATS[it.seat].name) + '</span>' + rankBars(it.seat) + '</span>' +
-        '<em class="pv-tag">나의 시점</em></div>' +
+    var html = povBar(it, was) +
       '<div class="who" id="who"><span class="who-av">' + av(it.speaker) + '</span><div class="who-t"><div class="nm"></div><div class="say"></div></div></div>' +
       (it.note ? '<p class="note">' + esc(it.note) + '</p>' : '') +
       '<div class="lbl" style="margin-top:18px"><span>상황</span>' + (clues.length ? '<span>단서 <b id="clue-n">0</b> / ' + clues.length + '</span>' : '') + '</div>' +
@@ -814,6 +818,14 @@
     });
     var el = $('#case');
     el.innerHTML = html;
+    // 넘기는 연출은 한 번만 — 미니게임(넓은 화면)에서 상황 칸이 다시 나타날 때 또 돌지 않게 가라앉힌다
+    if (was) setTimeout(function () {
+      var bar = $('.pov-bar.moved', el);
+      if (!bar) return;
+      bar.classList.remove('moved');
+      var mr = $('.mr', bar);
+      if (mr) mr.outerHTML = '<b>' + esc(cast(SEASON.povOf(it.seat)).name) + '</b>';
+    }, 2200);
     el.onclick = function (e) {
       var m = e.target.closest('mark.clue');
       if (m) return adoptClue(m);
@@ -927,7 +939,7 @@
     $('#banner').classList.toggle('slim', wide);
     var c = cast(p.who);
     $('#task').innerHTML = partsBar() + tipBox(p.type) +
-      (wide ? '<div class="who sm" style="margin-bottom:12px">' + av(p.who) + '<div><div class="nm">' + esc(c.name) + '<span>' + esc(c.role) + '</span></div><div class="say">' + esc(p.say) + '</div></div></div>' +
+      (wide ? povBar(it, null) + '<div class="who sm" style="margin-bottom:12px">' + av(p.who) + '<div><div class="nm">' + esc(c.name) + '<span>' + esc(c.role) + '</span></div><div class="say">' + esc(p.say) + '</div></div></div>' +
         '<p class="ask" style="font-size:18px;margin-bottom:12px">' + esc(p.ask) + '</p>' : '') +
       '<div class="part" id="part"></div><div id="after"></div>';
     $('#task').onclick = function (e) {
