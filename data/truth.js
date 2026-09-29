@@ -92,7 +92,7 @@ window.TRUTH = [
 ];
 
 /* ------------------------------------------------------------
-   모듈형 에필로그
+   모듈형 에필로그 — 회사 셋이 함께 쓴다. {회사} 는 지금 회사 이름으로 바뀐다 (은/는 받침 맞춤)
    세 축에서 조건이 맞는 첫 조각이 하나씩 선택되어 조립된다.
    축 순서가 곧 우선순위다. 조합 수 = 6 × 5 × 5
 ------------------------------------------------------------- */
@@ -115,7 +115,7 @@ window.EPILOGUE = {
     { id: 'blown', tone: 'bad', title: '분식 발각',
       when: function (s) { return s.missedAmount >= 60; },
       text: function (s) {
-        return '1년 뒤 ㈜서린정밀의 분식이 터졌다. 감사에서 걸러내지 못한 왜곡표시 ' + s.missedAmount.toFixed(1) +
+        return '1년 뒤 {회사}의 분식이 터졌다. 감사에서 걸러내지 못한 왜곡표시 ' + s.missedAmount.toFixed(1) +
           '억원. 확인한 범위에서 의견은 맞았지만, 확인하지 못한 것이 너무 많았다.';
       } },
 
@@ -145,28 +145,28 @@ window.EPILOGUE = {
   /* 축 2 — 회사의 운명 */
   company: [
     { id: 'collapse', when: function (s) { return s.missedAmount >= 90; },
-      text: '㈜서린정밀은 재무제표를 재작성한 뒤 상장폐지 실질심사에 넘어갔다. 대표이사는 구속됐다.' },
+      text: '{회사}은 재무제표를 재작성한 뒤 상장폐지 실질심사에 넘어갔다. 대표이사는 구속됐다.' },
     { id: 'restate', when: function (s) { return s.missedAmount >= 40; },
-      text: '㈜서린정밀은 과거 재무제표를 재작성하고 관리종목으로 지정됐다. 주가는 반 토막.' },
+      text: '{회사}은 과거 재무제표를 재작성하고 관리종목으로 지정됐다. 주가는 반 토막.' },
     { id: 'penalty', when: function (s) { return s.missedAmount > 0; },
-      text: '㈜서린정밀은 증권선물위원회에서 과징금을 받았다. 상장은 유지.' },
+      text: '{회사}은 증권선물위원회에서 과징금을 받았다. 상장은 유지.' },
     { id: 'reform', when: function (s) { return s.foundAmount >= 100; },
       text: '감사에서 드러난 사실로 이사회가 움직였다. 대표이사는 물러났고 지배구조가 통째로 바뀌었다.' },
     { id: 'ok', when: function () { return true; },
-      text: '㈜서린정밀은 지적 사항을 반영해 재무제표를 확정했고, 이후 별일 없이 사업을 이어갔다.' }
+      text: '{회사}은 지적 사항을 반영해 재무제표를 확정했고, 이후 별일 없이 사업을 이어갔다.' }
   ],
 
-  /* 축 3 — 당신의 커리어 */
+  /* 축 3 — 업무팀의 다음 해 (시점이 세 사람을 오가므로 2인칭 대신 팀과 이름으로 쓴다) */
   career: [
     // 회사와 가까워서 놓친 경우는 "신뢰 하락"보다 원인이 분명하므로 먼저 판정한다
     { id: 'captured', when: function (s) { return (s.rel.company >= 70 || (s.flags && s.flags.cfo_dinner)) && s.missedAmount > 0; },
-      text: '회사와의 사이는 더없이 좋았다. 그래서 물어야 할 것을 묻지 않았다는 지적이 내부 심리에서 나왔고, 한동안 상장사 건에서 빠졌다.' },
+      text: '회사와의 사이는 더없이 좋았다. 그래서 물어야 할 것을 묻지 않았다는 지적이 내부 심리에서 나왔고, 업무팀은 한동안 상장사 건에서 빠졌다.' },
     { id: 'benched', when: function (s) { return s.gauge.R < 25; },
-      text: '정한별 이사는 다음 시즌 업무팀에서 당신을 뺐다. 사유는 한 줄 — "판단을 믿기 어렵다."' },
+      text: '품질관리실은 다음 시즌 이 업무팀을 흩었다. 사유는 한 줄 — "판단을 믿기 어렵다."' },
     { id: 'vindicated', when: function (s) { return s.rel.company < 25 && s.missedAmount === 0; },
-      text: '회사는 당신을 두고 "감사인이 아니라 검사"라고 했다. 결과는 당신이 옳았고, 법인은 어려운 건에 당신을 먼저 넣기 시작했다.' },
+      text: '회사는 이 업무팀을 두고 "감사인이 아니라 검사"라고 했다. 결과는 팀이 옳았고, 법인은 어려운 건에 이 팀을 먼저 넣기 시작했다.' },
     { id: 'promoted', when: function (s) { return s.gauge.R >= 70 && s.foundAmount >= 60; },
-      text: '정한별 이사가 내년 시즌 인차지로 당신을 올렸다. "무력화 건 올릴 때 알아봤다."' },
+      text: '정한별 이사는 내년 시즌 인차지로 유가온을 올렸다. 한 줄 평 — "어려운 건을 끝까지 조서에 남겼다."' },
     { id: 'steady', when: function () { return true; },
       text: '다음 시즌에도 같은 팀. 무난한 한 해였다.' }
   ]

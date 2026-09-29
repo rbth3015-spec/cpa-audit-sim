@@ -1589,7 +1589,7 @@
           }).join('') + '</ul></section>' : '') +
         '<section class="n-sec"><h3><span>그 뒤</span></h3><div class="n-epi">' +
           '<div><span class="k">' + esc(window.COMPANY.name) + '</span>' + esc(E.company.text) + '</div>' +
-          '<div><span class="k">당신</span>' + esc(E.career.text) + '</div></div>' +
+          '<div><span class="k">업무팀</span>' + esc(E.career.text) + '</div></div>' +
           (E.people && E.people.length ? '<div class="n-people">' + E.people.map(function (f, i) {
             var c = cast(f.who);
             return '<div class="np" style="animation-delay:' + (0.2 + i * 0.12) + 's">' + window.ART.card(f.who, 'np-img') +

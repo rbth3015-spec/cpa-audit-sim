@@ -27,7 +27,7 @@ window.CAST = {
   },
   manager: {
     name: '유가온', role: '시니어', org: '세종회계법인 감사2본부', group: 'team', avatar: 'manager', age: 32,
-    tag: '서린정밀 현장 책임자',
+    tag: '감사 현장 책임자',
     voice: '빠르고 건조한 반말. 지시는 한 문장. 이사 앞에서는 "이사님, ~입니다"',
     facts: [
       { id: 'g_coffee', t: '현장에 제일 먼저 오고 제일 늦게 나간다', open: true },
