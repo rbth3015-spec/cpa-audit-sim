@@ -1010,7 +1010,9 @@
       g.timedOut = true;
       cur.timedOut++;
     }
-    if (p.type === 'mini') {
+    if (p.type === 'mini' && window.MINIS[p.game] && window.MINIS[p.game].summary) {
+      ans.summary = window.MINIS[p.game].summary(ans.mini.model, ans.mini.state, g);
+    } else if (p.type === 'mini') {
       var d = g.res.detail || {};
       var exN = function (from) { return g.res.must.slice(from).filter(function (m) { return m.hit; }).length; };
       ans.summary = p.game === 'count' ? '표본 ' + d.used + ' · 실사표→현품 ' + d.sheet + ' · 현품→실사표 ' + d.floor + ' · 예외 ' + exN(3) + '/5'

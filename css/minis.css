@@ -127,3 +127,79 @@ table.rv-t td.dim { color: var(--dim); font-size: 13px; }
 table.rv-t tr.ok td.n { color: var(--good); }
 table.rv-t tr.no td.n { color: var(--red-2); }
 table.rv-t tr.no td:first-child { box-shadow: inset 3px 0 0 var(--red); }
+
+/* ── 공통 — 새 미니게임의 표 · 단계 · 버튼 ───────────── */
+table.mg-t { width: 100%; border-collapse: collapse; border: 1px solid var(--strong); }
+table.mg-t th { background: var(--panel-2); font: 500 11px/1 var(--mono); color: var(--dim); text-align: left; padding: 8px; border-bottom: 1px solid var(--strong); }
+table.mg-t td { padding: 7px 8px; border-bottom: 1px solid var(--line); font: 400 13px/1.35 var(--sans); vertical-align: middle; }
+table.mg-t td.n, table.mg-t th.n { text-align: right; font-family: var(--mono); white-space: nowrap; }
+table.mg-t td.mono { font-family: var(--mono); white-space: nowrap; }
+table.mg-t td.ck { width: 34px; text-align: center; }
+table.mg-t tr.on td { background: var(--red-soft); }
+table.mg-t tr.on td:first-child { box-shadow: inset 3px 0 0 var(--red); }
+table.mg-t tr.off td { opacity: .45; }
+.mg-foot { margin-top: 8px; font: 500 12px/1.4 var(--mono); color: var(--dim); }
+.mg-hint { margin: 0 0 10px; padding: 9px 12px; border-left: 3px solid var(--warn); background: var(--warn-soft); font: 400 13px/1.5 var(--sans); }
+.mg-hint b { color: var(--warn); }
+.mg-steps { display: flex; gap: 6px; margin-bottom: 10px; }
+.mg-steps span { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid var(--line); font: 600 12px/1 var(--sans); color: var(--dim); background: var(--panel); transition: background .2s, color .2s; }
+.mg-steps span b { width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; background: var(--line); color: var(--ink); font: 700 11px/1 var(--mono); }
+.mg-steps span.on { border-color: var(--ink); color: var(--ink); }
+.mg-steps span.on b { background: var(--red); color: #fff; }
+.mg-steps span.done { color: var(--good); }
+.mg-steps span.done b { background: var(--good); color: #fff; }
+.mg-steps em { font: 500 11px/1 var(--mono); font-style: normal; color: var(--red-2); margin-left: 4px; }
+.pk { width: 28px; height: 28px; border: 1px solid var(--strong); background: var(--panel); display: grid; place-items: center; padding: 0; }
+.pk kbd { border: 0; background: none; font: 700 11px/1 var(--mono); }
+.pk.on { background: var(--red); border-color: var(--red); }
+.pk.on kbd { color: #fff; }
+.pk:disabled { cursor: default; }
+.fl-tag { display: inline-block; margin-left: 8px; font: 700 10px/1 var(--sans); color: var(--red-2); border: 1px solid var(--red); padding: 3px 5px; vertical-align: 1px; }
+.act-b { border: 1px solid var(--strong); background: var(--panel); padding: 7px 9px; font: 600 12px/1.25 var(--sans); text-align: left; transition: background .12s; }
+.act-b:hover { background: var(--panel-2); }
+.act-b.on { background: var(--ink); color: var(--bg); border-color: var(--ink); animation: pop .25s both; }
+.acts { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* ── 외부조회 ─────────────────────────────────────────── */
+.cf-t td:nth-child(4) { width: 34%; }
+.via { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.via-b { text-align: left; border: 1px solid var(--line); background: var(--panel); padding: 6px 8px; font: 400 12px/1.35 var(--sans); color: var(--dim); }
+.via-b em { display: block; font: 700 10px/1 var(--mono); font-style: normal; letter-spacing: .04em; margin-bottom: 3px; color: var(--dim); }
+.via-b.on { border-color: var(--ink); color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); background: var(--bg); }
+.via-b.on em { color: var(--red-2); }
+.via-b:disabled { cursor: default; }
+.rep { display: inline-block; font: 700 12px/1.3 var(--sans); animation: repIn .35s calc(var(--i, 0) * 260ms + 120ms) both; }
+.rep small { display: block; font: 500 11px/1.35 var(--sans); color: var(--dim); margin-top: 2px; }
+.rep.ok { color: var(--good); }
+.rep.fax { color: var(--warn); }
+.rep.none { color: var(--red-2); }
+.rep.diff { color: var(--red-2); }
+.rep b { font-family: var(--mono); }
+@keyframes repIn { from { opacity: 0; transform: translateY(-6px) scale(.96); } to { opacity: 1; transform: none; } }
+
+/* ── 부외부채 ─────────────────────────────────────────── */
+.un-t .bk { font: 700 11px/1 var(--sans); padding: 4px 6px; white-space: nowrap; }
+.un-t .bk.cur { background: var(--ink); color: var(--bg); }
+.un-t .bk.next { color: var(--dim); }
+.ev-b { border: 1px dashed var(--strong); background: var(--panel); padding: 5px 8px; font: 600 12px/1 var(--sans); }
+.ev-b:hover { background: var(--panel-2); }
+.ev-open { display: inline-block; font: 700 12px/1.3 var(--sans); color: var(--ink); background: var(--warn-soft); padding: 4px 7px; animation: pop .3s both; }
+.un-t .flag-b { width: auto; min-width: 96px; padding: 7px 8px; }
+
+/* ── 표본 평가 ─────────────────────────────────────────── */
+.sp-t .flag-b { width: auto; min-width: 88px; padding: 6px 8px; }
+.sp-ws { border: 1px solid var(--strong); background: var(--panel); padding: 14px; display: grid; gap: 10px; }
+.ws-row { display: flex; justify-content: space-between; align-items: baseline; font: 500 13px/1.3 var(--sans); }
+.ws-row b { font: 700 18px/1 var(--mono); }
+.ws-row.big b { font-size: 26px; }
+.ws-row b.over { color: var(--red-2); }
+.ws-k { font: 600 11px/1 var(--mono); letter-spacing: .04em; color: var(--dim); margin-top: 4px; }
+.ws-k small { font: inherit; color: var(--rule); margin-left: 6px; }
+.ws-opts { display: grid; gap: 5px; }
+.ws-opts.two { grid-template-columns: 1fr 1fr; }
+.ws-opts .act-b { padding: 9px 10px; font-size: 13px; }
+.ws-bar { position: relative; height: 16px; background: var(--panel-2); border: 1px solid var(--line); margin: 14px 0 6px; }
+.ws-bar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink); transition: width .5s var(--ease); }
+.ws-bar .fill.over { background: var(--red); }
+.ws-bar .tol { position: absolute; top: -6px; bottom: -6px; width: 2px; background: var(--red); }
+.ws-bar .tol b { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font: 700 10px/1 var(--mono); color: var(--red-2); white-space: nowrap; }

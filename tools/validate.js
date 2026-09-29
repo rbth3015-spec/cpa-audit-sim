@@ -43,6 +43,7 @@ function keyAnswer(p) {
 }
 function perfectMini(game) {
   const M = MINIS[game].build(4242, null);
+  if (MINIS[game].perfect) return { model: M, state: MINIS[game].perfect(M) };
   if (game === 'count') {
     const TICK = { none: 'none', miss: 'miss', diff: 'diff', dmg: 'flag', cons: 'flag' };
     const tested = {};
