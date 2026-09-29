@@ -728,6 +728,22 @@
     return list;
   }
 
+  /* 숨은 사실의 글 — 금액은 시즌마다 흔들리므로 글 속 기본 금액(예: '38억원')을 이번 시즌 금액으로 바꿔 쓴다 */
+  function truthText(t) {
+    if (!t.active) return t.def.clean || '문제 없음.';
+    var txt = t.def.hidden || '', base = t.def.amount;
+    if (base == null || t.amount == null || r1(base) === r1(t.amount)) return txt;
+    var b = String(r1(base)).replace('.', '\\.');
+    return txt.replace(new RegExp('(^|[^\\d.,])' + b + '억원'), function (m, pre) { return pre + t.amount.toFixed(1) + '억원'; });
+  }
+
+  // 에필로그는 회사 셋이 함께 쓴다 — {회사} 를 지금 회사 이름으로 (받침에 따라 은/는)
+  function coName(text) {
+    var n = (global.COMPANY && global.COMPANY.name) || '회사';
+    var c = n.charCodeAt(n.length - 1), batchim = c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 !== 0;
+    return String(text).replace(/\{회사\}은/g, n + (batchim ? '은' : '는')).replace(/\{회사\}/g, n);
+  }
+
   /* ---------- 정산 ---------- */
   function epilogue(S) {
     var found = 0, missed = 0;
@@ -738,7 +754,7 @@
         : (t.verified ? 'cleared' : 'lucky');
       return { id: t.id, title: t.def.title, account: t.def.account, amount: t.amount,
                active: t.active, state: state,
-               text: t.active ? t.def.hidden : (t.def.clean || '문제 없음.'),
+               text: truthText(t),
                how: t.def.howFound };
     });
     var ethicsBad = global.STORY ? global.STORY.ethicsBad(S) : [];
@@ -753,7 +769,7 @@
         var f = list[i];
         if (f.when(ctx)) {
           return { id: f.id, tone: f.tone, title: f.title,
-                   text: typeof f.text === 'function' ? f.text(ctx) : f.text };
+                   text: coName(typeof f.text === 'function' ? f.text(ctx) : f.text) };
         }
       }
       return null;
@@ -768,7 +784,7 @@
   }
 
   global.SEASON = {
-    create: create, resolve: resolve, apply: apply, combine: combine, epilogue: epilogue,
+    create: create, resolve: resolve, apply: apply, combine: combine, epilogue: epilogue, truthText: truthText,
     sideOpen: sideOpen, offer: offer, applySide: applySide,
     misstatements: misstatements, decide: decide, band: band, dday: dday, asker: asker, reviewer: reviewer,
     seatWho: seatWho, bySeat: bySeat, viewOf: viewOf, rng: rng, povOf: povOf, SEAT_WHO: SEAT_WHO,

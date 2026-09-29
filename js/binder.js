@@ -187,7 +187,7 @@
         : t.verified ? '<span class="tag cleared">이상 없음</span>'
         : t.active ? '<span class="tag" style="color:#ae1800">놓침</span>' : '<span class="tag cleared">없었음</span>';
       return '<li class="open"><span class="ac">' + esc(d.account) + '</span><span class="txt">' +
-        esc(t.active ? d.hidden : (d.clean || '문제 없음.')) + '</span>' + tag + '</li>';
+        esc(global.SEASON.truthText(t)) + '</span>' + tag + '</li>';
     }).join('');
     return head('가려진 메모', '찾은 만큼 걷힌다') + '<div class="bd-body"><div class="memo-r">' +
       '<h3>확인이 필요한 사항</h3><p>확인 ' + n + ' / ' + T.length + '</p>' +

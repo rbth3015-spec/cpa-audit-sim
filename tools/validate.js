@@ -535,7 +535,9 @@ console.log('\n═══ 스타일 이름 충돌 (@keyframes · 덮개 클래스
   let clash = 0;
   Object.keys(fixedTop).forEach(n => {
     const re = new RegExp('\\.' + n + '(?![\\w-])');
-    const other = uses.filter(u => re.test(subject(u.s)) && !new RegExp('^\\.' + n + '(?![\\w-])').test(u.s));
+    // body · html 상태로 같은 덮개를 바꾸는 규칙(body:has(.phn) .toasts)은 같은 부품이다
+    const rootCtx = new RegExp('^(html|body|:root)[^\\s>+~]*\\s+\\.' + n + '(?![\\w-])[^\\s>+~]*$');
+    const other = uses.filter(u => re.test(subject(u.s)) && !new RegExp('^\\.' + n + '(?![\\w-])').test(u.s) && !rootCtx.test(u.s));
     if (other.length) { bad++; clash++; console.log(`  ✕ 덮개 클래스 .${n} 가 다른 선택자에도 쓰임: ${other.slice(0, 3).map(u => u.s + ' (' + u.f + ')').join(' · ')}`); }
   });
   if (!dupK.length && !clash) console.log('  → 이상 없음');

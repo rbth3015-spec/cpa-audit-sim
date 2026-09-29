@@ -169,6 +169,7 @@ table.mg-t tr.off td { opacity: .45; }
 .via-b.on em { color: var(--red-2); }
 .via-b:disabled { cursor: default; }
 .rep { display: inline-block; font: 700 12px/1.3 var(--sans); animation: repIn .35s calc(var(--i, 0) * 260ms + 120ms) both; }
+.rep.still { animation: none; }
 .rep small { display: block; font: 500 11px/1.35 var(--sans); color: var(--dim); margin-top: 2px; }
 .rep.ok { color: var(--good); }
 .rep.fax { color: var(--warn); }
