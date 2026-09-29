@@ -148,8 +148,36 @@
     return out + esc(model.slice(pos));
   }
 
+  /* 첨삭 — 내 답안에서 인정된 표현은 초록 밑줄, 부분 인정은 노랑, 함정에 걸린 표현은 붉은 줄.
+     채점이 실제로 잡은 말(matched)을 답안에서 다시 찾는다. 띄어쓰기가 달라도 찾는다. */
+  function markHits(text, res) {
+    var marks = [];
+    function add(term, cls) {
+      term = String(term || '').replace(/\s+/g, '');
+      if (term.length < 2) return;
+      var re;
+      try { re = new RegExp(term.split('').map(function (ch) { return ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('\\s*'), 'gi'); }
+      catch (e) { return; }
+      var m;
+      while ((m = re.exec(text))) { marks.push({ a: m.index, b: m.index + m[0].length, cls: cls }); if (!m[0].length) re.lastIndex++; }
+    }
+    ((res && res.trap) || []).forEach(function (r) { if (r.hit && r.matched) add(r.matched, 'trap'); });
+    ((res && res.must) || []).forEach(function (r) { if (r.got > 0 && r.matched) add(r.matched, r.hit ? 'ok' : 'half'); });
+    ((res && res.bonus) || []).forEach(function (r) { if (r.hit && r.matched) add(r.matched, 'ok'); });
+    if (!marks.length) return { html: esc(text), n: 0 };
+    marks.sort(function (x, y) { return x.a - y.a || y.b - x.b; });
+    var out = '', at = 0, n = 0;
+    marks.forEach(function (mk) {
+      if (mk.a < at) return;                       // 겹치면 먼저 잡힌 것만
+      out += esc(text.slice(at, mk.a)) + '<mark class="mk ' + mk.cls + '">' + esc(text.slice(mk.a, mk.b)) + '</mark>';
+      at = mk.b; n++;
+    });
+    return { html: out + esc(text.slice(at)), n: n };
+  }
+
   function writeReview(host, p, ans, g) {
     var judge = p.type === 'judge';
+    var mk = ans.text && ans.text.trim() ? markHits(ans.text, g.res) : null;
     var pickEl = q(host, '[data-k="pick"]');
     if (pickEl) {
       pickEl.classList.add('locked');
@@ -162,9 +190,10 @@
     if (reqsEl) reqsEl.remove();
     return {
       model: '<div class="model"><span class="k">모범답안</span><p>' + highlight(p.model, p, g.res) + '</p></div>',
-      mine: '<span class="k">내 답안</span>' +
+      mine: '<span class="k">내 답안 · 첨삭</span>' +
         (judge ? '<div class="pickline">판단 · ' + esc(ans.pick ? p.verdict.label[ans.pick] : '없음') + '</div>' : '') +
-        '<p>' + (ans.text && ans.text.trim() ? esc(ans.text) : '<span class="dim">(빈 답안)</span>') + '</p>'
+        '<p>' + (mk ? mk.html : '<span class="dim">(빈 답안)</span>') + '</p>' +
+        (mk && mk.n ? '<div class="mk-legend"><span class="mk ok">인정</span><span class="mk half">부분 인정</span><span class="mk trap">함정</span></div>' : '')
     };
   }
 

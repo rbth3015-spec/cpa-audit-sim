@@ -321,6 +321,49 @@ table.sort .why { display: block; margin-top: 4px; font: 500 13px/1.45 var(--san
 .checks tr.no .m, .checks tr.no .p { color: var(--red-2); }
 .checks tr.note th { color: var(--dim); font: 600 13px/1.45 var(--sans); }
 .checks tr.note .m { color: var(--dim); }
+
+/* 채점 연출 — 붉은 펜이 논점을 한 줄씩 체크하고, 점수가 올라간 뒤 등급 도장이 찍힌다 */
+.res.grading .checks tr { animation: rowIn .26s calc(var(--i, 0) * 120ms + 120ms) var(--ease) both; }
+.res.grading .checks td.m { animation: penTick .34s calc(var(--i, 0) * 120ms + 220ms) cubic-bezier(.3, 1.6, .5, 1) both; }
+@keyframes rowIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+@keyframes penTick { from { opacity: 0; transform: scale(2) rotate(-18deg); } to { opacity: 1; transform: none; } }
+.res.grading .score .gl { animation: gradeStamp .5s var(--t, .8s) cubic-bezier(.2, 1.5, .4, 1) both; }
+.res.grading .score .wd { animation: rise .3s calc(var(--t, .8s) + .25s) both; }
+@keyframes gradeStamp { from { opacity: 0; transform: scale(2.4) rotate(-12deg); } 60% { opacity: 1; transform: scale(.9) rotate(2deg); } to { transform: none; } }
+.res.grading .score { position: relative; overflow: hidden; }
+.res.grading .score::after {
+  content: ""; position: absolute; left: 50%; top: 42%; width: 10px; height: 10px; margin: -5px; border-radius: 50%;
+  background: currentColor; opacity: 0; pointer-events: none; animation: gradeInk .7s var(--t, .8s) ease-out forwards;
+}
+@keyframes gradeInk { 0% { opacity: .35; transform: scale(1); } 100% { opacity: 0; transform: scale(22); } }
+
+/* 첨삭 — 인정 · 부분 인정 · 함정 */
+.mk { background: none; color: inherit; padding: 0 1px; }
+.mk.ok { box-shadow: inset 0 -2px 0 var(--good); }
+.mk.half { box-shadow: inset 0 -2px 0 var(--warn); }
+.mk.trap { color: var(--red-2); text-decoration: line-through; text-decoration-color: var(--red); text-decoration-thickness: 2px; }
+.mine mark.mk { animation: markIn .5s .15s both; }
+@keyframes markIn { from { box-shadow: inset 0 0 0 var(--line); } }
+.mk-legend { display: flex; gap: 14px; margin-top: 8px; font: 600 11px/1 var(--sans); color: var(--dim); }
+.mk-legend .mk { padding: 0 2px 2px; }
+
+/* 다음 문항 — 종이를 바꿔 끼우듯 */
+#task.swap-out { animation: swapOut .16s ease-in both; }
+#task.swap-in { animation: swapIn .34s var(--ease) both; }
+@keyframes swapOut { to { opacity: 0; transform: translateY(-10px); } }
+@keyframes swapIn { from { opacity: 0; transform: translateY(16px) rotate(.25deg); } to { opacity: 1; transform: none; } }
+
+/* 남은 시간 15초 — 화면 가장자리가 붉게 맥박친다 */
+body.hurry::after {
+  content: ""; position: fixed; inset: 0; z-index: 94; pointer-events: none;
+  animation: hurry 1s ease-in-out infinite;
+}
+@keyframes hurry { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(236, 48, 19, 0); } 50% { box-shadow: inset 0 0 150px 24px rgba(236, 48, 19, .34); } }
+@media (prefers-reduced-motion: reduce) {
+  .res.grading .checks tr, .res.grading .checks td.m, .res.grading .score .gl, .res.grading .score .wd, .res.grading .score::after,
+  #task.swap-out, #task.swap-in, .mine mark.mk { animation: none !important; }
+  body.hurry::after { animation: none; box-shadow: inset 0 0 70px 6px rgba(236, 48, 19, .2); }
+}
 .model { margin-top: 12px; background: var(--panel-2); border-left: 3px solid var(--strong); padding: 10px 14px; animation: rise .4s .08s both; }
 .model p { margin: 5px 0 0; font: 400 16px/1.8 var(--serif); }
 .hl-ok { border-bottom: 2px solid var(--good); }
