@@ -361,7 +361,7 @@
     var chats = beats.filter(function (b) { return b.mode !== 'talk'; });
     if (!chats.length || beats[0].mode === 'talk') return go();
     var d = document.createElement('div'), done = false;
-    d.className = 'ring';
+    d.className = 'phn';
     d.innerHTML = '<div class="rg-phone">' + chats.slice(0, 3).map(function (b, i) {
       var first = (b.msgs || []).filter(function (m) { return m.from && m.from !== b.pov; })[0] || {};
       var who = first.from || b.who || 'manager';
@@ -389,7 +389,7 @@
   /* 장면 사이 대화 — 없으면 바로 다음으로 */
   function interlude(at, then) {
     if (MESSENGER && MESSENGER.isOpen()) return;          // 이미 대화 중이면 겹쳐 열지 않는다
-    if ($('.ring')) return;                               // 알림이 울리는 중
+    if ($('.phn')) return;                                // 알림이 울리는 중
     if (mode !== 'season' || !S || !STORY || !MESSENGER) return then();
     var beats = STORY.beatsAt(S, at);
     if (!beats.length) return then();

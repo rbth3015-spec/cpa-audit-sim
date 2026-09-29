@@ -182,11 +182,11 @@ video.ch-bg { width: 110%; height: 110%; object-fit: cover; }
 }
 
 /* 휴대폰 알림 — 메신저가 열리기 전에 두 번 울린다 */
-.ring {
+.phn {
   position: fixed; inset: 0; z-index: 73; display: grid; justify-items: end; align-content: start; gap: 10px;
   padding: 92px 36px; background: rgba(10, 9, 8, .34); cursor: pointer; animation: fadeIn .2s both;
 }
-.ring.out { animation: fadeOut .24s both; }
+.phn.out { animation: fadeOut .24s both; }
 .rg-phone { width: 350px; display: grid; gap: 8px; }
 .rg {
   display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; align-items: center; padding: 12px 14px;
