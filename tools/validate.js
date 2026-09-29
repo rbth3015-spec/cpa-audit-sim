@@ -43,6 +43,7 @@ function keyAnswer(p) {
 }
 function perfectMini(game) {
   const M = MINIS[game].build(4242, null);
+  if (MINIS[game].perfect) return { model: M, state: MINIS[game].perfect(M) };
   if (game === 'count') {
     const TICK = { none: 'none', miss: 'miss', diff: 'diff', dmg: 'flag', cons: 'flag' };
     const tested = {};
@@ -503,6 +504,43 @@ console.log('\n═══ 인물 · 이야기 (data/cast.js · data/story.js)');
   console.log(bad > before ? `  → 문제 ${bad - before}건` : '  → 이상 없음');
 }
 
+/* ── 6½. 스타일 이름 충돌 ──────────────────────────────
+   같은 이름의 @keyframes 가 두 번이면 나중 것이 앞의 것을 덮는다 (엔딩 잉크가 붉은 펜 줄을 90배로 키운 사고).
+   화면 전체를 덮는 position: fixed 클래스가 다른 선택자 안에서도 쓰이면 그 요소까지 덮개가 된다 (.ink · .ring 사고). */
+console.log('\n═══ 스타일 이름 충돌 (@keyframes · 덮개 클래스)');
+{
+  const cssDir = path.join(ROOT, 'css');
+  const files = fs.readdirSync(cssDir).filter(f => f.endsWith('.css'));
+  const kf = {}, fixedTop = {}, uses = [];
+  files.forEach(f => {
+    const src = fs.readFileSync(path.join(cssDir, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    (src.match(/@keyframes\s+([\w-]+)/g) || []).forEach(m => { const n = m.split(/\s+/)[1]; (kf[n] = kf[n] || []).push(f); });
+    // 규칙 단위로 자른다 (@media 안쪽도 같은 모양이라 그대로 본다)
+    src.split('}').forEach(chunk => {
+      const i = chunk.lastIndexOf('{');
+      if (i < 0) return;
+      const sel = chunk.slice(0, i).replace(/^[\s\S]*\{/, '').trim(), body = chunk.slice(i + 1);
+      if (!sel || sel.startsWith('@') || /^(from|to|\d+%)/.test(sel)) return;
+      sel.split(',').map(s => s.trim()).forEach(s => {
+        const top = /^\.([a-zA-Z][\w-]*)(?=[\s.:[>+~]|$)/.exec(s);
+        if (top && /position:\s*fixed/.test(body) && /^\.[\w-]+(\.[\w-]+|:[\w-]+|::[\w-]+)*$/.test(s)) (fixedTop[top[1]] = fixedTop[top[1]] || new Set()).add(f);
+        uses.push({ s, f });
+      });
+    });
+  });
+  const dupK = Object.keys(kf).filter(n => kf[n].length > 1);
+  dupK.forEach(n => { bad++; console.log(`  ✕ @keyframes ${n} 가 여러 번: ${kf[n].join(' · ')}`); });
+  // 선택자의 대상(맨 끝 덩어리)에 그 클래스가 붙은 경우만 — 안쪽 자식을 꾸미는 규칙은 같은 부품이다
+  const subject = s => s.split(/\s*[>+~]\s*|\s+/).filter(Boolean).pop() || '';
+  let clash = 0;
+  Object.keys(fixedTop).forEach(n => {
+    const re = new RegExp('\\.' + n + '(?![\\w-])');
+    const other = uses.filter(u => re.test(subject(u.s)) && !new RegExp('^\\.' + n + '(?![\\w-])').test(u.s));
+    if (other.length) { bad++; clash++; console.log(`  ✕ 덮개 클래스 .${n} 가 다른 선택자에도 쓰임: ${other.slice(0, 3).map(u => u.s + ' (' + u.f + ')').join(' · ')}`); }
+  });
+  if (!dupK.length && !clash) console.log('  → 이상 없음');
+}
+
 /* ── 7. 문구 ──────────────────────────────────────────── */
 console.log('\n═══ 문구 (대사는 한 줄 · 42자 이내 권장)');
 {
@@ -532,6 +570,13 @@ if (!process.env.SEASON && !process.env.NO_LAB) {
   const lab = require('child_process').spawnSync(process.execPath, [path.join(ROOT, 'tools', 'gradelab.js')], { encoding: 'utf8' });
   (lab.stdout || '').split('\n').filter(l => /평균|벗어난 칸/.test(l)).forEach(l => console.log('  ' + l.trim()));
   if (lab.status) { bad++; console.log('  ✕ 채점 띠를 벗어난 칸이 너무 많다 — node tools/gradelab.js --bad'); }
+  else console.log('  → 이상 없음');
+
+  /* 존칭 — 직급 아래에서 위로 반말, 시점 인물과 안 맞는 부름말 (tools/honorifics.js) */
+  console.log('\n═══ 존칭 (누가 누구에게 — 시점 인물 기준)');
+  const hon = require('child_process').spawnSync(process.execPath, [path.join(ROOT, 'tools', 'honorifics.js')], { encoding: 'utf8' });
+  (hon.stdout || '').split('\n').filter(l => /✕|고칠 것/.test(l)).slice(0, 12).forEach(l => console.log('  ' + l.trim()));
+  if (hon.status) { bad++; console.log('  ✕ 존칭이 어긋난 대사 — node tools/honorifics.js'); }
   else console.log('  → 이상 없음');
 }
 

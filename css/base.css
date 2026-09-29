@@ -209,7 +209,10 @@ kbd {
 .slate .kick { font: 600 14px/1 var(--mono); letter-spacing: .1em; color: #ff8a76; }
 .slate h2 { margin: 14px 0 0; font: 800 clamp(48px, 7vw, 92px)/1 var(--display); letter-spacing: -.03em; }
 .slate p { margin: 16px 0 0; font: 400 20px/1.5 var(--serif); opacity: .85; max-width: 760px; }
-.slate .seat { display: inline-block; margin-top: 22px; font: 700 14px/1 var(--sans); background: var(--red); color: #fff; padding: 7px 10px; }
+.slate .seat { display: inline-flex; align-items: center; gap: 10px; margin-top: 22px; font: 500 13px/1 var(--mono); background: rgba(19, 18, 17, .72); color: rgba(255, 255, 255, .75); padding: 6px 12px 6px 6px; border-left: 3px solid var(--red); }
+.slate .seat b { font: 800 16px/1 var(--sans); color: #fff; }
+.slate .seat em { font: 800 11px/1 var(--sans); font-style: normal; color: #fff; background: var(--red); padding: 5px 7px; letter-spacing: .06em; margin-left: 4px; }
+.slate .seat .sl-av { width: 34px; height: 34px; object-fit: cover; filter: grayscale(1); }
 @keyframes slate { 0% { opacity: 0; } 10% { opacity: 1; } 84% { opacity: 1; } 100% { opacity: 0; } }
 
 /* 일시정지 */

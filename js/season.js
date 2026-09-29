@@ -45,6 +45,9 @@
     senior:  { id: 'senior', name: '시니어', role: '업무 배분 · 판단 취합', trust: '파트너의 신뢰', time: 1.0, company: 1.0 },
     partner: { id: 'partner', name: '업무수행이사', role: '결론 · 회사와 지배기구 상대', trust: '품질관리실의 신뢰', time: 1.15, company: 1.35 }
   };
+  /* 자리마다 그 자리에 앉은 사람 — 그 장면은 이 사람의 시점이다 */
+  var SEAT_WHO = { partner: 'partner', senior: 'manager', staff: 'assoc' };
+  function povOf(seat) { return SEAT_WHO[seat] || SEAT_WHO.senior; }
 
   var FLAG_TEXT = {
     fraud_alert: '분개 데이터 전수 추출 시작',
@@ -86,6 +89,7 @@
   function seatWho(w, S) {
     if (S.seat === 'partner' && w === 'partner') return 'manager';
     if (S.seat === 'senior' && w === 'manager') return 'assoc';
+    if (S.seat === 'staff' && w === 'assoc') return 'manager';
     return w;
   }
 
@@ -515,7 +519,7 @@
     if (m.total <= mat()) {
       eachMust(it.parts, function (mu, p, i) {
         if (mu.label !== '수정되지 않으면 의견 변형') return;
-        p.rubric.must[i] = { kw: ['중요성에 미달', '중요하지 않', '의견에 영향을 미치지', '변형하지', '미달'],
+        p.rubric.must[i] = { kw: ['미달', '이하', '넘지 않', '보다 작', '의견에 영향을 미치지'], near: ['중요성', '감사의견', '의견'], within: 25,
           score: mu.score, label: '미수정 합계가 중요성에 미달하여 의견에 영향 없음', negOk: true,
           why: mu.why };
         p.model = '미수정왜곡표시를 개별적으로 또 합산하여 중요성과 비교하고 질적 요인도 고려한다. 합계가 중요성에 미달하므로 그 자체로는 감사의견에 영향을 미치지 아니한다.';
@@ -579,7 +583,7 @@
     if (d.kind === '적정의견') {
       p2.rubric.must = [
         { kw: ['충분하고 적합한 감사증거'], score: 12, label: '충분하고 적합한 감사증거 입수', negOk: true },
-        { kw: ['중요성에 미달', '중요하지 않', '미달'], score: 16, label: '미수정왜곡표시가 중요성에 미달', negOk: true,
+        { kw: ['미달', '이하', '넘지 않', '보다 작'], near: ['중요성'], within: 20, half: ['중요하지 않'], score: 16, label: '미수정왜곡표시가 중요성에 미달', negOk: true,
           why: '미수정왜곡표시 평가 — 합계가 중요성 미달이면 중요하지 않음. 단, 손익 반전·약정 위반 등 질적 요인 고려' }];
       p2.model = '충분하고 적합한 감사증거를 입수하였고 미수정왜곡표시 ' + t + '억원은 중요성 ' + mat() + '억원에 미달한다.';
     } else if (d.basis === 'scope') {
@@ -767,7 +771,7 @@
     create: create, resolve: resolve, apply: apply, combine: combine, epilogue: epilogue,
     sideOpen: sideOpen, offer: offer, applySide: applySide,
     misstatements: misstatements, decide: decide, band: band, dday: dday, asker: asker, reviewer: reviewer,
-    seatWho: seatWho, bySeat: bySeat, viewOf: viewOf, rng: rng,
+    seatWho: seatWho, bySeat: bySeat, viewOf: viewOf, rng: rng, povOf: povOf, SEAT_WHO: SEAT_WHO,
     snapshot: snapshot, restore: restore, cardIndex: cardIndex, resetCards: resetCards,
     SEATS: SEATS, FLAG_TEXT: FLAG_TEXT, MAT: MAT, OPINIONS: OPINIONS, KEYS: KEYS,
     SIDE_AFTER: SIDE_AFTER, sideKeys: sideKeys, mat: mat,

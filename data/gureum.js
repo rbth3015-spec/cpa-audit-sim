@@ -481,7 +481,7 @@
           };
         },
         rubric: function (v) {
-          var must2 = { kw: ['계약 개시일', '계약기간', '계약 원본', '계약서', '계약 대장'], score: 8, label: '계약 개시일 · 기간 대조' };
+          var must2 = { kw: ['계약 개시일', '계약기간', '계약 기간', '계약 원본', '계약 대장', '개시일'], score: 8, label: '계약 개시일 · 기간 대조' };
           return v.id === 'SHORT' ? {
             bonusCap: 6,
             must: [
@@ -587,8 +587,8 @@
         rubric: {
           bonusCap: 8,
           must: [
-            { kw: ['대사', '맞추', '일치 여부', '비교'], score: 12, half: ['정산'],
-              label: '서비스조직 정산 자료와 회사 기록 대사' },
+            { kw: ['대사', '맞추', '일치 여부', '비교', '대조'], near: ['정산', '결제대행', '서비스조직', '나루페이'], within: 40,
+              score: 12, half: ['정산'], label: '서비스조직 정산 자료와 회사 기록 대사' },
             { kw: ['환불', '해지', '차이의 원인', '원인을 조사', '원인 분석', '원인을 추적'], score: 12, label: L.refund,
               why: '정산 차이 — 환불 · 해지 · 수수료 · 시점 차이 중 무엇인지 원천 자료(해지 승인 통지, 환불 내역)로 추적' }
           ],
@@ -630,10 +630,10 @@
         rubric: {
           bonusCap: 8,
           must: [
-            { kw: ['업무팀', '팀원', '감사팀에', '공유', '전달'], score: 10, label: '업무팀에 즉시 공유' },
-            { kw: ['경영진에게', '식별을 요청', '식별하도록 요청', '추가 거래', '다른 특수관계자'], score: 10, half: ['경영진'],
+            { kw: ['업무팀', '팀원', '감사팀에', '팀에 공유', '팀에 전달'], half: ['공유', '전달'], score: 10, label: '업무팀에 즉시 공유' },
+            { kw: ['식별을 요청', '식별하도록 요청', '모든 거래를 식별', '추가 거래', '다른 특수관계자'], score: 10, half: ['경영진에게', '경영진'],
               label: '경영진에게 거래 식별 요청 · 위험 재고려' },
-            { kw: ['실증절차', '실증 절차', '세부테스트', '계약서', '검수'], score: 14, label: L.rp,
+            { kw: ['실증절차', '실증 절차', '세부테스트'], half: ['계약서', '검수'], score: 14, label: L.rp,
               why: '새로 식별된 특수관계자 — 업무팀 공유 · 경영진에게 모든 거래 식별 요청 · 적합한 실증절차 · 다른 미식별 특수관계자 위험 재고려 · 고의면 부정 시사점 평가' }
           ],
           bonus: [{ kw: ['고의', '부정'], score: 8, label: '고의적 미공개면 부정 시사점 평가' }],
@@ -792,27 +792,27 @@
     },
 
     BEATS: [
-      { id: 'gur_pro', at: 'pro', room: 'team', time: '10. 21. (수) 18:10', bg: 'server',
+      { id: 'gur_pro', at: 'pro', room: 'team', pov: 'partner', time: '10. 21. (수) 18:10', bg: 'server',
         msgs: [
           { sys: '유가온 님이 방을 만들었습니다' },
-          { from: 'manager', t: '구름결 건. 거래가 연 340만 건이야.' },
+          { from: 'manager', t: '구름결 건입니다. 거래가 연 340만 건입니다.' },
           { from: 'partner', t: '숫자보다 숫자를 만든 시스템부터 보게.' },
-          { from: 'kyuri', t: '전표는 시스템이 만들어요. 사람 손은 계약 등록뿐.' },
+          { from: 'kyuri', t: '전표는 시스템이 만들어요. 사람 손은 계약 등록뿐이고요.' },
           { from: 'assoc', t: 'SaaS 는 처음이에요… 구독부터 공부할게요.' }
         ],
         choice: { opts: [
-          { t: '권한 대장부터 받아 두죠.', fx: { E: 1, bond: { kyuri: 5 } },
-            reply: [{ from: 'kyuri', t: '운영 DB 까지 달라고 할게요.' }] },
-          { t: '계약서 원본 목록을 요청할게요.', fx: { bond: { manager: 4 } },
-            reply: [{ from: 'manager', t: '구독이랑 SI 나눠서 받아.' }] },
-          { t: '결제대행사 보고서도 챙기죠.', fx: { E: 1, bond: { manager: 2 } },
-            reply: [{ from: 'manager', t: '나루페이 쪽은 내가 연락할게.' }] }
+          { t: '심 매니저, 권한 대장부터 받아 두지.', fx: { E: 1, bond: { kyuri: 5 } },
+            reply: [{ from: 'kyuri', t: '운영 DB 까지 요청하겠습니다.' }] },
+          { t: '계약서 원본 목록을 요청하게.', fx: { bond: { manager: 4 } },
+            reply: [{ from: 'manager', t: '구독이랑 SI 나눠서 받겠습니다.' }] },
+          { t: '결제대행사 보고서도 챙기게.', fx: { E: 1, bond: { manager: 2 } },
+            reply: [{ from: 'manager', t: '나루페이 쪽은 제가 연락하겠습니다.' }] }
         ] } },
 
-      { id: 'gur_cfo', at: 'g1', room: 'dm:gcfo', time: '10. 26. (월) 09:20', bg: 'office',
+      { id: 'gur_cfo', at: 'g1', room: 'dm:gcfo', pov: 'partner', time: '10. 26. (월) 09:20', bg: 'office',
         facts: ['gf_ask'],
         msgs: [
-          { from: 'gcfo', t: '재무이사 강민서입니다. 잘 부탁드립니다.' },
+          { from: 'gcfo', t: '이사님, 재무이사 강민서입니다. 잘 부탁드립니다.' },
           { from: 'gcfo', t: '작년에 시스템 바꾸면서 권한이 좀 꼬였어요.' },
           { from: 'gcfo', t: '감사팀에서 권한표 정리까지 봐 주시면 빠를 텐데요.', mood: 'good' }
         ],
@@ -831,10 +831,10 @@
               reply: [{ from: 'gcfo', t: '그럼 그 부분은 넘어가시죠.' }] }
           ] } },
 
-      { id: 'gur_ops', at: 'g2', room: 'dm:itops', time: '12. 17. (목) 19:40', bg: 'server',
+      { id: 'gur_ops', at: 'g2', room: 'dm:itops', pov: 'manager', time: '12. 17. (목) 19:40', bg: 'server',
         facts: ['go_rights'],
         msgs: [
-          { from: 'itops', t: 'IT운영팀장 서태오입니다.' },
+          { from: 'itops', t: '회계사님, IT운영팀장 서태오입니다.' },
           { from: 'itops', t: '개발팀 권한은 장애 대응용이에요. 고친 적 없습니다.' },
           { from: 'itops', t: '로그는… 보관 기간이 지났을 수도 있어요.', mood: 'tense' }
         ],
@@ -847,25 +847,25 @@
             reply: [{ from: 'itops', t: '정책 문서는 내일 드리겠습니다.' }] }
         ] } },
 
-      { id: 'gur_query', at: 'g3', room: 'dm:kyuri', time: '1. 14. (목) 00:20', bg: 'server',
+      { id: 'gur_query', at: 'g3', room: 'dm:kyuri', pov: 'assoc', time: '1. 14. (목) 00:20', bg: 'server',
         msgs: function (S) {
           var ghost = !!(S.active && S.active.ghost_bill);
           return [
-            { from: 'kyuri', t: ghost ? '조인 돌렸어요. 계약 없는 청구가 떠요.' : '조인 돌렸어요. 짝 없는 청구는 테스트 3건.' },
+            { from: 'kyuri', t: ghost ? '한결 씨, 조인 돌렸어요. 계약 없는 청구가 떠요.' : '한결 씨, 조인 돌렸어요. 짝 없는 청구는 테스트 3건.' },
             { from: 'kyuri', t: ghost ? '1,284건. 전부 결산 사흘 전 입력이에요.' : '금액은 0원이에요. 깨끗해요.', mood: ghost ? 'tense' : null },
             { from: 'kyuri', t: '조서에는 쿼리 원문까지 붙일게요.' }
           ];
         },
         choice: { opts: [
-          { t: '원천 로그랑 한 번 더 맞춰 주세요.', fx: { bond: { kyuri: 6 }, E: 1 },
+          { t: '원천 로그랑 한 번 더 맞춰 주실 수 있을까요?', fx: { bond: { kyuri: 6 }, E: 1 },
             reply: [{ from: 'kyuri', t: '3분이면 돼요.' }] },
-          { t: '고맙습니다. 쿼리 검토는 제가 할게요.', fx: { bond: { kyuri: 4 }, E: 2 },
+          { t: '감사합니다, 매니저님. 쿼리 검토는 제가 할게요.', fx: { bond: { kyuri: 4 }, E: 2 },
             reply: [{ from: 'kyuri', t: '주석 달아 둘게요.' }] },
-          { t: '늦었으니 내일 보죠.', fx: { bond: { kyuri: -3 } },
+          { t: '늦었으니 내일 보시죠.', fx: { bond: { kyuri: -3 } },
             reply: [{ sys: '읽음' }] }
         ] } },
 
-      { id: 'gur_fix', at: 'g4', room: 'dm:itops', time: '2. 2. (월) 08:50', bg: 'server',
+      { id: 'gur_fix', at: 'g4', room: 'dm:itops', pov: 'manager', time: '2. 2. (월) 08:50', bg: 'server',
         when: function (S) { return (S.bond.itops || 0) >= 25; },
         msgs: [
           { from: 'itops', t: '권한 회수 계획 올렸습니다.' },
@@ -878,7 +878,7 @@
             reply: [{ from: 'itops', t: '다행입니다.', mood: 'good' }] }
         ] } },
 
-      { id: 'gur_si', at: 'g4', room: 'talk', place: 'SI본부 회의실', time: '1. 30. (금) 16:00', bg: 'meeting',
+      { id: 'gur_si', at: 'g4', room: 'talk', pov: 'manager', place: 'SI본부 회의실', time: '1. 30. (금) 16:00', bg: 'meeting',
         facts: ['gs_memo'],
         msgs: [
           { from: 'sipm', t: '진행률은 PM 들이 다 검증한 숫자입니다.' },
@@ -894,7 +894,7 @@
             reply: [{ from: 'sipm', t: '12월이면… 알겠습니다.' }] }
         ] } },
 
-      { id: 'gur_ceo', at: 'g6', room: 'talk', place: '대표이사실', time: '2. 16. (월) 11:00', bg: 'office',
+      { id: 'gur_ceo', at: 'g6', room: 'talk', pov: 'partner', place: '대표이사실', time: '2. 16. (월) 11:00', bg: 'office',
         facts: ['gc_moru'],
         msgs: [
           { from: 'gceo', t: '모루시스템은 제 회사 맞습니다. 숨긴 적 없어요.' },
@@ -916,19 +916,19 @@
               reply: [{ from: 'gceo', t: '그러죠. 연락 넣겠습니다.' }] }
           ] } },
 
-      { id: 'gur_script', at: 'g6', room: 'dm:kyuri', time: '2. 13. (금) 01:10', bg: 'night',
+      { id: 'gur_script', at: 'g6', room: 'dm:kyuri', pov: 'assoc', time: '2. 13. (금) 01:10', bg: 'night',
         msgs: [
           { from: 'kyuri', t: '대조 쿼리, 다른 회사에도 쓸 수 있을 것 같아요.' },
           { from: 'kyuri', t: '법인 표준으로 올려 보려고요.' }
         ],
         choice: { opts: [
-          { t: '좋아요. 제 조서에 사례로 붙일게요.', fx: { bond: { kyuri: 8 }, E: 1 },
+          { t: '좋습니다, 매니저님. 제 조서에 사례로 붙일게요.', fx: { bond: { kyuri: 8 }, E: 1 },
             reply: [{ from: 'kyuri', t: '주석은 제가 달게요.' }] },
           { t: '회사마다 테이블이 달라서 어렵지 않을까요?', fx: { bond: { kyuri: -3 } },
             reply: [{ from: 'kyuri', t: '…그렇죠.' }] }
         ] } },
 
-      { id: 'gur_eqr', at: 'g7', room: 'dm:eqr', time: '3. 16. (월) 17:30', bg: 'report',
+      { id: 'gur_eqr', at: 'g7', room: 'dm:eqr', pov: 'partner', time: '3. 16. (월) 17:30', bg: 'report',
         msgs: function (S) {
           return [
             { from: 'eqr', t: '품질관리실 오세진입니다. 조서 봤습니다.' },

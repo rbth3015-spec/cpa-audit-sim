@@ -286,9 +286,9 @@
     }).join('');
     var lines = chat.filter(function (m) { return m.from === who || m.room === 'dm:' + who; }).slice(-14);
     var log = lines.map(function (m) {
-      var mine = m.from === 'staff';
+      var mine = m.from === 'staff' || !!m.me;         // 옛 기록은 'staff'(나), 새 기록은 그 대화의 시점 인물
       return '<li class="' + (mine ? 'me' : m.sys ? 'sys' : '') + '"><span class="t">' + esc(m.time || '') + '</span>' +
-        '<span class="w">' + esc(m.sys ? '' : mine ? '나' : (C[m.from] || {}).name || '') + '</span><span class="x">' + esc(m.sys || m.t) + '</span></li>';
+        '<span class="w">' + esc(m.sys ? '' : m.from === 'staff' ? '나' : (C[m.from] || {}).name || '') + '</span><span class="x">' + esc(m.sys || m.t) + '</span></li>';
     }).join('');
     var meter = b != null && BD[who] != null
       ? '<div class="pp-bond"><span class="k">관계</span><span class="meter"><i style="width:' + b + '%"></i></span><b>' + esc(global.STORY.bandOf(who, b)) + '</b></div>' : '';

@@ -61,7 +61,7 @@
           : v.id === 'TIP' ? '이수아가 보낸 파일이 열려 있다. 등기부등본 한 장.'
           : '발신자 없는 메일 한 통. 첨부는 등기부등본.'; } },
       s7: { at: '20×7. 2. 24. 15:00', place: '감사팀 현장 사무실', text: '사업보고서 초안 312쪽. 인쇄 마감은 금요일.' },
-      s8: { at: '20×7. 3. 4. 06:10', place: '세종회계법인 14층', text: '새벽 속보 — 서린정밀 제2공장 화재. 유가온이 먼저 와 있다.' },
+      s8: { at: '20×7. 3. 4. 06:10', place: '세종회계법인 14층', text: '새벽 속보 — 서린정밀 제2공장 화재. 한결이 먼저 와 있다.' },
       s9: { at: '20×7. 3. 8. 10:00', place: '㈜서린정밀 대회의실', text: function (S) {
         return S.flags.chair_backing ? '감사위원장 윤서경이 먼저 와 앉아 있다. 박정후는 집계표를 접는다.'
           : '박정후가 집계표를 반으로 접는다. 감사위원장 자리는 비어 있다.'; } },
@@ -71,25 +71,25 @@
     BEATS: [
 
       /* ── 시작 전 ─────────────────────────────── */
-      { id: 'pro_team', at: 'pro', room: 'team', time: '11. 13. (목) 18:40', bg: 'office',
+      { id: 'pro_team', at: 'pro', room: 'team', pov: 'partner', time: '11. 13. (목) 18:40', bg: 'office',
         msgs: [
           { sys: '유가온 님이 방을 만들었습니다' },
-          { from: 'manager', t: '서린정밀 20×6 감사팀 방.' },
+          { from: 'manager', t: '서린정밀 20×6 감사팀 방입니다.' },
           { from: 'partner', t: '내일 10시 수임 심의. 컨설팅본부 용역 건 봐 두게.' },
           { from: 'assoc', t: '잘 부탁드립니다! 상장사는 처음이에요ㅠ' },
           { from: 'kyuri', t: '전표 요청 양식은 기말에 드릴게요.' }
         ],
         choice: { opts: [
-          { t: '용역 계약서부터 받아 둘게요.', fx: { bond: { manager: 4 } },
-            reply: [{ from: 'manager', t: '받아 뒀어. 공유 폴더 01번.' }] },
-          { t: '한결 씨, 막히면 바로 물어봐요.', fx: { bond: { assoc: 6 } },
-            reply: [{ from: 'assoc', t: '넵!! 감사합니다 선배' }] },
-          { t: '내일 뵙겠습니다.',
-            reply: [{ from: 'manager', t: '8시 반, 14층 이사실 앞.' }] }
+          { t: '용역 계약서부터 받아 두게.', fx: { bond: { manager: 4 } },
+            reply: [{ from: 'manager', t: '받아 뒀습니다. 공유 폴더 01번입니다.' }] },
+          { t: '한결 씨, 막히면 유 회계사한테 바로 묻게.', fx: { bond: { assoc: 6 } },
+            reply: [{ from: 'assoc', t: '넵!! 감사합니다, 이사님' }] },
+          { t: '내일 보세.',
+            reply: [{ from: 'manager', t: '8시 반, 14층 이사실 앞에서 뵙겠습니다.' }] }
         ] } },
 
       /* ── 수임 검토 뒤 ─────────────────────────── */
-      { id: 's1_stock', at: 's1', room: 'dm:assoc', time: '11. 14. (금) 21:12', bg: 'night',
+      { id: 's1_stock', at: 's1', room: 'dm:assoc', pov: 'manager', time: '11. 14. (금) 21:12', bg: 'night',
         facts: ['k_stock'],
         msgs: [
           { from: 'assoc', t: '선배, 잠깐 괜찮으세요?' },
@@ -106,16 +106,16 @@
               reply: [{ from: 'assoc', t: '내일 아침에 바로 팔고 보고할게요.' }, { from: 'assoc', t: '말해 주셔서 다행이에요.', mood: 'good' }] },
             { t: '10주면 중요하지 않아. 그냥 둬.', ok: false, note: '직접 보유는 금액을 따지지 않음',
               fx: { flag: 'kyul_kept', fact: 'k_kept' },
-              reply: [{ from: 'assoc', t: '그렇죠? 다행이다ㅎㅎ', mood: 'good' }] },
+              reply: [{ from: 'assoc', t: '그렇죠? 다행이에요ㅎㅎ', mood: 'good' }] },
             { t: '감사 끝나고 팔면 되지. 모른 척할게.', ok: false, note: '감사 기간 중 보유 · 숨기면 위반이 커짐',
               fx: { bond: { assoc: 3 }, flag: 'kyul_kept', fact: 'k_kept' },
               reply: [{ from: 'assoc', t: '넵… 감사합니다 선배.' }] }
           ] } },
 
       /* ── 위험평가 뒤 ─────────────────────────── */
-      { id: 's2_dinner', at: 's2', room: 'dm:cfo', time: '12. 8. (월) 10:02', bg: 'office',
+      { id: 's2_dinner', at: 's2', room: 'dm:cfo', pov: 'manager', time: '12. 8. (월) 10:02', bg: 'office',
         msgs: [
-          { from: 'cfo', t: '회계사님, 재무 박정후입니다.' },
+          { from: 'cfo', t: '유 회계사님, 재무 박정후입니다.' },
           { from: 'cfo', t: '감사팀 주차는 3면 잡아 두었습니다.' },
           { from: 'cfo', t: '연말에 팀 전체 저녁 한번 모시겠습니다. 한우로요.', mood: 'good' }
         ],
@@ -134,26 +134,26 @@
               reply: [{ from: 'cfo', t: '하하, 그럼 3월에 꼭 모시겠습니다.', mood: 'good' }] }
           ] } },
 
-      { id: 's2_query', at: 's2', room: 'team', time: '12. 8. (월) 18:30', bg: 'server',
+      { id: 's2_query', at: 's2', room: 'team', pov: 'assoc', time: '12. 8. (월) 18:30', bg: 'server',
         when: function (S) { return !!S.flags.fraud_alert; },
         facts: ['q_found'],
         msgs: [
           { from: 'kyuri', t: '분개 전수 추출 쿼리 짰어요.' },
           { from: 'kyuri', t: '마감 후 입력 · 드문 계정 조합 · 대표 계정 승인.' },
-          { from: 'manager', t: '돌리면 바로 공유해.' },
+          { from: 'manager', t: '결과 나오면 바로 공유 부탁드려요.' },
           { from: 'assoc', t: '결과는 제가 먼저 볼게요!' }
         ] },
 
-      { id: 's2_sample', at: 's2', room: 'team', time: '12. 8. (월) 18:30', bg: 'server',
+      { id: 's2_sample', at: 's2', room: 'team', pov: 'assoc', time: '12. 8. (월) 18:30', bg: 'server',
         when: function (S) { return !S.flags.fraud_alert; },
         msgs: [
           { from: 'kyuri', t: '분개 테스트는 표본 25건으로 간다면서요.' },
           { from: 'kyuri', t: '전수 추출 필요하면 말해요. 지금은 대기.' },
-          { from: 'manager', t: '일단 표본으로 가.' }
+          { from: 'manager', t: '일단 표본으로 갈게요.' }
         ] },
 
       /* ── 재고실사 뒤 ─────────────────────────── */
-      { id: 's3_ware', at: 's3', room: 'talk', place: '본사 창고 출입구', time: '12. 31. (수) 19:05', bg: 'warehouse',
+      { id: 's3_ware', at: 's3', room: 'talk', pov: 'assoc', place: '본사 창고 출입구', time: '12. 31. (수) 19:05', bg: 'warehouse',
         facts: ['w_never'],
         msgs: function (S) {
           var third = hit(S, 's3#제3자 보관 재고는 제3자에 대한 조회 또는 검사');
@@ -165,25 +165,25 @@
           ];
         } },
 
-      { id: 's3_sua', at: 's3', room: 'dm:sua', time: '1. 2. (금) 19:48', bg: 'desk',
+      { id: 's3_sua', at: 's3', room: 'dm:sua', pov: 'assoc', time: '1. 2. (금) 19:48', bg: 'desk',
         facts: ['s_sheet'],
         msgs: [
-          { from: 'sua', t: '회계팀 이수아입니다. 수불부 올려 두었어요.' },
+          { from: 'sua', t: '회계사님, 회계팀 이수아입니다. 수불부 올려 두었어요.' },
           { from: 'sua', t: '그리고… 임가공 재고 명세서요.' },
           { from: 'sua', t: '그거 제가 만든 거 아니에요.', mood: 'tense' },
           { from: 'sua', t: '아, 아니에요. 신경 쓰지 마세요.' }
         ],
         choice: { opts: [
-          { t: '알겠어요. 나중에라도 말하고 싶으면 연락 줘요.', fx: { bond: { sua: 20 } },
+          { t: '알겠습니다. 나중에라도 말씀하고 싶으시면 연락 주세요.', fx: { bond: { sua: 20 } },
             reply: [{ from: 'sua', t: '…네. 감사합니다.' }] },
-          { t: '그럼 누가 만들었어요? 지금 말해 줘요.', fx: { bond: { sua: -5 } },
+          { t: '그럼 누가 만들었어요? 지금 말씀해 주세요.', fx: { bond: { sua: -5 } },
             reply: [{ from: 'sua', t: '죄송해요. 괜한 말을 했어요.' }] },
           { t: '자료 감사합니다.',
             reply: [{ sys: '읽음' }] }
         ] } },
 
       /* ── 외부조회 뒤 ─────────────────────────── */
-      { id: 's4_sua', at: 's4', room: 'dm:sua', time: '1. 23. (금) 22:31', bg: 'night',
+      { id: 's4_sua', at: 's4', room: 'dm:sua', pov: 'assoc', time: '1. 23. (금) 22:31', bg: 'night',
         when: function (S) { return S.bond.sua >= 30 && !S.flags.sua_leak; },
         facts: ['s_handle'],
         msgs: [
@@ -196,7 +196,7 @@
           card: { label: '부정 의혹 제보 — 부정위험 평가에 반영할 정보',
                   why: '부정 의혹·제보 — 무시하지 않고 부정위험 평가에 반영해 추가 절차로 대응. 제보자 신원은 보호' },
           opts: [
-            { t: '말해 줘서 고마워요. 이름은 드러나지 않게 할게요.', ok: true,
+            { t: '말씀해 주셔서 고마워요. 이름은 드러나지 않게 할게요.', ok: true,
               fx: { bond: { sua: 20 }, flag: 'sua_heard' },
               reply: [{ from: 'sua', t: '자료는… 제가 정리해서 드릴게요.' }] },
             { t: '확인되지 않은 얘기는 조서에 못 써요.', ok: false, note: '제보 — 부정위험 평가에 반영할 정보',
@@ -207,15 +207,15 @@
               reply: [{ from: 'sua', t: '아니요, 그건… 제발 그러지 마세요.', mood: 'tense' }] }
           ] } },
 
-      { id: 's4_cfo', at: 's4', room: 'dm:cfo', time: '1. 21. (수) 08:10', bg: 'office',
+      { id: 's4_cfo', at: 's4', room: 'dm:cfo', pov: 'manager', time: '1. 21. (수) 08:10', bg: 'office',
         when: function (S) { return S.rel.company < 42; },
         msgs: [
-          { from: 'cfo', t: '회계사님, 어제 일은 유감입니다.', mood: 'bad' },
+          { from: 'cfo', t: '유 회계사님, 어제 일은 유감입니다.', mood: 'bad' },
           { from: 'cfo', t: '그 거래처들은 저희 생명줄입니다.' },
           { from: 'cfo', t: '대표님께서도 걱정이 많으십니다.' }
         ] },
 
-      { id: 's4_sales', at: 's4', room: 'talk', place: '㈜서린정밀 1층 로비', time: '1. 21. (수) 12:40', bg: 'office',
+      { id: 's4_sales', at: 's4', room: 'talk', pov: 'assoc', place: '㈜서린정밀 1층 로비', time: '1. 21. (수) 12:40', bg: 'office',
         when: function (S) { return S.rel.company >= 42; },
         msgs: [
           { from: 'sales', t: '허허, 회계사님들 아직 계시네요!' },
@@ -224,30 +224,30 @@
         ] },
 
       /* ── 회계추정치 뒤 ─────────────────────────── */
-      { id: 's5_offer', at: 's5', room: 'dm:manager', time: '2. 4. (수) 23:05', bg: 'night',
+      { id: 's5_offer', at: 's5', room: 'dm:manager', pov: 'partner', time: '2. 4. (수) 23:05', bg: 'night',
         facts: ['g_offer'],
         msgs: [
-          { from: 'manager', t: '안 자?' },
-          { from: 'manager', t: '박 상무가 재무팀장 자리 제안했어.' },
-          { from: 'manager', t: '연봉 1.5배. 3월 입사.' },
-          { from: 'manager', t: '솔직히 좀 흔들려.', mood: 'tense' }
+          { from: 'manager', t: '이사님, 늦은 시간에 죄송합니다.' },
+          { from: 'manager', t: '박 상무님이 재무팀장 자리를 제안했습니다.' },
+          { from: 'manager', t: '연봉 1.5배, 3월 입사 조건입니다.' },
+          { from: 'manager', t: '솔직히… 좀 흔들립니다.', mood: 'tense' }
         ],
         choice: {
           card: { label: '감사고객의 고용 제안 — 즉시 알리고 업무팀에서 제외',
                   why: '고용 제안·협상 중인 업무팀원 — 이기적 위협. 법인에 알리고 해당 개인을 업무팀에서 즉시 제외, 그가 한 업무는 재검토' },
           opts: [
-            { t: '법인에 바로 알려요. 고민 중이면 이 건에선 빠져야 하고요.', ok: true,
+            { t: '법인에 바로 알리게. 고민 중이면 이 건에선 빠져야 하고.', ok: true,
               fx: { R: 3, bond: { manager: 8 }, flag: 'gaon_reported', fact: 'g_report' },
-              reply: [{ from: 'manager', t: '…그렇지. 알고 있었어.' }, { from: 'manager', t: '방금 거절했어. 내일 품질관리실 간다.' }] },
-            { t: '시즌 끝나고 답하면 되죠. 저만 알고 있을게요.', ok: false, note: '협상 중인 사실을 숨김 — 이기적 위협 방치',
+              reply: [{ from: 'manager', t: '…네. 알고 있었습니다.' }, { from: 'manager', t: '방금 거절했습니다. 내일 품질관리실에 가겠습니다.' }] },
+            { t: '시즌 끝나고 답하면 되지. 나만 알고 있겠네.', ok: false, note: '협상 중인 사실을 숨김 — 이기적 위협 방치',
               fx: { bond: { manager: 4 }, flag: 'gaon_secret', fact: 'g_hide' },
-              reply: [{ from: 'manager', t: '고마워. 조용히 생각해 볼게.' }] },
-            { t: '보고서 나간 뒤에 수락하면 문제없어요.', ok: false, note: '감사 중 협상 자체가 위협 — 시점 문제 아님',
+              reply: [{ from: 'manager', t: '감사합니다. 조용히 생각해 보겠습니다.' }] },
+            { t: '보고서 나간 뒤에 수락하면 문제없네.', ok: false, note: '감사 중 협상 자체가 위협 — 시점 문제 아님',
               fx: { flag: 'gaon_secret', fact: 'g_hide' },
-              reply: [{ from: 'manager', t: '그렇지? 3월 12일까지만 버티면 돼.' }] }
+              reply: [{ from: 'manager', t: '그렇죠? 3월 12일까지만 버티겠습니다.' }] }
           ] } },
 
-      { id: 's5_night', at: 's5', room: 'dm:assoc', time: '2. 5. (목) 03:12', bg: 'night',
+      { id: 's5_night', at: 's5', room: 'dm:assoc', pov: 'manager', time: '2. 5. (목) 03:12', bg: 'night',
         when: function (S) { return !!S.flags.fraud_alert; },
         facts: ['k_night'],
         msgs: [
@@ -265,7 +265,7 @@
             reply: [{ from: 'assoc', t: '넵ㅠ 들어갈게요' }] }
         ] } },
 
-      { id: 's5_night2', at: 's5', room: 'dm:assoc', time: '2. 5. (목) 01:20', bg: 'night',
+      { id: 's5_night2', at: 's5', room: 'dm:assoc', pov: 'manager', time: '2. 5. (목) 01:20', bg: 'night',
         when: function (S) { return !S.flags.fraud_alert; },
         msgs: [
           { from: 'assoc', t: '선배, 분개 표본 25건 다 봤어요.' },
@@ -274,7 +274,7 @@
         ] },
 
       /* ── 특수관계자 뒤 ─────────────────────────── */
-      { id: 's6_sua', at: 's6', room: 'dm:sua', time: '2. 10. (화) 23:58', bg: 'night',
+      { id: 's6_sua', at: 's6', room: 'dm:sua', pov: 'assoc', time: '2. 10. (화) 23:58', bg: 'night',
         when: function (S) {
           var v = vid(S, 's6');
           return !S.flags.sua_leak && (v === 'TIP' || (v === 'MISS' && S.bond.sua >= 30));
@@ -283,7 +283,7 @@
         msgs: function (S) {
           return vid(S, 's6') === 'TIP'
             ? [{ from: 'sua', t: '자료 보셨어요?' }, { from: 'sua', t: '제 이름… 안 나가는 거죠?', mood: 'tense' }]
-            : [{ from: 'sua', t: '그 메일, 제가 보냈어요.' }, { from: 'sua', t: '더 일찍 말씀드렸어야 했는데.' },
+            : [{ from: 'sua', t: '그 메일, 제가 보냈어요.' }, { from: 'sua', t: '더 일찍 말씀드렸어야 했는데…' },
                { from: 'sua', t: '제 이름… 안 나가는 거죠?', mood: 'tense' }];
         },
         choice: {
@@ -301,7 +301,7 @@
               reply: [{ from: 'sua', t: '…그렇군요.' }] }
           ] } },
 
-      { id: 's6_sua_hit', at: 's6', room: 'dm:sua', time: '2. 11. (수) 22:40', bg: 'night',
+      { id: 's6_sua_hit', at: 's6', room: 'dm:sua', pov: 'assoc', time: '2. 11. (수) 22:40', bg: 'night',
         when: function (S) { return vid(S, 's6') === 'HIT' && S.bond.sua >= 25 && !S.flags.sua_leak; },
         facts: ['s_handle'],
         msgs: [
@@ -309,7 +309,7 @@
           { from: 'sua', t: '다행이에요. 혼자 알고 있기 무서웠어요.', mood: 'tense' }
         ] },
 
-      { id: 's6_ceo', at: 's6', room: 'talk', place: '대표이사실', time: '2. 12. (목) 14:00', bg: 'ceo',
+      { id: 's6_ceo', at: 's6', room: 'talk', pov: 'manager', place: '대표이사실', time: '2. 12. (목) 14:00', bg: 'ceo',
         facts: ['ceo_wife'],
         msgs: [
           { from: 'ceo', t: '앉으세요. 커피? 아, 안 드시지.' },
@@ -332,7 +332,7 @@
           ] } },
 
       /* ── 기타정보 뒤 ─────────────────────────── */
-      { id: 's7_chair', at: 's7', room: 'dm:chair', time: '2. 25. (수) 09:00', bg: 'meeting',
+      { id: 's7_chair', at: 's7', room: 'dm:chair', pov: 'partner', time: '2. 25. (수) 09:00', bg: 'meeting',
         msgs: [
           { from: 'chair', t: '감사위원장 윤서경입니다.' },
           { from: 'chair', t: '한들상사 건, 경영진 보고서로만 들었습니다.' },
@@ -354,24 +354,24 @@
           ] } },
 
       /* ── 후속사건 뒤 ─────────────────────────── */
-      { id: 's8_night', at: 's8', room: 'team', time: '3. 5. (목) 01:40', bg: 'night',
+      { id: 's8_night', at: 's8', room: 'team', pov: 'partner', time: '3. 5. (목) 01:40', bg: 'night',
         msgs: [
           { from: 'assoc', t: '대양 채권 명세 다 뽑았어요.' },
-          { from: 'manager', t: '화재 주석 문구도 초안 올렸어.' },
+          { from: 'manager', t: '화재 주석 문구도 초안 올렸습니다.' },
           { from: 'assoc', t: '선배, 우리 이거 끝나면 삼겹살 먹어요ㅠ' },
           { from: 'kyuri', t: '저도요.' }
         ],
         choice: { opts: [
-          { t: '편의점 다녀올게. 뭐 먹을래?', fx: { bond: { manager: 3, assoc: 4 } },
-            reply: [{ from: 'manager', t: '아아. 두 개.' }, { from: 'assoc', t: '바나나우유요!!', mood: 'good' }] },
-          { t: '오늘은 여기까지. 다들 들어가요.', fx: { bond: { assoc: 5 }, T: -1 },
-            reply: [{ from: 'manager', t: '…그래. 내일 8시.' }] },
-          { t: '대양 건 정리만 끝내고 가죠.', fx: { E: 2, bond: { assoc: -2 } },
+          { t: '편의점 다녀오지. 뭐 먹겠나?', fx: { bond: { manager: 3, assoc: 4 } },
+            reply: [{ from: 'manager', t: '아아 두 잔이요. 감사합니다, 이사님.' }, { from: 'assoc', t: '바나나우유요!!', mood: 'good' }] },
+          { t: '오늘은 여기까지 하지. 다들 들어가게.', fx: { bond: { assoc: 5 }, T: -1 },
+            reply: [{ from: 'manager', t: '…네. 내일 8시에 뵙겠습니다.' }] },
+          { t: '대양 건 정리만 끝내고 가지.', fx: { E: 2, bond: { assoc: -2 } },
             reply: [{ from: 'assoc', t: '넵…' }] }
         ] } },
 
       /* ── 왜곡표시 평가 뒤 ─────────────────────── */
-      { id: 's9_eqr', at: 's9', room: 'dm:eqr', time: '3. 9. (월) 17:20', bg: 'report',
+      { id: 's9_eqr', at: 's9', room: 'dm:eqr', pov: 'partner', time: '3. 9. (월) 17:20', bg: 'report',
         msgs: function (S) {
           var w = weakest(S);
           return [
@@ -388,7 +388,7 @@
             reply: [{ from: 'eqr', t: '그 판단도 조서에 남기십시오.' }] }
         ] } },
 
-      { id: 's9_partner', at: 's9', room: 'dm:partner', time: '3. 11. (수) 22:50', bg: 'office',
+      { id: 's9_partner', at: 's9', room: 'dm:partner', pov: 'manager', time: '3. 11. (수) 22:50', bg: 'office',
         msgs: function (S) {
           return [
             { from: 'partner', t: '내일 발행이야.' },

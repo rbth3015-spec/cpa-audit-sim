@@ -59,49 +59,49 @@
   function typing(e) { var t = e.target; return t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT'); }
   var TYPE_NAME = SEASON.TYPE_NAME;
 
-  /* ---------- 내 자리 ----------
-     장면마다 앉는 자리가 바뀐다. 말로 설명하지 않고 팀 자리 세 칸으로 보여 준다. */
+  /* ---------- 나의 시점 ----------
+     장면마다 시점이 바뀐다 — 그 자리에 앉은 사람이 그 장면의 「나」다.
+     세 사람 얼굴은 늘 보이고, 붉은 「나의 시점」 표가 사람 사이를 건너간다. */
   var SEAT_SLOTS = [
     { seat: 'partner', who: 'partner' },
     { seat: 'senior', who: 'manager' },
     { seat: 'staff', who: 'assoc' }
   ];
-  var prevSeat = null;
-  // 자리가 바뀌면 옛 자리 칸은 「나」→ 원래 사람, 새 자리 칸은 원래 사람 →「나」로 뒤집힌다 (면 a → 면 b)
+  var prevSeat = null, lastAt = null;
+  function rankBars(seat) { return '<i class="rank">' + new Array(4 - ['partner', 'senior', 'staff'].indexOf(seat)).join('<i></i>') + '</i>'; }
   function seatTiles(seat, from) {
     var moved = from && from !== seat;
-    return '<div class="seats' + (moved ? ' moving' : '') + '">' + SEAT_SLOTS.map(function (s, k) {
-      var name = SEASON.SEATS[s.seat].name, c = cast(s.who);
-      var me = '<span class="st-av ph me-av"><b>나</b></span><b>나</b><span>' + esc(name) + '</span>';
-      var them = av(s.who, null, 'st-av') + '<b>' + esc(c.name) + '</b><span>' + esc(name) + '</span>';
-      var rank = '<i class="rank">' + new Array(4 - k).join('<i></i>') + '</i>';
-      function face(x, cls) { return '<span class="fc ' + cls + '">' + x + '</span>'; }
-      if (moved && s.seat === from) return '<div class="st me from">' + face(me, 'a') + face(them, 'b') + rank + '</div>';
-      if (moved && s.seat === seat) return '<div class="st to">' + face(them, 'a') + face(me, 'b') + rank + '</div>';
-      return '<div class="st' + (s.seat === seat ? ' me' : '') + '">' + face(s.seat === seat ? me : them, 'a') + rank + '</div>';
+    return '<div class="seats' + (moved ? ' moving' : '') + '">' + SEAT_SLOTS.map(function (s) {
+      var c = cast(s.who), cls = 'st';
+      if (moved) cls += s.seat === from ? ' me from' : s.seat === seat ? ' to' : '';
+      else if (s.seat === seat) cls += ' me';
+      return '<div class="' + cls + '">' + av(s.who, null, 'st-av') +
+        '<b>' + esc(c.name) + '</b><span>' + esc(SEASON.SEATS[s.seat].name) + '</span>' +
+        rankBars(s.seat) + '<em class="pov-tag">나의 시점</em></div>';
     }).join('') + '</div>';
   }
+  function povName(seat) { return cast(SEASON.povOf(seat)).name; }
 
-  /* 「나」가 옛 자리에서 새 자리로 건너간다 — 배경이 한 번 휙 돌고, 도장처럼 내려앉는다 */
+  /* 「나의 시점」 표가 옛 사람에게서 새 사람에게로 건너간다 — 배경이 한 번 휙 돌고, 도장처럼 내려앉는다 */
   function seatHop(root, wait, alive) {
     var box = $('.seats.moving', root);
     if (!box) return null;
     var a = $('.st.from', box), b = $('.st.to', box), tok = null, t1 = null, t2 = null;
     function land() {
       if (tok) { tok.remove(); tok = null; }
-      a.classList.remove('me'); a.classList.add('flip');
-      b.classList.add('me', 'flip', 'landed');
+      a.classList.remove('me');
+      b.classList.add('me', 'landed');
     }
     t1 = setTimeout(function () {
       if (!alive()) return;
-      var r0 = $('.fc.a .st-av', a).getBoundingClientRect(), r1 = $('.fc.a .st-av', b).getBoundingClientRect();
+      var r0 = $('.pov-tag', a).getBoundingClientRect(), r1 = $('.pov-tag', b).getBoundingClientRect();
       tok = document.createElement('span');
       tok.className = 'hop-tok';
-      tok.innerHTML = '<i>나</i>';
+      tok.innerHTML = '<i>나의 시점</i>';
       tok.style.left = r0.left + 'px';
       tok.style.top = r0.top + 'px';
       document.body.appendChild(tok);
-      a.classList.remove('me'); a.classList.add('flip');
+      a.classList.remove('me');
       root.classList.add('whip');
       FX.play('hop');
       void tok.offsetWidth;
@@ -238,7 +238,9 @@
     d.className = 'slate';
     if (o.img) d.style.backgroundImage = 'url(' + o.img + ')';
     d.innerHTML = '<span class="kick">' + esc(o.kick) + '</span><h2>' + esc(o.title) + '</h2>' +
-      (o.sub ? '<p>' + esc(o.sub) + '</p>' : '') + (o.seat ? '<span class="seat">내 자리 · ' + esc(o.seat) + '</span>' : '');
+      (o.sub ? '<p>' + esc(o.sub) + '</p>' : '') +
+      (o.seatId ? '<span class="seat">' + av(SEASON.povOf(o.seatId), null, 'sl-av') + '<b>' + esc(povName(o.seatId)) + '</b>' + esc(SEASON.SEATS[o.seatId].name) + '<em>나의 시점</em></span>'
+        : o.seat ? '<span class="seat">' + esc(o.seat) + '</span>' : '');
     document.body.appendChild(d);
     FX.play('open');
     var done = false;
@@ -257,8 +259,33 @@
     return '<div class="ch-track" style="--from:' + Math.max(0, i - 1) + ';--to:' + i + '">' + h + '<i class="tk-m"></i></div>';
   }
 
+  /* 장면 도입의 시각 — 앞 장면의 시각에서 넘김판처럼 넘어간다 (연 · 월 · 일 · 시각 한 토막씩) */
+  function flipAt(prev, next) {
+    var a = String(prev || '').split(' '), b = String(next || '').split(' ');
+    if (!prev || prev === next || a.length !== b.length) return esc(next);
+    var k = 0;
+    return b.map(function (tok, i) {
+      if (tok === a[i]) return esc(tok);
+      return '<span class="fl" style="--k:' + (k++) + '"><i>' + esc(a[i]) + '</i><b>' + esc(tok) + '</b></span>';
+    }).join(' ');
+  }
+  function dayOf(s) { var m = /20×(\d)\.\s*(\d+)\.\s*(\d+)\./.exec(s || ''); return m ? new Date(2000 + +m[1], +m[2] - 1, +m[3]) : null; }
+  var NATIVE = ['', '하루', '이틀', '사흘', '나흘', '닷새', '엿새', '이레', '여드레', '아흐레', '열흘'];
+  function gapText(prev, next) {
+    var x = dayOf(prev), y = dayOf(next);
+    if (!x || !y) return '';
+    var n = Math.round((y - x) / 864e5);
+    if (n <= 0) return n === 0 && prev !== next ? '같은 날' : '';
+    if (n <= 10) return NATIVE[n] + ' 뒤';
+    if (n <= 16) return '보름 뒤';
+    if (n <= 24) return '3주 뒤';
+    if (n <= 40) return '한 달 뒤';
+    return Math.round(n / 30) + '달 뒤';
+  }
+
   /* 장면 도입
      들어올 때  앞 장면 종이가 링에서 넘어가고(turn) → 장 번호가 굴러 바뀌고 → 진행 칸의 표시가 한 칸 옮겨 간다
+     시각      앞 장면 시각에서 넘김판처럼 넘어가고 「나흘 뒤」가 붙는다
      자리가 바뀌면  「나」가 옛 자리에서 새 자리로 건너간다
      나갈 때   막이 위로 걷히며 새 장면이 드러난다. 누르거나 Enter 로 넘긴다 */
   function chapter(o, then) {
@@ -275,10 +302,12 @@
       (o.no ? '<span class="ch-no' + (o.prevNo ? ' two' : '') + '"><span class="roll">' + (o.prevNo ? '<b>' + esc(o.prevNo) + '</b>' : '') + '<b>' + esc(o.no) + '</b></span></span>' : '') +
       (o.track != null ? chapterTrack(o.track) : '') +
       '<div class="ch-in"><div class="ch-kick"><span class="bar"></span>' + esc(o.kick) + '</div><h2>' + esc(o.title) + '</h2>' +
-      (o.at || o.place ? '<div class="ch-where">' + (o.at ? '<span>' + esc(o.at) + '</span>' : '') + (o.place ? '<b>' + esc(o.place) + '</b>' : '') + '</div>' : '') +
+      (o.at || o.place ? '<div class="ch-where">' + (o.at ? '<span class="at">' + flipAt(o.atFrom, o.at) + '</span>' : '') +
+        (o.place ? '<b>' + esc(o.place) + '</b>' : '') +
+        (o.at && o.atFrom && gapText(o.atFrom, o.at) ? '<em class="gap">' + esc(gapText(o.atFrom, o.at)) + '</em>' : '') + '</div>' : '') +
       '<p class="ch-text"><span class="tx"></span><span class="cur"></span></p>' +
       (o.seatId ? '<div class="ch-seats"><span class="k">' +
-        (moved ? '자리 이동 · ' + esc(SEASON.SEATS[o.seatFrom].name) + ' → ' + esc(SEASON.SEATS[o.seatId].name) : '내 자리') +
+        (moved ? '시점 이동 · ' + esc(povName(o.seatFrom)) + ' → ' + esc(povName(o.seatId)) : '나의 시점 · ' + esc(povName(o.seatId))) +
         '</span>' + seatTiles(o.seatId, o.seatFrom) + '</div>' : '') +
       '<div class="ch-foot"><span class="ch-skip">클릭 · Enter</span></div></div>';
     document.body.appendChild(d);
@@ -326,9 +355,41 @@
     setTimeout(type, 650 + late);
   }
 
+  /* 메신저가 열리기 전 — 휴대폰 알림이 먼저 두 번 울린다. 누르거나 잠시 뒤 대화가 열린다.
+     대면 대화로 시작하면 알림 없이 바로 연다. */
+  function ring(beats, go) {
+    var chats = beats.filter(function (b) { return b.mode !== 'talk'; });
+    if (!chats.length || beats[0].mode === 'talk') return go();
+    var d = document.createElement('div'), done = false;
+    d.className = 'phn';
+    d.innerHTML = '<div class="rg-phone">' + chats.slice(0, 3).map(function (b, i) {
+      var first = (b.msgs || []).filter(function (m) { return m.from && m.from !== b.pov; })[0] || {};
+      var who = first.from || b.who || 'manager';
+      return '<div class="rg" style="--i:' + i + '">' + av(who, null, 'rg-av') +
+        '<div class="rg-t"><b>' + esc(b.room === 'team' ? b.name : cast(who).name) + '</b><time>' + (i ? '방금' : '지금') + '</time>' +
+        '<span>' + esc(first.t || '') + '</span></div></div>';
+    }).join('') + '</div><span class="rg-k">클릭 · Enter</span>';
+    document.body.appendChild(d);
+    FX.play('msg');
+    setTimeout(function () { if (!done) FX.play('msg'); }, 420);
+    var t = setTimeout(open, 2000);
+    function open() {
+      if (done) return;
+      done = true; clearTimeout(t);
+      document.removeEventListener('keydown', onKey, true);
+      d.classList.add('out');
+      setTimeout(function () { d.remove(); }, 260);
+      go();
+    }
+    function onKey(e) { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); open(); } }
+    document.addEventListener('keydown', onKey, true);
+    d.addEventListener('click', open);
+  }
+
   /* 장면 사이 대화 — 없으면 바로 다음으로 */
   function interlude(at, then) {
     if (MESSENGER && MESSENGER.isOpen()) return;          // 이미 대화 중이면 겹쳐 열지 않는다
+    if ($('.phn')) return;                                // 알림이 울리는 중
     if (mode !== 'season' || !S || !STORY || !MESSENGER) return then();
     var beats = STORY.beatsAt(S, at);
     if (!beats.length) return then();
@@ -341,20 +402,22 @@
       fresh.forEach(function (k) { known[k] = 1; });
       if (fresh.length) factToast(fresh);
     }
-    MESSENGER.play(beats, S, {
-      onChoice: function (beat, i) {
-        var r = STORY.choose(S, beat, i);
-        if (r && r.verdict) learnVerdict(r.verdict, beat);
-        return r;
-      },
-      onSeen: newFacts,
-      onDone: function () {
-        newFacts();
-        var d = { E: S.gauge.E - before.E, T: S.gauge.T - before.T, R: S.gauge.R - before.R, C: S.rel.company - before.C };
-        updateHud(d);
-        saveRun(true);
-        then();
-      }
+    ring(beats, function () {
+      MESSENGER.play(beats, S, {
+        onChoice: function (beat, i) {
+          var r = STORY.choose(S, beat, i);
+          if (r && r.verdict) learnVerdict(r.verdict, beat);
+          return r;
+        },
+        onSeen: newFacts,
+        onDone: function () {
+          newFacts();
+          var d = { E: S.gauge.E - before.E, T: S.gauge.T - before.T, R: S.gauge.R - before.R, C: S.rel.company - before.C };
+          updateHud(d);
+          saveRun(true);
+          then();
+        }
+      });
     });
   }
 
@@ -499,6 +562,7 @@
     drop(RUN);
     S = SEASON.create(seed != null ? { seed: seed } : {});
     mode = 'season';
+    prevSeat = null; lastAt = null;
     var P = prog();
     P.plays = (P.plays || 0) + 1;
     saveProg(P);
@@ -512,6 +576,7 @@
     if (run.company && window.SEASONS) window.SEASONS.use(run.company);
     S = SEASON.restore(run.snap);
     mode = 'season';
+    prevSeat = null; lastAt = null;
     buildShell();
     if (run.after) nextStep();
     else enterScene();
@@ -650,12 +715,13 @@
     var sc = window.SCENES[S.i];
     var it = SEASON.resolve(sc, S);
     var op = STORY ? STORY.opener(sc, S, it.v) : null;
-    var from = prevSeat;
+    var from = prevSeat, atFrom = lastAt;
     prevSeat = it.seat;
+    lastAt = (op && op.at) || lastAt;
     startUnit({ kind: 'scene', it: it, idx: S.i }, {
       chapter: true, no: pad(S.i + 1), prevNo: S.i > 0 ? pad(S.i) : '', track: S.i,
       kick: '장면 ' + pad(S.i + 1) + ' / ' + window.SCENES.length, title: sc.chapter,
-      at: op && op.at, place: op && op.place, text: op ? op.text : (it.line ? '“' + it.line + '”' : ''),
+      at: op && op.at, atFrom: atFrom, place: op && op.place, text: op ? op.text : (it.line ? '“' + it.line + '”' : ''),
       sub: it.line ? '“' + it.line + '”' : '', seat: SEASON.SEATS[it.seat].name,
       seatId: it.seat, seatFrom: from, img: sceneImg(sc.art), vid: window.ART.video(sc.art)
     });
@@ -716,12 +782,15 @@
       });
       return out;
     }
-    // 자리가 바뀐 장면이면 칩의 자리 이름이 옛 자리에서 새 자리로 굴러 바뀐다
-    var seatName = esc(SEASON.SEATS[it.seat].name), was = cur.seatFrom && cur.seatFrom !== it.seat ? SEASON.SEATS[cur.seatFrom] : null;
-    var html = '<div class="who" id="who"><span class="who-av">' + av(it.speaker) + '</span><div class="who-t"><div class="nm"></div><div class="say"></div></div>' +
-      '<span class="me-chip' + (was ? ' moved' : '') + '" title="이 장면에서 내가 앉는 자리">나<em>' +
-        (was ? '<span class="mr"><s>' + esc(was.name) + '</s><b>' + seatName + '</b></span>' : seatName) + '</em>' +
-        '<i class="rank">' + new Array(4 - ['partner', 'senior', 'staff'].indexOf(it.seat)).join('<i></i>') + '</i></span></div>' +
+    // 나의 시점 — 이 장면의 「나」가 누구인지 사진 · 이름 · 자리로. 시점이 바뀐 장면이면 옛 사람 이름이 빠지고 새 사람이 들어온다
+    var pov = SEASON.povOf(it.seat), pc = cast(pov);
+    var was = cur.seatFrom && cur.seatFrom !== it.seat ? cast(SEASON.povOf(cur.seatFrom)) : null;
+    var html = '<div class="pov-bar' + (was ? ' moved' : '') + '" title="이 장면은 ' + esc(pc.name) + '의 시점">' +
+        '<span class="pv-av">' + av(pov, null, 'av') + '</span>' +
+        '<span class="pv-t">' + (was ? '<span class="mr"><s>' + esc(was.name) + '</s><b>' + esc(pc.name) + '</b></span>' : '<b>' + esc(pc.name) + '</b>') +
+          '<span>' + esc(SEASON.SEATS[it.seat].name) + '</span>' + rankBars(it.seat) + '</span>' +
+        '<em class="pv-tag">나의 시점</em></div>' +
+      '<div class="who" id="who"><span class="who-av">' + av(it.speaker) + '</span><div class="who-t"><div class="nm"></div><div class="say"></div></div></div>' +
       (it.note ? '<p class="note">' + esc(it.note) + '</p>' : '') +
       '<div class="lbl" style="margin-top:18px"><span>상황</span>' + (clues.length ? '<span>단서 <b id="clue-n">0</b> / ' + clues.length + '</span>' : '') + '</div>' +
       tipBox('clue', clues.length) +
@@ -922,6 +991,7 @@
     el.classList.toggle('pause', !run);
     el.classList.toggle('hot', run && clock.left <= 30);
     el.classList.toggle('jit', run && clock.left <= 10);
+    document.body.classList.toggle('hurry', run && clock.left <= 15 && !paused());
     // 남은 시간이 줄수록 배경음이 조여 온다
     FX.tension(run && clock.max ? 1 - clock.left / clock.max : 0);
   }
@@ -940,7 +1010,9 @@
       g.timedOut = true;
       cur.timedOut++;
     }
-    if (p.type === 'mini') {
+    if (p.type === 'mini' && window.MINIS[p.game] && window.MINIS[p.game].summary) {
+      ans.summary = window.MINIS[p.game].summary(ans.mini.model, ans.mini.state, g);
+    } else if (p.type === 'mini') {
       var d = g.res.detail || {};
       var exN = function (from) { return g.res.must.slice(from).filter(function (m) { return m.hit; }).length; };
       ans.summary = p.game === 'count' ? '표본 ' + d.used + ' · 실사표→현품 ' + d.sheet + ' · 현품→실사표 ' + d.floor + ' · 예외 ' + exN(3) + '/5'
@@ -953,7 +1025,7 @@
     dismissTip(p.type);
     noteProgress(p, g);
     streakAfter(g);
-    FX.play(g.percent >= 90 ? 'great' : g.percent >= 80 ? 'ok' : g.percent >= 50 ? 'mid' : 'bad');
+    FX.play('stampSm');                 // 제출 — 등급 소리는 채점 연출 끝에 (showResult)
     showResult(p, g, ans);
     if (mode === 'practice') updateHud();
   }
@@ -1089,7 +1161,7 @@
     var wa = $('#who .who-av');                 // 위 말풍선은 표정만 바뀐다 (한마디는 아래 붉은 펜 자리에)
     if (wa) wa.innerHTML = av(p.who, re.mood);
     $('#after').innerHTML =
-      '<div class="res"><div class="score ' + L + '"><span class="gl">' + L + '</span><b>' + g.total + ' / ' + g.max + '</b><span class="wd">' + word(g.percent) + '</span></div>' +
+      '<div class="res"><div class="score ' + L + '"><span class="gl">' + L + '</span><b><span class="tv">' + g.total + '</span> / ' + g.max + '</b><span class="wd">' + word(g.percent) + '</span></div>' +
       '<table class="checks">' + checkRows(p, g) + '</table></div>' + (rv.model || '') +
       '<div class="pen">' + av(p.who, re.mood, 'av pen-av') + '<b>' + esc(who.name) + '</b>' + esc(re.t) + '</div>' +
       '<div class="go"><button type="button" class="btn" data-act="next">' + (last ? (mode === 'practice' ? '연습 정리' : '장면 정산') : '다음 문항') + ' <kbd>Enter</kbd></button>' +
@@ -1097,6 +1169,20 @@
       (rv.mine ? '<div class="mine" id="mine" hidden>' + rv.mine + '</div>' : '');
     var bar = $('#task .parts');
     if (bar) bar.outerHTML = partsBar();
+    // 채점 연출 — 붉은 펜이 논점을 한 줄씩 체크하고(틱), 점수가 올라간 뒤 등급 도장
+    var res = $('#after .res');
+    if (res) {
+      var trs = $$('.checks tr', res), t = Math.min(1500, trs.length * 120 + 320);
+      trs.forEach(function (tr, i) {
+        tr.style.setProperty('--i', i);
+        if (i < 8) setTimeout(function () { FX.play('tick'); }, i * 120 + 220);
+      });
+      res.style.setProperty('--t', t + 'ms');
+      res.classList.add('grading');
+      var tv = $('.tv', res);
+      if (tv && g.total > 0) { tv.textContent = '0'; FX.roll(tv, 0, g.total, t); }
+      setTimeout(function () { FX.play(g.percent >= 90 ? 'great' : g.percent >= 80 ? 'ok' : g.percent >= 50 ? 'mid' : 'bad'); }, t);
+    }
     $('#after').onclick = function (e) {
       var b = e.target.closest('[data-act]');
       if (!b) return;
@@ -1120,8 +1206,23 @@
   }
 
   function nextPart() {
-    if (!cur || !cur.grades[cur.pi] || cur.wrapped) return;
-    if (cur.pi < cur.it.parts.length - 1) { cur.pi++; renderPart(); return; }
+    if (!cur || !cur.grades[cur.pi] || cur.wrapped || cur.swapping) return;
+    if (cur.pi < cur.it.parts.length - 1) {
+      // 종이를 바꿔 끼우듯 — 지금 문항이 위로 빠지고 다음 문항이 아래에서 올라온다
+      var t = $('#task'), c = cur;
+      c.swapping = true;
+      t.classList.remove('swap-in');
+      t.classList.add('swap-out');
+      setTimeout(function () {
+        c.swapping = false;
+        if (cur !== c) return;
+        t.classList.remove('swap-out');
+        cur.pi++; renderPart();
+        void t.offsetWidth; t.classList.add('swap-in');
+        setTimeout(function () { t.classList.remove('swap-in'); }, 360);
+      }, 160);
+      return;
+    }
     wrapUnit();
   }
 
@@ -1535,7 +1636,7 @@
     end.style.setProperty('--bx', (x / innerWidth * 100).toFixed(1) + '%');
     end.style.setProperty('--by', (y / innerHeight * 100).toFixed(1) + '%');
     var ink = document.createElement('i');
-    ink.className = 'ink';
+    ink.className = 'ink-drop';
     ink.style.left = x + 'px';
     ink.style.top = y + 'px';
     document.body.appendChild(ink);

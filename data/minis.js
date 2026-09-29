@@ -7,8 +7,104 @@
    count   재고실사 테스트카운트 — 랙 20칸, 실사표, 예외 5종
    jet     분개 테스트 — 전표 24건, 추출 조건 9개, 위험 분개 5건
    cutoff  기간귀속 — 기말 전후 출고 8건, 인도조건별 통제 이전 시점
+   confirm 외부조회 — 대상 선정 · 조회처 독립 확인 · 발송 · 회신 예외 처리
+   unrec   부외부채 탐색 — 기말 후 지급 10건, 의무 발생 시점으로 판단
+   sample  표본 평가 — 표본 왜곡표시 → 모집단 추정 → 허용왜곡표시와 비교
    ============================================================ */
 window.MINIDATA = {
+
+  /* 외부조회 — 회사가 준 연락처(pv)와 감사인이 따로 확인한 연락처(iv).
+     send.pv / send.iv — 그 연락처로 보냈을 때의 회신
+       ok 일치 · fax 회사를 거쳐 들어온 회신 · none 미회신 · diff 금액 차이(v 회신 금액) */
+  confirm: {
+    title: '매출채권 조회서 발송',
+    client: '㈜한빛전자',
+    pm: 8.4, total: 233, others: '그 밖의 거래처 1,184곳 · 111.2억 — 표본으로 따로 본다',
+    costSec: 3,
+    rows: [
+      { id: 'K1', name: '㈜대양전기', amt: 42.0, flag: '12월 매출 급증',
+        pv: '재무팀 경유 팩스 02-555-0114', iv: '대양전기 경리부 031-720-4410 (등기부 · 대표번호 확인)',
+        send: { pv: { r: 'fax' }, iv: { r: 'diff', v: 34.0, why: '12/28 출고분 8.0억 — 대양은 1/4 입고로 회신' } } },
+      { id: 'K2', name: '㈜한결소재', amt: 18.5,
+        pv: '한결소재 회계팀 02-3141-2200', iv: '한결소재 회계팀 02-3141-2200',
+        send: { pv: { r: 'ok' }, iv: { r: 'ok' } } },
+      { id: 'K3', name: '㈜미래테크', amt: 12.3, flag: '신규 거래처',
+        pv: '미래테크 재무팀 032-455-7810', iv: '미래테크 재무팀 032-455-7810',
+        send: { pv: { r: 'none' }, iv: { r: 'none' } } },
+      { id: 'K4', name: '㈜동방기계', amt: 9.1,
+        pv: 'dongbang.acct@gmail.com', iv: '동방기계 재무팀 공식 메일 (홈페이지 확인)',
+        send: { pv: { r: 'fax' }, iv: { r: 'diff', v: 8.5, why: '12/30 송금 0.6억 — 은행 입금은 1/2' } } },
+      { id: 'K5', name: '㈜세진ENG', amt: 7.6,
+        pv: '세진ENG 경리팀 031-8017-3300', iv: '세진ENG 경리팀 031-8017-3300',
+        send: { pv: { r: 'ok' }, iv: { r: 'ok' } } },
+      { id: 'K6', name: '㈜오성전지', amt: 5.2,
+        pv: '오성전지 재무팀 043-210-5500', iv: '오성전지 재무팀 043-210-5500',
+        send: { pv: { r: 'ok' }, iv: { r: 'ok' } } },
+      { id: 'K7', name: '㈜그린에너지', amt: 3.9, flag: '1년 넘게 미회수',
+        pv: '그린에너지 관리팀 061-330-1200', iv: '그린에너지 관리팀 061-330-1200',
+        send: { pv: { r: 'ok' }, iv: { r: 'ok' } } },
+      { id: 'K8', name: '㈜새봄산업', amt: 2.4,
+        pv: '새봄산업 총무팀 02-722-8100', iv: '새봄산업 총무팀 02-722-8100',
+        send: { pv: { r: 'ok' }, iv: { r: 'ok' } } },
+      { id: 'K9', name: '㈜태광정밀', amt: 1.8,
+        pv: '태광정밀 경영지원팀 055-260-7700', iv: '태광정밀 경영지원팀 055-260-7700',
+        send: { pv: { r: 'ok' }, iv: { r: 'ok' } } }
+    ],
+    acts: {
+      fax: [{ k: 'take', t: '회신대로 인정' }, { k: 'direct', t: '발신자에게 직접 확인' }],
+      none: [{ k: 'close', t: '중요하지 않아 종결' }, { k: 'alt', t: '재발송 · 기말 후 회수 확인' }, { k: 'rep', t: '경영진 확인서로 갈음' }],
+      diff: [{ k: 'book', t: '회사 금액 인정' }, { k: 'dig', t: '차이 원인 조사' }, { k: 'fix', t: '회신 금액으로 바로 수정' }]
+    }
+  },
+
+  /* 부외부채 — 기말 후 지급. owe: 12/31 에 이미 의무가 있었는가, booked: 회사가 부채로 잡았는가 */
+  unrec: {
+    title: '기말 후 지급 검토',
+    client: '㈜한빛전자', costSec: 3,
+    rows: [
+      { id: 'U1', paid: '1/5', vendor: '한국전력', amt: 1.8, doc: '12월분 전기요금', when: '사용 12/1~12/31', booked: false, owe: true },
+      { id: 'U2', paid: '1/8', vendor: '㈜성진물산', amt: 4.6, doc: '원재료 대금 · 청구 1/3', when: '입고 12/28', booked: false, owe: true },
+      { id: 'U3', paid: '1/10', vendor: '㈜대림설비', amt: 2.2, doc: '생산라인 수선비 · 청구 1/6', when: '작업 완료 12/29', booked: false, owe: true },
+      { id: 'U4', paid: '1/12', vendor: '㈜성진물산', amt: 3.1, doc: '원재료 대금 · 청구 1/6', when: '입고 1/4', booked: false, owe: false },
+      { id: 'U5', paid: '1/15', vendor: '㈜태평빌딩', amt: 0.9, doc: '1월분 임차료 · 선불 조건', when: '사용 1/1~1/31', booked: false, owe: false },
+      { id: 'U6', paid: '1/6', vendor: '㈜한울로지스', amt: 1.4, doc: '12월 운송비', when: '운송 12/2~12/30', booked: true, owe: true },
+      { id: 'U7', paid: '1/20', vendor: '법무법인 정언', amt: 0.6, doc: '자문료', when: '자문 1/2~1/15', booked: false, owe: false },
+      { id: 'U8', paid: '1/9', vendor: '국민연금공단', amt: 0.8, doc: '12월분 회사부담금', when: '12월 급여분', booked: true, owe: true },
+      { id: 'U9', paid: '1/25', vendor: '㈜미래테크', amt: 5.0, doc: '설비 선급금 · 납품 예정 3월', when: '납품 3월', booked: false, owe: false },
+      { id: 'U10', paid: '1/3', vendor: '㈜한결소재', amt: 2.7, doc: '부자재 대금 · 청구 12/24', when: '입고 12/22', booked: true, owe: true }
+    ]
+  },
+
+  /* 표본 평가 — 매출채권 40건 표본 중 12건을 펼쳐 보이고, 나머지 28건은 차이 없음 */
+  sample: {
+    title: '매출채권 표본 평가',
+    client: '㈜한빛전자',
+    pop: 233, popN: 1200, tol: 8.4, n: 40, sampleAmt: 58.0,
+    rows: [
+      { id: 'S01', name: '㈜대양전기', book: 12.0, audit: 12.0 },
+      { id: 'S02', name: '㈜동방기계', book: 6.2, audit: 5.1, why: '반품 1.1억 미반영' },
+      { id: 'S03', name: '㈜한결소재', book: 4.8, audit: 4.8 },
+      { id: 'S04', name: '㈜세진ENG', book: 3.9, audit: 3.9 },
+      { id: 'S05', name: '㈜오성전지', book: 3.5, audit: 2.8, why: '단가 인하 0.7억 미반영' },
+      { id: 'S06', name: '㈜새봄산업', book: 3.1, audit: 3.1 },
+      { id: 'S07', name: '㈜태광정밀', book: 2.6, audit: 2.1, why: '이중 청구 0.5억' },
+      { id: 'S08', name: '㈜그린에너지', book: 2.4, audit: 2.4 },
+      { id: 'S09', name: '㈜한울로지스', book: 2.2, audit: 2.2 },
+      { id: 'S10', name: '㈜미래셀', book: 1.9, audit: 1.9 },
+      { id: 'S11', name: '㈜대원테크', book: 1.6, audit: 1.6 },
+      { id: 'S12', name: '㈜성진물산', book: 1.3, audit: 1.3 }
+    ],
+    methods: [
+      { k: 'ratio', t: '비율 추정 — 왜곡표시 ÷ 표본 금액 × 모집단' },
+      { k: 'none', t: '추정 안 함 — 표본에서 찾은 금액 그대로' }
+    ],
+    after: [
+      { k: 'ask', t: '경영진에게 수정 요청', ok: true },
+      { k: 'more', t: '표본 확대 · 추가 절차', ok: true },
+      { k: 'raise', t: '허용왜곡표시를 올려 채택', trap: '허용왜곡표시를 올려 채택' },
+      { k: 'close', t: '표본 결과대로 종결', trap: '기각된 모집단을 그대로 종결' }
+    ]
+  },
 
   count: {
     title: '본사 창고 테스트카운트',

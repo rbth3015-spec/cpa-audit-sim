@@ -30,7 +30,7 @@
     return ART.face(b.who, null, 'mr-av');
   }
   function roomSub(b) {
-    if (b.room === 'team') return '정한별 · 유가온 · 한결 · 심규리 · 나';
+    if (b.room === 'team') return '정한별 · 유가온 · 한결 · 심규리';
     if (b.room === 'talk') return '대면';
     var c = cast(b.who);
     return c.role + (c.org ? ' · ' + c.org : '');
@@ -41,6 +41,9 @@
     beats = (beats || []).filter(Boolean);
     if (!beats.length) { if (opt.onDone) opt.onDone(); return; }
     isOpen = true;
+    // 대화마다 「나」가 누구인지 — 없으면 방금 끝낸 장면의 시점
+    function povOf(b) { return b.pov || (global.SEASON && S.seat ? global.SEASON.povOf(S.seat) : 'manager'); }
+    function mine(m, b) { return m.from === 'me' || (!!m.from && m.from === povOf(b)); }
 
     // 지난 대화방 (이번 대화 말고 이미 이야기한 방)
     var past = [], seenRoom = {};
@@ -57,7 +60,7 @@
     el.innerHTML =
       '<div class="msg-bg"></div>' +
       '<div class="msgr" role="dialog" aria-label="메신저">' +
-        '<aside class="msgr-rail"><div class="mr-h"><b>세종 메신저</b><span class="mr-me">나 · 담당 회계사</span></div>' +
+        '<aside class="msgr-rail"><div class="mr-h"><b>세종 메신저</b><span class="mr-me" id="mr-me"></span></div>' +
           '<ul class="mr-list" id="mr-now"></ul>' +
           (past.length ? '<div class="mr-sep">지난 대화</div><ul class="mr-list past">' + past.map(function (m) {
             var who = /^dm:/.test(m.room) ? m.room.slice(3) : null;
@@ -77,7 +80,7 @@
 
     function drawRail() {
       $('#mr-now').innerHTML = beats.map(function (b, i) {
-        var unread = i > bi ? b.msgs.filter(function (m) { return m.from; }).length : 0;
+        var unread = i > bi ? b.msgs.filter(function (m) { return m.from && !mine(m, b); }).length : 0;
         return '<li class="' + (i === bi ? 'on' : i < bi ? 'read' : '') + '">' + roomIcon(b) +
           '<span class="mr-n">' + esc(b.room === 'talk' ? '대면 · ' + b.name : b.name) + '</span>' +
           (unread ? '<i class="mr-u">' + unread + '</i>' : '') + '</li>';
@@ -89,8 +92,11 @@
       bi = i; last = null; fast = false;
       el.querySelector('.msg-bg').style.backgroundImage = 'url(' + ART.sceneSrc(b.bg) + ')';
       el.classList.toggle('talk', b.mode === 'talk');
+      var pv = povOf(b), pc = cast(pv);
+      $('#mr-me').innerHTML = ART.face(pv, null, 'mr-av') + '<span><b>' + esc(pc.name) + '</b>' + esc(pc.role) + '</span><em>나의 시점</em>';
       $('#mm-h').innerHTML = '<div class="mm-t">' + roomIcon(b) + '<div><b>' + esc(b.room === 'talk' ? b.name : b.name) + '</b>' +
-        '<span>' + esc(roomSub(b)) + '</span></div></div><time>' + esc(b.time) + '</time>';
+        '<span>' + esc(roomSub(b)) + '</span></div></div>' +
+        '<div class="mm-r"><span class="mm-pov">' + ART.face(pv, null, 'mr-av') + '<b>' + esc(pc.name) + '</b><em>나의 시점</em></span><time>' + esc(b.time) + '</time></div>';
       body.innerHTML = '<div class="m-day">' + esc(b.time.split(' ').slice(0, 3).join(' ')) + '</div>';
       foot.innerHTML = '';
       drawRail();
@@ -106,7 +112,7 @@
       clearTimeout(timer);
       if (!queue.length) return settle();
       var m = queue.shift();
-      if (m.from && m.from !== 'me' && !fast) {
+      if (m.from && !mine(m, beats[bi]) && !fast) {
         showTyping(m.from);
         pending = m;
         timer = setTimeout(function () { pending = null; hideTyping(); render(m); pump(); }, delay(m));
@@ -155,10 +161,11 @@
         d.textContent = m.sys;
         STORY.log(S, b, m);
         last = null;
-      } else if (m.from === 'me') {
+      } else if (mine(m, b)) {
         d.className = 'm-row me';
         d.innerHTML = '<div class="m-col"><span class="m-b">' + esc(m.t) + '</span></div>';
-        STORY.log(S, b, { from: 'staff', t: m.t });
+        STORY.log(S, b, { from: povOf(b), t: m.t, me: 1 });
+        if (m.from !== 'me') FX.play('send');
         last = 'me';
       } else {
         var cont = last === m.from;
