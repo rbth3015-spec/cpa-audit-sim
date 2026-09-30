@@ -38,6 +38,11 @@
       tag: 'IT 통제 · 데이터', art: 'server', data: global.SEASON_GUREUM,
       brief: '거래 340만 건을 시스템이 인식한다. 운영 DB 권한이 개발팀에 열려 있다.' });
   }
+  if (global.SEASON_HANEUL) {
+    BOOK.push({ id: 'haneul', name: '㈜한울그룹', market: '유가증권', industry: '전자부품 지주 · 연결 6곳',
+      tag: '그룹감사 · 부문감사인', art: 'board', data: global.SEASON_HANEUL,
+      brief: '연결 종속 여섯 곳. 베트남 부문감사인이 세무자문도 맡고 있다.' });
+  }
 
   // 인물 사실은 그 회사 이야기에서만 열린다 — 회사 표시(co)를 붙여 두고 지금 회사 것만 센다
   //   법인 팀원 사실 중 회사 이야기에 딸린 것은 cast.js 에 co 를 직접 적는다

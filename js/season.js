@@ -547,7 +547,9 @@
   function decide(S) {
     var m = S.mis || misstatements(S);
     var E = S.gauge.E;
-    var pervasive = m.total >= 60 || m.over >= 3;
+    // 전반성 — 미수정 합계가 회사 규모에 비해 크거나(기본 60억, 회사가 pervasiveAt 으로 정할 수 있다) 중요성을 넘는 항목이 셋 이상
+    var PV = (global.COMPANY && global.COMPANY.pervasiveAt) || 60;
+    var pervasive = m.total >= PV || m.over >= 3;
     var kind, basis;
     if (E < 45) {
       basis = 'scope';
