@@ -188,8 +188,9 @@ video.ch-bg { width: 110%; height: 110%; object-fit: cover; }
   padding: 92px 36px; background: rgba(10, 9, 8, .34); cursor: pointer; animation: fadeIn .2s both;
 }
 .phn.out { animation: fadeOut .24s both; }
-/* 알림이 울리는 동안 토스트는 비킨다 — 같은 자리(오른쪽 위)라 겹친다 */
-body:has(.phn) .toasts { opacity: 0; }
+/* 알림이 울리는 동안 · 대화창이 열려 있는 동안 토스트는 비킨다 — 같은 자리(오른쪽 위)라 겹친다.
+   대화 중에 생긴 수집 알림은 game.js 가 모아 두었다가 대화창이 닫힌 뒤에 띄운다 */
+body:has(.phn) .toasts, body:has(.msg-o) .toasts { opacity: 0; }
 .rg-phone { width: 350px; display: grid; gap: 8px; }
 .rg {
   display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; align-items: center; padding: 12px 14px;

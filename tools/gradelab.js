@@ -121,7 +121,7 @@ function sweep(label, scenes) {
 }
 
 let rows = [];
-(only ? [only] : ['seorin', 'raon', 'gureum']).forEach(id => {
+(only ? [only] : SEASONS.list().map(b => b.id)).forEach(id => {
   SEASONS.use(id);
   rows = rows.concat(sweep(SEASONS.current().name, ctx.SCENES));
 });

@@ -174,8 +174,8 @@
           { from: 'sua', t: '아, 아니에요. 신경 쓰지 마세요.' }
         ],
         choice: { opts: [
-          { t: '알겠습니다. 나중에라도 말씀하고 싶으시면 연락 주세요.', fx: { bond: { sua: 20 } },
-            reply: [{ from: 'sua', t: '…네. 감사합니다.' }] },
+          { t: '알겠습니다. 나중에라도 말씀하고 싶으시면 연락 주세요.', fx: { bond: { sua: 20 }, fact: 'c_list' },
+            reply: [{ from: 'sua', t: '…네. 감사합니다.' }, { from: 'sua', t: '명세서는 상무님이 회계팀에 직접 주셨어요.' }] },
           { t: '그럼 누가 만들었어요? 지금 말씀해 주세요.', fx: { bond: { sua: -5 } },
             reply: [{ from: 'sua', t: '죄송해요. 괜한 말을 했어요.' }] },
           { t: '자료 감사합니다.',
@@ -332,6 +332,22 @@
           ] } },
 
       /* ── 기타정보 뒤 ─────────────────────────── */
+      /* ── 기타정보 뒤 — 한들상사가 드러나자 재무임원이 선을 긋는다 ── */
+      { id: 's7_cfo', at: 's7', room: 'dm:cfo', pov: 'manager', time: '2. 24. (화) 20:10', bg: 'office',
+        when: function (S) { return (S.truths || []).some(function (t) { return t.id === 'circular_ar' && t.found; }); },
+        facts: ['c_order'],
+        msgs: [
+          { from: 'cfo', t: '유 회계사님, 한 가지만 말씀드리겠습니다.' },
+          { from: 'cfo', t: '한들상사 거래는 처음부터 대표님 지시였습니다.', mood: 'tense' },
+          { from: 'cfo', t: '저는 결재 라인에 있었을 뿐입니다.' }
+        ],
+        choice: { opts: [
+          { t: '말씀하신 내용은 조서에 남기겠습니다.', fx: { R: 1 },
+            reply: [{ from: 'cfo', t: '…알겠습니다.' }] },
+          { t: '그 말씀은 감사위원회에서 직접 하시죠.', fx: { C: -2, bond: { chair: 2 } },
+            reply: [{ from: 'cfo', t: '…생각해 보겠습니다.', mood: 'bad' }] }
+        ] } },
+
       { id: 's7_chair', at: 's7', room: 'dm:chair', pov: 'partner', time: '2. 25. (수) 09:00', bg: 'meeting',
         msgs: [
           { from: 'chair', t: '감사위원장 윤서경입니다.' },
@@ -389,11 +405,13 @@
         ] } },
 
       { id: 's9_partner', at: 's9', room: 'dm:partner', pov: 'manager', time: '3. 11. (수) 22:50', bg: 'office',
+        facts: ['p_press'],
         msgs: function (S) {
           return [
             { from: 'partner', t: '내일 발행이야.' },
             S.rel.company < 35 ? { from: 'partner', t: '회사가 감사인 교체 얘기를 꺼냈네.' }
                                : { from: 'partner', t: '회사는 조용하네. 그게 더 신경 쓰이지만.' },
+            { from: 'partner', t: '경영위원회는 이 건 지키라더군.' },
             { from: 'partner', t: '의견은 자네가 가져오게. 근거랑 같이.' }
           ];
         } }

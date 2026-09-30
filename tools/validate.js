@@ -477,6 +477,24 @@ console.log('\n═══ 인물 · 이야기 (data/cast.js · data/story.js)');
     const o = STORY.opener(sc, S0, v);
     if (!o || !o.text) fail(`${sc.id}/${vid || '-'} 장면 도입 문구 없음`);
   }));
+  // 인물 사실 — 이 회사 시즌에서 세는 사실은 이 회사 이야기로 열 수 있어야 한다 (수집이 끝까지 차게)
+  {
+    const openers = new Set();
+    const walk = o => { if (!o || typeof o !== 'object') return; if (o.fx && o.fx.fact) [].concat(o.fx.fact).forEach(f => openers.add(f)); Object.values(o).forEach(walk); };
+    STORYDATA.BEATS.forEach(b => { (b.facts || []).forEach(f => openers.add(f)); walk(b.choice); });
+    const seenK = {};
+    let nFacts = 0;
+    ['team', 'client', 'outside', 'other'].forEach(g => (ctx.CAST_ORDER[g] || []).forEach(k => {
+      if (seenK[k] || !CAST[k]) return;
+      seenK[k] = 1;
+      ctx.SEASONS.facts(k).forEach(f => {
+        if (f.open) return;
+        nFacts++;
+        if (!openers.has(f.id)) fail(`인물 사실 ${k}:${f.id} — 이 회사 이야기로 열 수 없다 (수집이 끝까지 안 찬다)`);
+      });
+    }));
+    console.log(`  인물 파일 수집 대상 ${nFacts}개 — 모두 이야기로 열린다`);
+  }
   // 저장 → 불러오기에 이야기 기록이 남는가
   // (회사마다 대화 id 가 다르다 — 처음으로 대화가 있는 시점을 쓴다)
   const S1 = SEASON.create({ seed: 99 });

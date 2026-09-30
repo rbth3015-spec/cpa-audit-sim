@@ -94,7 +94,7 @@ window.TRUTH = [
 /* ------------------------------------------------------------
    모듈형 에필로그 — 회사 셋이 함께 쓴다. {회사} 는 지금 회사 이름으로 바뀐다 (은/는 받침 맞춤)
    세 축에서 조건이 맞는 첫 조각이 하나씩 선택되어 조립된다.
-   축 순서가 곧 우선순위다. 조합 수 = 6 × 5 × 5
+   축 순서가 곧 우선순위다. 조합 수 = 8 × 5 × 5
 ------------------------------------------------------------- */
 window.EPILOGUE = {
 
@@ -103,6 +103,14 @@ window.EPILOGUE = {
     { id: 'timeout', tone: 'bad', title: '마감 실패',
       when: function (s) { return s.gauge.T <= 0; },
       text: '보고서 기한을 넘겼다. 회사는 감사인 교체를 통보했고, 법인은 이 건을 손실로 처리했다.' },
+
+    // 사유는 맞게 봤고 전반성만 틀림 (한정 ↔ 부적정 · 한정 ↔ 의견거절) — 방향이 틀린 것보다 한 단계 가볍게
+    { id: 'near', tone: 'warn', title: '의견 수위 착오',
+      when: function (s) { return !s.opinionOK && s.opinionNear; },
+      text: function (s) {
+        return '문제의 성격은 맞게 봤다. 다만 영향이 재무제표 전반에 미치는지 판단이 어긋나 ' +
+          (s.decision ? s.decision.kind : '맞는 의견') + ' 대신 ' + s.opinionPick + '을 냈다는 지적. 전반성 판단 근거를 조서에 보강하라는 개선 요구가 내려왔다.';
+      } },
 
     { id: 'wrong', tone: 'bad', title: '부적절한 의견',
       when: function (s) { return !s.opinionOK; },
@@ -122,7 +130,7 @@ window.EPILOGUE = {
     { id: 'partial', tone: 'warn', title: '일부 미발견 지적',
       when: function (s) { return s.missedAmount > 0; },
       text: function (s) {
-        return '감사의견은 적정했다. 다만 ' + s.missedAmount.toFixed(1) +
+        return '표명한 의견은 맞았다. 다만 ' + s.missedAmount.toFixed(1) +
           '억원의 왜곡표시를 찾지 못했다는 지적과 함께 절차 설계 개선 요구가 내려왔다.';
       } },
 
