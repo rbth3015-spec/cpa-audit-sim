@@ -204,3 +204,10 @@ table.mg-t tr.off td { opacity: .45; }
 .ws-bar .fill.over { background: var(--red); }
 .ws-bar .tol { position: absolute; top: -6px; bottom: -6px; width: 2px; background: var(--red); }
 .ws-bar .tol b { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font: 700 10px/1 var(--mono); color: var(--red-2); white-space: nowrap; }
+
+/* ── 내부거래 대사 ─────────────────────────────────────── */
+.ic-t tr.dif td { background: var(--warn-soft); }
+.ic-t td { vertical-align: middle; word-break: keep-all; }
+.ic-t .acts { flex-wrap: nowrap; }
+.ic-t .act-b { padding: 6px 8px; white-space: nowrap; }
+.ic-ok { font: 700 12px/1 var(--sans); color: var(--good); }

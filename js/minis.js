@@ -966,5 +966,145 @@
     }
   };
 
-  global.MINIS = { count: count, jet: jet, cutoff: cutoff, confirm: confirm, unrec: unrec, sample: sample };
+  /* ============================================================
+     내부거래 대사 — 연결 전 모회사 채권과 종속기업 채무를 맞춘다
+     차이마다 원인을 증빙으로 가린다: 운송 중 재고 · 환율 · 설명 안 됨(왜곡표시)
+     그리고 기말재고에 남은 내부 이익(미실현이익)을 계산한다
+     ============================================================ */
+  var IC_DEFS = [
+    { key: 'transit', label: '운송 중 재고 식별 — 선적 후 미입고', score: 20,
+      why: '내부거래 대사 — 한쪽만 기록한 운송 중 재고는 시차. 연결에서 그룹 재고로 잡고 채권 · 채무를 맞춘다' },
+    { key: 'fx', label: '환율 차이 식별 — 송장일 · 기말 환율', score: 15,
+      why: '내부거래 대사 — 외화 거래는 두 회사가 다른 환율을 쓰면 차이가 난다. 원인이 설명되면 조정' },
+    { key: 'unexp', label: '설명 안 된 차이를 왜곡표시로 집계', score: 25,
+      why: '설명 안 된 대사 차이 — 원인을 끝까지 조사하고, 해소되지 않으면 왜곡표시로 집계' },
+    { key: 'profit', label: '미실현이익 — 기말 잔존 재고(운송 중 포함) × 이익률', score: 30,
+      why: '미실현이익 — 기말까지 그룹 밖으로 팔리지 않은 내부거래 재고의 이익. 운송 중 재고도 그룹 재고' },
+    { key: 'ev', label: '증빙으로 확인 — 근거 없는 전표의 선적서류', score: 10,
+      why: '증빙 — 차이 원인을 짐작으로 붙이지 않는다. 선적서류 · 입고 기록으로 확인' }
+  ];
+  var IC_TX = { transit: '운송 중', fx: '환율', unexp: '설명 안 됨' };
+
+  var ic = {
+    name: '내부거래 대사',
+    labels: function () { return IC_DEFS.map(function (d) { return { label: d.label, score: d.score, why: d.why }; }); },
+    traps: function () { return [{ label: '근거 없는 차이를 운송 중으로 처리', score: -12, please: true }]; },
+    build: function (seed) {
+      var D = MD().ic, R = rng(seed || 1);
+      return { D: D, rows: shuffle(D.rows.slice(), R) };
+    },
+    grade: function (M, st) {
+      st = st || {};
+      var cause = st.cause || {}, open = st.open || {};
+      function row(k) { return M.rows.filter(function (r) { return r.cause === k; })[0]; }
+      var pf = (M.D.profit.filter(function (x) { return x.k === st.pf; })[0] || {});
+      var un = row('unexp');
+      var hits = [
+        cause[row('transit').id] === 'transit',
+        cause[row('fx').id] === 'fx',
+        cause[un.id] === 'unexp',
+        !!pf.ok,
+        !!open[un.id] && cause[un.id] === 'unexp'
+      ];
+      var trap = cause[un.id] === 'transit'
+        ? [{ label: '근거 없는 차이를 운송 중으로 처리', score: -12, got: -12, hit: true, please: true }] : [];
+      var r = pack(scored(IC_DEFS, hits), trap);
+      r.detail = { right: hits.slice(0, 3).filter(Boolean).length, pf: pf.v, opened: Object.keys(open).length };
+      return r;
+    },
+    summary: function (M, st, g) {
+      var d = g.res.detail || {};
+      return '차이 원인 ' + d.right + '/3 · 미실현이익 ' + (d.pf == null ? '고르지 않음' : eok(d.pf)) + ' · 증빙 ' + d.opened + '건';
+    },
+    perfect: function (M) {
+      var cause = {}, open = {};
+      M.rows.forEach(function (r) { if (r.cause) cause[r.id] = r.cause; if (r.cause === 'unexp') open[r.id] = true; });
+      return { cause: cause, open: open, pf: 'stock' };
+    },
+
+    mount: function (host, M, api) {
+      var D = M.D, st = { cause: {}, open: {}, pf: null };
+      host.innerHTML =
+        '<div class="mg ic">' +
+          '<div class="mg-bar"><b>' + esc(D.title) + ' — ' + esc(D.parent) + ' ↔ ' + esc(D.sub) + '</b>' +
+            '<span class="mg-stat">12월 · 채권 <b>' + D.ar.toFixed(1) + '억</b> · 채무 <b>' + D.ap.toFixed(1) + '억</b></span>' +
+            '<span class="mg-stat lim">차이 ' + (D.ar - D.ap).toFixed(1) + '억</span>' +
+            '<span class="mg-stat">원인 <b data-k="n">0</b> / 3</span>' +
+            '<button type="button" class="btn sm" data-act="done">대사 종료 <kbd>Ctrl Enter</kbd></button></div>' +
+          '<div class="mg-hint">차이마다 원인을 <b>증빙으로</b> 가린다. 증빙을 열 때마다 시간이 든다.</div>' +
+          '<div class="mg-split">' +
+            '<div><table class="mg-t ic-t"><thead><tr><th>거래</th><th class="n">' + esc(D.parent) + '</th><th class="n">' + esc(D.sub) + '</th><th class="n">차이</th><th>증빙</th><th>원인</th></tr></thead>' +
+              '<tbody data-k="rows"></tbody></table>' +
+              '<div class="mg-foot">금액 억원 · ' + esc(D.parent) + ' 매출 = ' + esc(D.sub) + ' 매입</div></div>' +
+            '<div class="sp-ws" data-k="ws"></div>' +
+          '</div>' +
+        '</div>';
+      var $ = function (k) { return host.querySelector('[data-k="' + k + '"]'); };
+      function draw() {
+        $('rows').innerHTML = M.rows.map(function (r) {
+          var d = Math.round((r.p - r.s) * 10) / 10, op = !!st.open[r.id];
+          var causeH = !d ? '<span class="ic-ok">✓ 일치</span>'
+            : '<div class="acts">' + ['transit', 'fx', 'unexp'].map(function (k) {
+                return '<button type="button" class="act-b' + (st.cause[r.id] === k ? ' on' : '') + '" data-cause="' + k + '" data-id="' + r.id + '">' + IC_TX[k] + '</button>';
+              }).join('') + '</div>';
+          return '<tr class="' + (d ? 'dif' : '') + '"><td><b>' + esc(r.what) + '</b></td>' +
+            '<td class="n">' + r.p.toFixed(1) + '</td><td class="n">' + (r.s ? r.s.toFixed(1) : '—') + '</td>' +
+            '<td class="n">' + (d ? '<b>' + d.toFixed(1) + '</b>' : '—') + '</td>' +
+            '<td>' + (op ? '<span class="ev-open">' + esc(r.ev) + '</span>' : '<button type="button" class="ev-b" data-open="' + r.id + '">증빙 보기</button>') + '</td>' +
+            '<td>' + causeH + '</td></tr>';
+        }).join('');
+        var marked = M.rows.filter(function (r) { return r.p !== r.s && st.cause[r.id]; });
+        $('n').textContent = marked.length;
+        var unexp = marked.filter(function (r) { return st.cause[r.id] === 'unexp'; }).reduce(function (a, r) { return a + (r.p - r.s); }, 0);
+        var pf = D.profit.filter(function (x) { return x.k === st.pf; })[0];
+        $('ws').innerHTML =
+          '<div class="ws-row"><span>설명 안 된 차이 → 왜곡표시</span><b class="' + (unexp ? 'over' : '') + '">' + eok(unexp) + '</b></div>' +
+          '<div class="ws-k">미실현이익 · ' + esc(D.sub) + ' 기말재고 중 ' + esc(D.parent) + '분</div>' +
+          '<div class="ws-row"><span>창고 재고</span><b>' + D.stock.toFixed(1) + '억</b></div>' +
+          '<div class="ws-row"><span>운송 중 (12/29 선적)</span><b>' + D.transit.toFixed(1) + '억</b></div>' +
+          '<div class="ws-row"><span>' + esc(D.parent) + ' 매출총이익률</span><b>' + D.margin + '%</b></div>' +
+          '<div class="ws-k">계산 기준 <small>하나</small></div><div class="ws-opts">' + D.profit.map(function (x) {
+            return '<button type="button" class="act-b' + (st.pf === x.k ? ' on' : '') + '" data-pf="' + x.k + '">' + esc(x.t) + '</button>';
+          }).join('') + '</div>' +
+          '<div class="ws-row big"><span>제거할 미실현이익</span><b>' + (pf ? eok(pf.v) : '—') + '</b></div>';
+      }
+      host.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-cause],[data-open],[data-pf],[data-act]');
+        if (!b || !host.contains(b)) return;
+        if (b.getAttribute('data-act') === 'done') return api.submit();
+        if (b.hasAttribute('data-open')) {
+          st.open[b.getAttribute('data-open')] = true;
+          if (api.spend) api.spend(D.costSec || 3);
+          api.sound && api.sound('flip');
+        } else if (b.hasAttribute('data-cause')) {
+          st.cause[b.getAttribute('data-id')] = b.getAttribute('data-cause');
+          api.sound && api.sound('stampSm');
+        } else if (b.hasAttribute('data-pf')) {
+          st.pf = b.getAttribute('data-pf');
+          api.sound && api.sound('tick');
+        }
+        draw();
+      });
+      var off = doneKey(api);
+      draw();
+      return { state: function () { return JSON.parse(JSON.stringify(st)); }, destroy: off };
+    },
+
+    review: function (M, st) {
+      st = st || {};
+      var cause = st.cause || {};
+      var rows = M.rows.filter(function (r) { return r.cause; }).map(function (r) {
+        var ok = cause[r.id] === r.cause;
+        return '<tr class="' + (ok ? 'ok' : 'no') + '"><td>' + esc(r.what) + '</td><td class="dim">' + esc(r.ev) + '</td>' +
+          '<td class="n">' + (r.p - r.s).toFixed(1) + '억 · ' + IC_TX[r.cause] + '</td>' +
+          '<td class="n">' + (ok ? '✓' : cause[r.id] ? IC_TX[cause[r.id]] + ' ✗' : '안 가림') + '</td></tr>';
+      }).join('');
+      var right = M.D.profit.filter(function (x) { return x.ok; })[0], mine = M.D.profit.filter(function (x) { return x.k === st.pf; })[0];
+      rows += '<tr class="' + (mine && mine.ok ? 'ok' : 'no') + '"><td>미실현이익</td><td class="dim">' + esc(right.t) + '</td>' +
+        '<td class="n">' + eok(right.v) + '</td><td class="n">' + (mine ? (mine.ok ? '✓' : eok(mine.v) + ' ✗') : '안 고름') + '</td></tr>';
+      return '<table class="rv-t"><caption>차이 9.0억 = 운송 중 6.3 + 환율 0.9 + 설명 안 됨 1.8 (왜곡표시) · 미실현이익 88.0 × 12.5% = 11.0억</caption>' + rows + '</table>';
+    }
+  };
+
+  global.MINIS = { count: count, jet: jet, cutoff: cutoff, confirm: confirm, unrec: unrec, sample: sample, ic: ic };
 })(typeof window !== 'undefined' ? window : this);

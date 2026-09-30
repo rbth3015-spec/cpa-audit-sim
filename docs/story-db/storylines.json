@@ -8,7 +8,7 @@
 
     {
       "id": "haneul",
-      "status": "implemented — data/haneul.js (2026-09-30). 미니게임 ic 는 h4 분류 칸으로 대신",
+      "status": "implemented — data/haneul.js (2026-09-30). 미니게임 ic(내부거래 대사)는 js/minis.js",
       "title": "바다 건너 숫자",
       "company": {
         "name": "㈜한울그룹", "market": "유가증권 상장", "industry": "전자부품 지주회사 · 연결 종속 6곳",
