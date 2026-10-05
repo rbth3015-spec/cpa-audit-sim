@@ -357,7 +357,7 @@
       if (t.active) {
         t.found = true;
         S.gauge.E = clamp(S.gauge.E + 6, 0, 100);
-        events.push({ kind: 'found', id: t.id, text: '발견 · ' + t.def.title + ' ' + t.amount.toFixed(1) + '억원' });
+        events.push({ kind: 'found', id: t.id, text: '발견 · ' + t.def.title + (t.def.nonMonetary ? '' : ' ' + t.amount.toFixed(1) + '억원') });
       } else {
         t.verified = true;
         events.push({ kind: 'clear', id: t.id, text: '이상 없음 확인 · ' + (t.def.short || t.def.title) });
@@ -483,7 +483,7 @@
       return { title: b.title, amount: b.amount, account: b.account, soft: true, corrected: coop, kind: 'base' };
     });
     S.truths.forEach(function (t) {
-      if (!(t.active && t.found)) return;
+      if (!(t.active && t.found) || t.def.nonMonetary) return;   // 판단의 문제(예: 중요한 취약점)는 금액 집계 밖
       var soft = !!t.def.soft;
       t.corrected = soft && coop;
       items.push({ title: t.def.title, amount: t.amount, account: t.def.account,
@@ -629,7 +629,8 @@
 
     if (d.kind === '적정의견') {
       p3.rubric.must = [
-        { kw: ['지배기구와의 커뮤니케이션'], score: 14, label: '미수정 사항을 지배기구와 커뮤니케이션' },
+        // 다른 일(부정 · 미비점)로 지배기구에 보고한다는 말과 구분 — 미수정 사항이 곁에 있어야
+        { kw: ['지배기구와의 커뮤니케이션'], near: ['미수정', '왜곡표시'], within: 30, score: 14, label: '미수정 사항을 지배기구와 커뮤니케이션' },
         { kw: ['서면진술'], score: 10, label: '미수정 사항이 중요하지 않다는 서면진술' }];
       p3.model = '미수정 사항은 지배기구와 커뮤니케이션하고, 미수정왜곡표시가 중요하지 않다는 경영진의 서면진술을 입수한다.';
     } else {
@@ -662,7 +663,9 @@
       ['감사증거', S.gauge.E + ' / 100'],
       ['핵심감사사항', '3건 (상장회사)']] }];
     it.clues = ['미수정왜곡표시 합계는 ' + d.total.toFixed(1) + '억원', '감사증거 확보 수준은 ' + S.gauge.E + '점'];
-    it.parts = normParts(opinionParts(d, S), S, it.v);
+    // 회사가 의견 장면에 문항을 더 둔 경우(sc.parts) — 의견 칸 뒤에 ④부터 붙인다
+    var extra = (call(it.sc.parts, it.v, S) || []).map(function (p, i) { return Object.assign({ key: KEYS[3 + i] }, p); });
+    it.parts = normParts(opinionParts(d, S).concat(extra), S, it.v);
   }
 
   /* ---------- 저장 · 이어하기 ----------
@@ -710,7 +713,10 @@
     }
     function scanSeason() {
     (global.SCENES || []).forEach(function (sc) {
-      if (sc.dynamic === 'opinion') return;
+      if (sc.dynamic === 'opinion') {
+        if (sc.parts) { var S9 = create({ seed: 7 }); try { scan(normParts(call(sc.parts, { id: '-' }, S9), S9, { id: '-' }), (sc.standards || [])[0], sc.chapter, sc.id); } catch (e) { /* 건너뜀 */ } }
+        return;
+      }
       (sc.variants || [null]).forEach(function (v) {
         var S0 = create({ seed: 7 });
         try { scan(resolve(sc, S0, v && v.id).parts, (sc.standards || [])[0], sc.chapter, sc.id); } catch (e) { /* 건너뜀 */ }
@@ -762,7 +768,7 @@
       var state = t.active
         ? (t.found ? (t.corrected ? 'fixed' : 'found') : 'missed')
         : (t.verified ? 'cleared' : 'lucky');
-      return { id: t.id, title: t.def.title, account: t.def.account, amount: t.amount,
+      return { id: t.id, title: t.def.title, account: t.def.account, amount: t.amount, nonMonetary: !!t.def.nonMonetary,
                active: t.active, state: state,
                text: truthText(t),
                how: t.def.howFound };
@@ -771,6 +777,9 @@
     var ctx = {
       gauge: S.gauge, rel: S.rel, flags: S.flags, opinionOK: S.opinionOK, seat: S.seat,
       opinionNear: !!S.opinionNear, opinionPick: S.opinionPick || null,
+      foundIds: S.truths.filter(function (t) { return t.active && t.found; }).map(function (t) { return t.id; }),
+      missedIds: S.truths.filter(function (t) { return t.active && !t.found; }).map(function (t) { return t.id; }),
+      hits: S.hits || {},
       misTotal: S.mis ? S.mis.total : 0,
       foundAmount: r1(found), missedAmount: r1(missed), decision: S.decision,
       bond: S.bond || {}, ethicsBad: ethicsBad
@@ -786,7 +795,16 @@
       return null;
     }
     var EP = global.EPILOGUE;
-    return { audit: axis(EP.audit), company: axis(EP.company), career: axis(EP.career),
+    // 회사마다 덧붙이는 조각(COMPANY.epilogue) — 감리 결과는 '일부 미발견' 앞에, 나머지 축은 맨 앞에 끼운다
+    var CE = (global.COMPANY && global.COMPANY.epilogue) || {};
+    function merged(key, before) {
+      var base = EP[key] || [], add = CE[key] || [];
+      if (!add.length) return base;
+      var at = before ? base.map(function (f) { return f.id; }).indexOf(before) : 0;
+      if (at < 0) at = 0;
+      return base.slice(0, at).concat(add, base.slice(at));
+    }
+    return { audit: axis(merged('audit', 'partial')), company: axis(merged('company')), career: axis(merged('career')),
              people: global.STORY ? global.STORY.fates(ctx) : [],
              ethics: global.STORY ? global.STORY.ethics(S) : [],
              rows: rows, found: r1(found), missed: r1(missed), ctx: ctx,

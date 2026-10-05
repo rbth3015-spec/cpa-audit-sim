@@ -183,7 +183,7 @@
         return '<li><span class="ac">' + esc(d.account) + '</span><span class="bar">' + String(d.hidden).replace(/\S/g, '■') + '</span>' +
           '<span class="lead">' + esc(d.lead || '') + '</span></li>';
       }
-      var tag = t.found ? '<span class="tag found">발견 ' + t.amount.toFixed(1) + '억</span>'
+      var tag = t.found ? '<span class="tag found">발견' + (d.nonMonetary ? '' : ' ' + t.amount.toFixed(1) + '억') + '</span>'
         : t.verified ? '<span class="tag cleared">이상 없음</span>'
         : t.active ? '<span class="tag" style="color:#ae1800">놓침</span>' : '<span class="tag cleared">없었음</span>';
       return '<li class="open"><span class="ac">' + esc(d.account) + '</span><span class="txt">' +

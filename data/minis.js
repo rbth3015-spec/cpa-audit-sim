@@ -230,5 +230,127 @@ window.MINIDATA = {
       { k: 'ware', t: 'Vina 창고 재고 81.7억 × 12.5%', v: 10.2, why: '운송 중 재고가 빠짐 — 그룹 재고로 연결에 들어온다' },
       { k: 'none', t: '회사 간 거래는 연결에서 없어지므로 미실현이익도 없다', v: 0, why: '제거 대상이 바로 기말재고에 남은 내부 이익' }
     ]
+  },
+
+  /* 통제 표본 — ㈜다온마켓 월말 재고조정 승인 25건. 이탈 5건(서명 없음 · 사후 승인 · 한도 초과 · 위조 2) = 20% > 허용 5% */
+  attr: {
+    title: '통제 표본 — 월말 재고조정 승인',
+    rule: '재고조정은 장부 반영 전에 승인 · 1천만원 이상은 지역장 승인',
+    tol: 5,
+    signers: [
+      { name: '박정연', role: '수원점 점장', hand: 3 },
+      { name: '이도훈', role: '화성점 점장', hand: 5 },
+      { name: '최미란', role: '경기남부 지역장', hand: 8 },
+      { name: '김태수', role: '화성점 재고 담당 · 입력자', hand: 11 }
+    ],
+    rows: [
+      { id: 'R01', day: '1/31', amt: 420, appr: '박정연', hand: 3, aday: '1/31', dev: null },
+      { id: 'R02', day: '1/31', amt: 380, appr: '이도훈', hand: 5, aday: '1/31', dev: null },
+      { id: 'R03', day: '2/28', amt: 1240, appr: '최미란', hand: 8, aday: '2/28', dev: null },
+      { id: 'R04', day: '2/28', amt: 510, appr: '박정연', hand: 3, aday: '2/27', dev: null },
+      { id: 'R05', day: '3/31', amt: 690, appr: '이도훈', hand: 11, aday: '3/31', dev: 'forge', note: '이도훈 명의 · 필체는 화성점 재고 담당 김태수와 같다' },
+      { id: 'R06', day: '3/31', amt: 300, appr: '박정연', hand: 3, aday: '3/31', dev: null },
+      { id: 'R07', day: '4/30', amt: 560, appr: '이도훈', hand: null, aday: null, dev: 'nosig', note: '승인자 이름만 있고 서명 · 승인일이 없다' },
+      { id: 'R08', day: '4/30', amt: 1050, appr: '최미란', hand: 8, aday: '4/30', dev: null },
+      { id: 'R09', day: '5/31', amt: 470, appr: '박정연', hand: 3, aday: '5/31', dev: null },
+      { id: 'R10', day: '5/31', amt: 820, appr: '이도훈', hand: 5, aday: '5/30', dev: null },
+      { id: 'R11', day: '6/30', amt: 350, appr: '박정연', hand: 3, aday: '6/30', dev: null },
+      { id: 'R12', day: '6/30', amt: 640, appr: '이도훈', hand: 5, aday: '7/03', dev: 'late', note: '6/30 조정 반영 · 7/03 승인' },
+      { id: 'R13', day: '7/31', amt: 1320, appr: '최미란', hand: 8, aday: '7/31', dev: null },
+      { id: 'R14', day: '7/31', amt: 290, appr: '박정연', hand: 3, aday: '7/31', dev: null },
+      { id: 'R15', day: '8/31', amt: 760, appr: '이도훈', hand: 5, aday: '8/31', dev: null },
+      { id: 'R16', day: '8/31', amt: 430, appr: '박정연', hand: 3, aday: '8/31', dev: null },
+      { id: 'R17', day: '9/30', amt: 580, appr: '이도훈', hand: 5, aday: '9/30', dev: null },
+      { id: 'R18', day: '9/30', amt: 1480, appr: '박정연', hand: 3, aday: '9/30', dev: 'limit', note: '1,480만원 — 지역장 승인 대상인데 점장이 승인' },
+      { id: 'R19', day: '10/31', amt: 610, appr: '이도훈', hand: 5, aday: '10/31', dev: null },
+      { id: 'R20', day: '10/31', amt: 340, appr: '박정연', hand: 3, aday: '10/30', dev: null },
+      { id: 'R21', day: '11/30', amt: 720, appr: '이도훈', hand: 11, aday: '11/30', dev: 'forge', note: '이도훈 명의 · 필체는 김태수와 같다 (R05 와 같은 손)' },
+      { id: 'R22', day: '11/30', amt: 1110, appr: '최미란', hand: 8, aday: '11/30', dev: null },
+      { id: 'R23', day: '12/31', amt: 480, appr: '박정연', hand: 3, aday: '12/31', dev: null },
+      { id: 'R24', day: '12/31', amt: 930, appr: '이도훈', hand: 5, aday: '12/31', dev: null },
+      { id: 'R25', day: '12/31', amt: 1060, appr: '최미란', hand: 8, aday: '12/31', dev: null }
+    ]
+  },
+
+  /* 반품 데이터 — ㈜다온마켓 12월 POS 반품. 부정 반품 5건은 심야 · 원거래 없음 · 현금 · 같은 금액 */
+  ret: {
+    title: '반품 데이터 — 추출 조건 설계',
+    scope: '12월 반품 3만 1천 건 중 경기 4개 매장 44건',
+    limit: 20,
+    criteria: [
+      { k: 'night', name: '심야 반품', tip: '23시 ~ 06시 — 영업시간 밖' },
+      { k: 'noorig', name: '원거래 없음', tip: '같은 영수증의 판매 기록이 없는 반품' },
+      { k: 'cash', name: '현금 환불', tip: '카드 취소가 아니라 현금으로 돌려줌' },
+      { k: 'round', name: '같은 금액 반복', tip: '같은 금액이 세 번 이상' },
+      { k: 'big', name: '30만원 이상', tip: '반품 금액 30만원 이상' },
+      { k: 'weekend', name: '주말 반품', tip: '토 · 일요일' }
+    ],
+    rows: [
+      { id: 'P01', day: '12/06 (일)', time: '01:12', store: '화성점', appr: '관리자 정', orig: null, pay: '현금', amt: 189000, tags: ['night', 'noorig', 'cash', 'round', 'weekend'], risk: '화성점 심야 현금 반품 · 원거래 없음' },
+      { id: 'P02', day: '12/06 (일)', time: '01:40', store: '화성점', appr: '관리자 정', orig: null, pay: '현금', amt: 189000, tags: ['night', 'noorig', 'cash', 'round', 'weekend'], risk: '같은 금액 · 같은 관리자 반복' },
+      { id: 'P03', day: '12/13 (일)', time: '02:05', store: '오산점', appr: '관리자 윤', orig: null, pay: '현금', amt: 214500, tags: ['night', 'noorig', 'cash', 'weekend'], risk: '오산점 심야 현금 반품 · 원거래 없음' },
+      { id: 'P04', day: '12/20 (일)', time: '01:55', store: '평택점', appr: '관리자 하', orig: null, pay: '현금', amt: 162000, tags: ['night', 'noorig', 'cash', 'weekend'], risk: '평택점 심야 현금 반품 · 원거래 없음' },
+      { id: 'P05', day: '12/27 (일)', time: '02:30', store: '화성점', appr: '관리자 정', orig: null, pay: '현금', amt: 189000, tags: ['night', 'noorig', 'cash', 'round', 'weekend'], risk: '화성점 · 같은 금액 세 번째' },
+      { id: 'N01', day: '12/01 (화)', time: '10:20', store: '수원점', appr: '관리자 박', orig: 'A-1201-0332', pay: '카드 취소', amt: 45900, tags: [] },
+      { id: 'N02', day: '12/01 (화)', time: '14:05', store: '수원점', appr: '관리자 박', orig: 'A-1201-0871', pay: '현금', amt: 12800, tags: ['cash'] },
+      { id: 'N03', day: '12/02 (수)', time: '11:30', store: '오산점', appr: '관리자 윤', orig: 'B-1202-0115', pay: '카드 취소', amt: 89000, tags: [] },
+      { id: 'N04', day: '12/03 (목)', time: '16:40', store: '화성점', appr: '관리자 정', orig: 'C-1203-0920', pay: '현금', amt: 23500, tags: ['cash'] },
+      { id: 'N05', day: '12/04 (금)', time: '13:10', store: '평택점', appr: '관리자 하', orig: 'D-1204-0402', pay: '카드 취소', amt: 312000, tags: ['big'] },
+      { id: 'N06', day: '12/04 (금)', time: '18:20', store: '수원점', appr: '관리자 박', orig: 'A-1204-1250', pay: '현금', amt: 8900, tags: ['cash'] },
+      { id: 'N07', day: '12/05 (토)', time: '10:05', store: '오산점', appr: '관리자 윤', orig: 'B-1205-0071', pay: '현금', amt: 56000, tags: ['cash', 'weekend'] },
+      { id: 'N08', day: '12/05 (토)', time: '15:45', store: '평택점', appr: '관리자 하', orig: 'D-1205-0688', pay: '카드 취소', amt: 41200, tags: ['weekend'] },
+      { id: 'N09', day: '12/06 (일)', time: '12:30', store: '화성점', appr: '관리자 정', orig: 'C-1206-0233', pay: '카드 취소', amt: 67400, tags: ['weekend'] },
+      { id: 'N10', day: '12/07 (월)', time: '17:10', store: '수원점', appr: '관리자 박', orig: 'A-1207-0910', pay: '현금', amt: 15600, tags: ['cash'] },
+      { id: 'N11', day: '12/08 (화)', time: '09:50', store: '오산점', appr: '관리자 윤', orig: 'B-1208-0034', pay: '카드 취소', amt: 378000, tags: ['big'] },
+      { id: 'N12', day: '12/09 (수)', time: '23:40', store: '평택점', appr: '관리자 하', orig: 'D-1209-1402', pay: '카드 취소', amt: 33000, tags: ['night'] },
+      { id: 'N13', day: '12/10 (목)', time: '14:20', store: '화성점', appr: '관리자 정', orig: 'C-1210-0611', pay: '현금', amt: 27300, tags: ['cash'] },
+      { id: 'N14', day: '12/11 (금)', time: '11:00', store: '수원점', appr: '관리자 박', orig: 'A-1211-0207', pay: '카드 취소', amt: 99000, tags: [] },
+      { id: 'N15', day: '12/11 (금)', time: '19:30', store: '오산점', appr: '관리자 윤', orig: 'B-1211-1010', pay: '현금', amt: 18400, tags: ['cash'] },
+      { id: 'N16', day: '12/12 (토)', time: '13:45', store: '평택점', appr: '관리자 하', orig: 'D-1212-0559', pay: '카드 취소', amt: 52000, tags: ['weekend'] },
+      { id: 'N17', day: '12/12 (토)', time: '16:15', store: '수원점', appr: '관리자 박', orig: 'A-1212-0733', pay: '현금', amt: 21000, tags: ['cash', 'weekend'] },
+      { id: 'N18', day: '12/13 (일)', time: '10:40', store: '화성점', appr: '관리자 정', orig: 'C-1213-0145', pay: '카드 취소', amt: 305000, tags: ['big', 'weekend'] },
+      { id: 'N19', day: '12/14 (월)', time: '15:20', store: '오산점', appr: '관리자 윤', orig: 'B-1214-0812', pay: '현금', amt: 36500, tags: ['cash'] },
+      { id: 'N20', day: '12/15 (화)', time: '12:10', store: '평택점', appr: '관리자 하', orig: 'D-1215-0390', pay: '카드 취소', amt: 74800, tags: [] },
+      { id: 'N21', day: '12/16 (수)', time: '05:20', store: '수원점', appr: '관리자 박', orig: 'A-1216-0011', pay: '카드 취소', amt: 29000, tags: ['night'] },
+      { id: 'N22', day: '12/17 (목)', time: '14:35', store: '화성점', appr: '관리자 정', orig: null, pay: '교환권', amt: 48000, tags: ['noorig'] },
+      { id: 'N23', day: '12/18 (금)', time: '11:55', store: '오산점', appr: '관리자 윤', orig: 'B-1218-0602', pay: '카드 취소', amt: 61000, tags: [] },
+      { id: 'N24', day: '12/18 (금)', time: '17:40', store: '평택점', appr: '관리자 하', orig: 'D-1218-1104', pay: '현금', amt: 14200, tags: ['cash'] },
+      { id: 'N25', day: '12/19 (토)', time: '13:05', store: '수원점', appr: '관리자 박', orig: 'A-1219-0480', pay: '카드 취소', amt: 336000, tags: ['big', 'weekend'] },
+      { id: 'N26', day: '12/20 (일)', time: '10:25', store: '화성점', appr: '관리자 정', orig: 'C-1220-0071', pay: '현금', amt: 9800, tags: ['cash', 'weekend'] },
+      { id: 'N27', day: '12/21 (월)', time: '16:50', store: '오산점', appr: '관리자 윤', orig: 'B-1221-0915', pay: '카드 취소', amt: 83500, tags: [] },
+      { id: 'N28', day: '12/22 (화)', time: '12:40', store: '평택점', appr: '관리자 하', orig: 'D-1222-0360', pay: '현금', amt: 26700, tags: ['cash'] },
+      { id: 'N29', day: '12/23 (수)', time: '15:15', store: '수원점', appr: '관리자 박', orig: 'A-1223-0722', pay: '카드 취소', amt: 47300, tags: [] },
+      { id: 'N30', day: '12/24 (목)', time: '11:20', store: '화성점', appr: '관리자 정', orig: 'C-1224-0254', pay: '카드 취소', amt: 129000, tags: [] },
+      { id: 'N31', day: '12/26 (토)', time: '14:00', store: '오산점', appr: '관리자 윤', orig: 'B-1226-0640', pay: '현금', amt: 19900, tags: ['cash', 'weekend'] },
+      { id: 'N32', day: '12/27 (일)', time: '10:10', store: '평택점', appr: '관리자 하', orig: 'D-1227-0118', pay: '카드 취소', amt: 398000, tags: ['big', 'weekend'] },
+      { id: 'N33', day: '12/28 (월)', time: '13:30', store: '수원점', appr: '관리자 박', orig: 'A-1228-0501', pay: '현금', amt: 22400, tags: ['cash'] },
+      { id: 'N34', day: '12/29 (화)', time: '16:25', store: '화성점', appr: '관리자 정', orig: 'C-1229-0866', pay: '카드 취소', amt: 58600, tags: [] },
+      { id: 'N35', day: '12/30 (수)', time: '12:50', store: '오산점', appr: '관리자 윤', orig: 'B-1230-0433', pay: '현금', amt: 31800, tags: ['cash'] },
+      { id: 'N36', day: '12/03 (목)', time: '11:15', store: '수원점', appr: '관리자 박', orig: 'A-1203-0390', pay: '현금', amt: 17500, tags: ['cash'] },
+      { id: 'N37', day: '12/09 (수)', time: '15:30', store: '오산점', appr: '관리자 윤', orig: 'B-1209-0721', pay: '현금', amt: 24100, tags: ['cash'] },
+      { id: 'N38', day: '12/16 (수)', time: '13:20', store: '화성점', appr: '관리자 정', orig: 'C-1216-0505', pay: '현금', amt: 38200, tags: ['cash'] },
+      { id: 'N39', day: '12/31 (목)', time: '10:45', store: '평택점', appr: '관리자 하', orig: 'D-1231-0207', pay: '현금', amt: 11900, tags: ['cash'] }
+    ]
+  },
+
+  /* 현장 공정 대조 — ㈜해솔건설 평택 물류센터. 보고 71% · 현장 58%
+     공종별 보고 진척 × 비중 = 70.5 ≒ 71 · 현장 진척 × 비중 = 57.75 ≒ 58 · 원가 257 ÷ 다시 잡은 444 = 57.9 */
+  site: {
+    title: '현장 공정 대조 — 평택 물류센터',
+    reported: 71, contract: 410, spent: 257, eac: 362, eac2: 444, costSec: 3, wrongSec: 5,
+    works: [
+      { k: 'civil', name: '토목 · 기초', w: 15, rep: 100, real: 100, photo: '기초 · 되메우기 끝', log: '11/02 완료', gap: false },
+      { k: 'frame', name: '골조 (철골)', w: 25, rep: 100, real: 100, photo: '철골 세움 · 볼트 체결 완료', log: '12/05 완료', gap: false },
+      { k: 'roof', name: '지붕', w: 15, rep: 70, real: 50, photo: '트러스만 · 지붕 패널 일부', log: '패널 반입 1/20 예정', gap: true },
+      { k: 'skin', name: '외장', w: 15, rep: 60, real: 35, photo: '동측 외벽 패널만', log: '서 · 북측 미착수', gap: true },
+      { k: 'mep', name: '설비 (전기 · 소방)', w: 20, rep: 55, real: 25, photo: '배관 자재 야적 · 설치 전', log: '자재 반입 12/22 · 설치 1월', gap: true },
+      { k: 'finish', name: '마감 · 조경', w: 10, rep: 0, real: 0, photo: '착수 전', log: '—', gap: false }
+    ],
+    rates: [
+      { k: 'reported', t: '본사 보고 그대로 — 71%', v: 71 },
+      { k: 're', t: '원가 투입 257억 ÷ 다시 잡은 총예정원가 444억 = 58%', v: 58, ok: true },
+      { k: 'old', t: '원가 투입 257억 ÷ 회사 총예정원가 362억 = 71%', v: 71 },
+      { k: 'bill', t: '기성 청구 누계 291억 ÷ 계약금액 410억 = 71%', v: 71 }
+    ]
   }
 };

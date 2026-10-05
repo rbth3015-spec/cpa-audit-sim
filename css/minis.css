@@ -211,3 +211,25 @@ table.mg-t tr.off td { opacity: .45; }
 .ic-t .acts { flex-wrap: nowrap; }
 .ic-t .act-b { padding: 6px 8px; white-space: nowrap; }
 .ic-ok { font: 700 12px/1 var(--sans); color: var(--good); }
+
+/* ── 통제 표본 ─────────────────────────────────────────── */
+.at-wrap { max-height: 560px; overflow: auto; border: 1px solid var(--line); }
+.at-t td { vertical-align: middle; padding-top: 3px; padding-bottom: 3px; }
+.sig { width: 84px; height: 26px; display: block; }
+.sig path { fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.sig.none { display: inline-block; width: auto; height: auto; font: 600 11px/1 var(--sans); color: var(--red-2); border: 1px dashed var(--red); padding: 4px 6px; }
+.at-b { min-width: 92px; }
+.at-b.dev { background: var(--red); border-color: var(--red); color: #fff; }
+.at-b.intent { background: var(--warn); border-color: var(--warn); color: #fff; }
+.at-ref { margin-top: 10px; border: 1px solid var(--line); background: var(--panel); padding: 10px 12px; display: grid; gap: 6px; }
+.at-sg { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.at-sg span { font: 700 12px/1.25 var(--sans); }
+.at-sg small { display: block; font: 500 11px/1.25 var(--sans); color: var(--dim); }
+
+/* ── 반품 데이터 ─────────────────────────────────────────── */
+.rt .je td .blank { color: var(--red-2); font-style: normal; font-weight: 700; }
+
+/* ── 현장 공정 대조 ───────────────────────────────────────── */
+.st-t td { vertical-align: middle; word-break: keep-all; }
+.st-ph { display: inline-block; font: 600 12px/1.35 var(--sans); padding: 4px 7px; background: var(--panel-2); border-left: 3px solid var(--strong); }
+.st-t .flag-b { width: auto; min-width: 72px; padding: 6px 8px; }
