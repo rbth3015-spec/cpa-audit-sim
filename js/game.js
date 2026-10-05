@@ -150,7 +150,15 @@
     if (/품질/.test(std)) return ['품질', '관리'];
     return ['개념', '카드'];
   }
+  // 대화 중에 생긴 수집 알림은 모아 두었다가 대화창이 닫힌 뒤에 띄운다 — 대화창 머리(나의 시점 · 시각)를 가리지 않게
+  var held = [];
+  function flushHeld() {
+    var h = held;
+    held = [];
+    h.forEach(function (o, i) { setTimeout(function () { collect(o); }, 250 + i * 420); });
+  }
   function collect(o) {
+    if (MESSENGER && MESSENGER.isOpen()) { held.push(o); return; }
     var box = $('#toasts'), add = o.add || 1, from = Math.max(0, o.n - add), all = Math.max(1, o.all);
     var t = document.createElement('div');
     t.className = 'toast ct k-' + o.kind;
@@ -209,7 +217,7 @@
       (O[g] || []).forEach(function (k) {
         if (seen[k] || !C[k]) return;
         seen[k] = 1;
-        (C[k].facts || []).forEach(function (f) {
+        (window.SEASONS ? window.SEASONS.facts(k) : (C[k].facts || [])).forEach(function (f) {
           if (f.open) return;
           by[f.id] = { who: k, t: f.t };
           all++;
@@ -412,6 +420,7 @@
         onSeen: newFacts,
         onDone: function () {
           newFacts();
+          flushHeld();
           var d = { E: S.gauge.E - before.E, T: S.gauge.T - before.T, R: S.gauge.R - before.R, C: S.rel.company - before.C };
           updateHud(d);
           saveRun(true);
@@ -576,7 +585,8 @@
     if (run.company && window.SEASONS) window.SEASONS.use(run.company);
     S = SEASON.restore(run.snap);
     mode = 'season';
-    prevSeat = null; lastAt = null;
+    // 앞 장면의 자리 · 시각을 되살린다 — 이어하기 뒤 첫 장면에도 「3주 뒤」 · 시점 이동이 이어지게
+    prevSeat = run.seat || null; lastAt = run.lastAt || null;
     buildShell();
     if (run.after) nextStep();
     else enterScene();
@@ -585,7 +595,7 @@
   function saveRun(after) {
     if (mode !== 'season' || !S) return;
     save(RUN, { snap: SEASON.snapshot(S), after: !!after, at: Date.now(),
-                company: window.SEASONS ? window.SEASONS.current().id : null });
+                company: window.SEASONS ? window.SEASONS.current().id : null, seat: prevSeat, lastAt: lastAt });
   }
 
   /* ============================================================
@@ -1571,7 +1581,7 @@
         (happy ? '<i class="eb-c" style="background-image:url(' + bg + ')"></i>' : '') + '</div>' +
       '<article class="notice">' +
         '<header class="n-head"><div><span class="k">감사인 감리 결과 통지 · 1년 뒤</span><h1>' + esc(window.COMPANY.name + ' ' + window.COMPANY.fy.replace(/년.*/, '년') + ' 회계연도 감사') + '</h1></div>' +
-          '<dl><div><dt>시즌</dt><dd>' + S.seed + '</dd></div><div><dt>정답 의견</dt><dd>' + esc(dec ? dec.kind + (S.opinionOK ? ' · 맞힘' : ' · 틀림') : '미표명') + '</dd></div>' +
+          '<dl><div><dt>시즌</dt><dd>' + S.seed + '</dd></div><div><dt>정답 의견</dt><dd>' + esc(dec ? dec.kind + (S.opinionOK ? ' · 맞힘' : S.opinionNear ? ' · 수위 착오' : ' · 틀림') : '미표명') + '</dd></div>' +
           '<div><dt>편철 조서</dt><dd>' + papers.length + '장</dd></div></dl></header>' +
         '<section class="n-grade"><span class="big ' + (a.tone === 'bad' ? 'bad' : a.tone === 'warn' ? 'warn' : '') + '">' + grade + '</span>' +
           '<div><h2>' + esc(a.title) + '</h2><p>' + esc(a.text) + '</p></div>' +

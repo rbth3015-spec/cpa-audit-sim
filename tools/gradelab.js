@@ -17,7 +17,7 @@ const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 const ctx = { console, Math, JSON, Date }; ctx.window = ctx; vm.createContext(ctx);
 for (const f of ['data/lexicon.js', 'data/cast.js', 'data/scenes1.js', 'data/scenes2.js', 'data/truth.js', 'data/cases.js',
-                 'data/minis.js', 'data/story.js', 'data/deck.js', 'data/raon.js', 'data/gureum.js',
+                 'data/minis.js', 'data/story.js', 'data/deck.js', 'data/raon.js', 'data/gureum.js', 'data/haneul.js',
                  'js/engine.js', 'js/minis.js', 'js/story.js', 'js/season.js', 'data/seasons.js'])
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
 
@@ -121,7 +121,7 @@ function sweep(label, scenes) {
 }
 
 let rows = [];
-(only ? [only] : ['seorin', 'raon', 'gureum']).forEach(id => {
+(only ? [only] : SEASONS.list().map(b => b.id)).forEach(id => {
   SEASONS.use(id);
   rows = rows.concat(sweep(SEASONS.current().name, ctx.SCENES));
 });

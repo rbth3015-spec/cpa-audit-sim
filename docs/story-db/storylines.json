@@ -8,6 +8,7 @@
 
     {
       "id": "haneul",
+      "status": "implemented — data/haneul.js (2026-09-30). 미니게임 ic(내부거래 대사)는 js/minis.js",
       "title": "바다 건너 숫자",
       "company": {
         "name": "㈜한울그룹", "market": "유가증권 상장", "industry": "전자부품 지주회사 · 연결 종속 6곳",
@@ -135,6 +136,7 @@
 
     {
       "id": "daon",
+      "status": "design only",
       "title": "계산대 뒤의 통제",
       "company": {
         "name": "㈜다온마켓", "market": "코스닥 상장", "industry": "식자재 유통 · 매장 84곳 · 온라인몰",
@@ -237,6 +239,7 @@
 
     {
       "id": "haesol",
+      "status": "design only",
       "title": "공정률의 거짓말",
       "company": {
         "name": "㈜해솔건설", "market": "코스닥 상장", "industry": "중견 건설 · 주택 · 물류센터 시공",

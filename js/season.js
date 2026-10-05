@@ -138,7 +138,7 @@
       cards: { learned: {}, review: {} },
       log: [], results: [], papers: [], sideSeen: {}, sideDone: [], sideAt: {},
       streak: 0, best: 0,
-      late: false, mis: null, decision: null, opinionOK: false
+      late: false, mis: null, decision: null, opinionOK: false, opinionNear: false, opinionPick: null
     };
     // 사람과의 관계 · 메신저 기록 (js/story.js)
     if (global.STORY) global.STORY.init(S);
@@ -377,8 +377,14 @@
     if (sc.dynamic === 'opinion' && S.decision) {
       var right = allMust.some(function (m) { return m.hit && m.label === S.decision.kind + ' 표명'; });
       // 여러 의견을 걸쳐 쓰면 맞힌 것이 아니다. 감사의견은 하나다.
-      var hedged = allTrap.some(function (t) { return t.hit && t.label.indexOf('오답 의견') === 0; });
+      var wrongs = allTrap.filter(function (t) { return t.hit && t.label.indexOf('오답 의견') === 0; })
+        .map(function (t) { return t.label.replace(/^오답 의견 — /, ''); });
+      var hedged = wrongs.length > 0;
       S.opinionOK = right && !hedged;
+      // 수위 착오 — 사유(왜곡표시 · 범위제한)는 맞게 봤는데 전반성 판단만 틀린 경우. 방향이 틀린 것보다 가볍게 본다
+      var FAMILY = { mis: ['한정의견', '부적정의견'], scope: ['한정의견', '의견거절'] }[S.decision.basis] || [];
+      S.opinionPick = !right && wrongs.length === 1 ? wrongs[0] : null;
+      S.opinionNear = !!S.opinionPick && FAMILY.indexOf(S.opinionPick) >= 0 && FAMILY.indexOf(S.decision.kind) >= 0;
     }
 
     var delta = { E: S.gauge.E - before.E, T: S.gauge.T - before.T,
@@ -450,7 +456,9 @@
     var pct = res.percent;
     var cost = (c.cost || 4) * TIME_SCALE * seat.time + (meta.over || 0) / 40 + (meta.timedOut ? 3 * meta.timedOut : 0);
     S.gauge.T = clamp(Math.round(S.gauge.T - cost), 0, 100);
-    S.gauge.R = clamp(Math.round(S.gauge.R + (pct >= 80 ? 5 : pct >= 60 ? 2 : -3) - traps * 6 - (vWrong ? 3 : 0)), 0, 100);
+    // 돌발 업무는 스스로 맡는 일이다 — 잘하면 +5, 못해도 신뢰는 6까지만 깎는다 (맡기를 겁내지 않게)
+    var dR = (pct >= 80 ? 5 : pct >= 60 ? 2 : -2) - traps * 3 - (vWrong ? 2 : 0);
+    S.gauge.R = clamp(Math.round(S.gauge.R + Math.max(-6, dR)), 0, 100);
     S.gauge.E = clamp(Math.round(S.gauge.E + (pct >= 80 ? 2 : 0) + Math.min(2, meta.clues || 0)), 0, 100);
     events.push(pct >= 80 ? { kind: 'clear', text: '요청 처리 완료 · 신뢰 상승' }
               : pct >= 60 ? { kind: 'flag', text: '요청 처리 · 일부 누락' }
@@ -539,7 +547,9 @@
   function decide(S) {
     var m = S.mis || misstatements(S);
     var E = S.gauge.E;
-    var pervasive = m.total >= 60 || m.over >= 3;
+    // 전반성 — 미수정 합계가 회사 규모에 비해 크거나(기본 60억, 회사가 pervasiveAt 으로 정할 수 있다) 중요성을 넘는 항목이 셋 이상
+    var PV = (global.COMPANY && global.COMPANY.pervasiveAt) || 60;
+    var pervasive = m.total >= PV || m.over >= 3;
     var kind, basis;
     if (E < 45) {
       basis = 'scope';
@@ -658,7 +668,7 @@
   /* ---------- 저장 · 이어하기 ----------
      장면이 끝날 때마다 저장한다. 함수가 든 객체(it, def, rand)는 빼고 id 로 다시 잇는다. */
   var KEEP = ['i', 'gauge', 'rel', 'flags', 'hits', 'cards', 'log', 'sideSeen', 'sideDone', 'sideAt',
-              'late', 'mis', 'decision', 'opinionOK', 'papers', 'streak', 'best', 'story', 'bond'];
+              'late', 'mis', 'decision', 'opinionOK', 'opinionNear', 'opinionPick', 'papers', 'streak', 'best', 'story', 'bond'];
   function snapshot(S) {
     var o = { v: 6, seed: S.seed, at: Date.now() };
     KEEP.forEach(function (k) { o[k] = clone(S[k]); });
@@ -760,6 +770,7 @@
     var ethicsBad = global.STORY ? global.STORY.ethicsBad(S) : [];
     var ctx = {
       gauge: S.gauge, rel: S.rel, flags: S.flags, opinionOK: S.opinionOK, seat: S.seat,
+      opinionNear: !!S.opinionNear, opinionPick: S.opinionPick || null,
       misTotal: S.mis ? S.mis.total : 0,
       foundAmount: r1(found), missedAmount: r1(missed), decision: S.decision,
       bond: S.bond || {}, ethicsBad: ethicsBad

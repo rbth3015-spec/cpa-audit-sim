@@ -8,6 +8,7 @@
      SEASONS.list()        고를 수 있는 회사들
      SEASONS.use(id)       그 회사로 바꾼다 (window.COMPANY · SCENES · TRUTH · STORYDATA 교체)
      SEASONS.current()     지금 회사
+     SEASONS.facts(who)    지금 회사에서 보이는 인물 사실 (co 표시가 다른 회사면 뺀다)
 
    새 회사를 넣는 법
      data/<회사>.js 에서 window.SEASON_<회사> = { COMPANY, SCENES, TRUTH, STORY, CAST } 로 담고
@@ -37,6 +38,24 @@
       tag: 'IT 통제 · 데이터', art: 'server', data: global.SEASON_GUREUM,
       brief: '거래 340만 건을 시스템이 인식한다. 운영 DB 권한이 개발팀에 열려 있다.' });
   }
+  if (global.SEASON_HANEUL) {
+    BOOK.push({ id: 'haneul', name: '㈜한울그룹', market: '유가증권', industry: '전자부품 지주 · 연결 6곳',
+      tag: '그룹감사 · 부문감사인', art: 'board', data: global.SEASON_HANEUL,
+      brief: '연결 종속 여섯 곳. 베트남 부문감사인이 세무자문도 맡고 있다.' });
+  }
+
+  // 인물 사실은 그 회사 이야기에서만 열린다 — 회사 표시(co)를 붙여 두고 지금 회사 것만 센다
+  //   법인 팀원 사실 중 회사 이야기에 딸린 것은 cast.js 에 co 를 직접 적는다
+  function tagFacts(cast, keys, co) {
+    keys.forEach(function (k) {
+      ((cast[k] || {}).facts || []).forEach(function (f) { if (!f.open && !f.co) f.co = co; });
+    });
+  }
+  tagFacts(global.CAST, (global.CAST_ORDER || {}).client || [], 'seorin');
+  BOOK.forEach(function (b) { if (b.data.CAST) tagFacts(b.data.CAST, Object.keys(b.data.CAST), b.id); });
+  // 공통 인물 원본 — 다른 회사가 같은 키(예: raon)를 덮어써도 돌아올 때 되돌린다
+  var BASE_CAST = {};
+  Object.keys(global.CAST).forEach(function (k) { BASE_CAST[k] = global.CAST[k]; });
 
   var cur = BOOK[0];
 
@@ -54,7 +73,8 @@
     global.SCENES = b.data.SCENES;
     global.TRUTH = b.data.TRUTH;
     global.STORYDATA = b.data.STORY;
-    // 회사 쪽 인물 — 공통 인물(법인 · 외부)에 이어 붙인다
+    // 회사 쪽 인물 — 공통 인물(법인 · 외부)에 이어 붙인다. 앞 회사가 덮어쓴 공통 인물은 먼저 되돌린다
+    Object.keys(BASE_CAST).forEach(function (k) { global.CAST[k] = BASE_CAST[k]; });
     if (b.data.CAST) Object.keys(b.data.CAST).forEach(function (k) { global.CAST[k] = b.data.CAST[k]; });
     if (b.data.CAST_ORDER) global.CAST_ORDER.client = b.data.CAST_ORDER;
     if (global.SEASON && global.SEASON.resetCards) global.SEASON.resetCards();
@@ -68,5 +88,11 @@
     use(keep);
   }
 
-  global.SEASONS = { list: list, current: current, use: use, find: find, each: each };
+  /* 지금 회사에서 보이는 인물 사실 — 다른 회사 이야기에만 나오는 사실은 빼고 */
+  function facts(who) {
+    var c = global.CAST[who];
+    return ((c && c.facts) || []).filter(function (f) { return !f.co || f.co === cur.id; });
+  }
+
+  global.SEASONS = { list: list, current: current, use: use, find: find, each: each, facts: facts };
 })(window);

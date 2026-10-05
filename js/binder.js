@@ -280,7 +280,7 @@
     }).join('');
 
     var c = C[who], b = st.bond[who];
-    var fl = (c.facts || []).map(function (f) {
+    var fl = (global.SEASONS ? global.SEASONS.facts(who) : (c.facts || [])).map(function (f) {
       var open = f.open || facts[f.id];
       return open ? '<li>' + esc(f.t) + '</li>' : '<li class="hid"><span>' + String(f.t).replace(/\S/g, '■') + '</span></li>';
     }).join('');

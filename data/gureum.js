@@ -847,6 +847,21 @@
             reply: [{ from: 'itops', t: '정책 문서는 내일 드리겠습니다.' }] }
         ] } },
 
+      /* 데이터 분석 뒤 — 재무이사가 성과보상 얘기를 흘린다 (부정위험요소 · 유인) */
+      { id: 'gur_bonus', at: 'g3', room: 'dm:gcfo', pov: 'manager', time: '1. 15. (목) 18:30', bg: 'office',
+        facts: ['gf_bonus'],
+        msgs: [
+          { from: 'gcfo', t: '유 회계사님, 결산 일정 때문에 연락드렸습니다.' },
+          { from: 'gcfo', t: '올해 매출 목표만 넘기면 임원 성과급이 나와요. 저도 걸려 있고요.' },
+          { from: 'gcfo', t: '숫자는 시스템이 맞추니까 걱정 안 하셔도 됩니다.' }
+        ],
+        choice: { opts: [
+          { t: '성과보상 구조는 부정위험 평가에 반영하겠습니다.', fx: { R: 1, C: -2 },
+            reply: [{ from: 'gcfo', t: '…원칙대로 하시죠.' }] },
+          { t: '일정은 맞춰 드리겠습니다.', fx: { C: 2 },
+            reply: [{ from: 'gcfo', t: '감사합니다. 든든하네요.', mood: 'good' }] }
+        ] } },
+
       { id: 'gur_query', at: 'g3', room: 'dm:kyuri', pov: 'assoc', time: '1. 14. (목) 00:20', bg: 'server',
         msgs: function (S) {
           var ghost = !!(S.active && S.active.ghost_bill);
@@ -935,10 +950,12 @@
             hit(S, 'g2#' + L.log)
               ? { from: 'eqr', t: '권한 결함 대응은 로그까지 붙어 있군요.', mood: 'good' }
               : { from: 'eqr', t: 'IT통제 결함인데 실증 확대 근거가 없습니다.', mood: 'bad' },
-            { from: 'eqr', t: '발행 전에 보완하겠습니까?' }
+            hit(S, 'g2#' + L.log)
+              ? { from: 'eqr', t: '발행일에 뵙겠습니다.' } : { from: 'eqr', t: '발행 전에 보완하겠습니까?' }
           ];
         },
-        choice: { opts: [
+        // 근거가 붙어 있으면 보완을 묻지 않는다 (서린정밀 s9_eqr 과 같은 구조)
+        choice: { when: function (S) { return !hit(S, 'g2#' + L.log); }, opts: [
           { t: '오늘 밤 보완 조서 올리겠습니다.', fx: { T: -4, E: 4 },
             reply: [{ from: 'eqr', t: '내일 아침 9시에 보겠습니다.' }] },
           { t: '기한이 빠듯합니다. 이대로 가겠습니다.', fx: { R: -2 },
