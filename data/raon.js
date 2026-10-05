@@ -887,7 +887,7 @@
     FATES: [
       { who: 'raon', list: [
         { when: function (s) { return s.missedAmount >= 60; }, t: '증자는 성사됐다. 1년 뒤 재무제표 재작성과 함께 사임했다.' },
-        { when: function (s) { return s.foundAmount >= 60; }, t: '수정 재무제표로 증자가 무산됐다. 회사를 떠났다.' },
+        { when: function (s) { return s.foundAmount >= 60; }, t: '감사에서 드러난 숫자로 증자가 무산됐다. 회사를 떠났다.' },
         { when: function () { return true; }, t: '증자를 마치고 상장을 지켰다. 다음 해에도 같은 자리에 있었다.' }
       ] },
       { who: 'ceo2', list: [

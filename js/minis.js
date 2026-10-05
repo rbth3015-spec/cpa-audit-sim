@@ -1106,5 +1106,389 @@
     }
   };
 
-  global.MINIS = { count: count, jet: jet, cutoff: cutoff, confirm: confirm, unrec: unrec, sample: sample, ic: ic };
+  /* ============================================================
+     통제 표본 — 승인 문서 25장의 속성 검사 (통제테스트)
+     서명 · 승인일 · 승인 한도를 본다. 같은 필체 두 장은 고의(위조) 가능성
+     표본 이탈률이 허용이탈률을 넘으면 통제에 의존할 수 없다
+     ============================================================ */
+  var AT_DEFS = [
+    { key: 'nosig', label: '서명 없는 승인 — 이탈', score: 15,
+      why: '통제테스트 — 승인 서명이 없으면 통제가 수행되지 않은 것. 이탈로 집계' },
+    { key: 'late', label: '조정 뒤 승인 — 사후 승인 이탈', score: 15,
+      why: '사후 승인 — 조정이 먼저 반영되고 승인이 뒤에 오면 예방 통제로 작동하지 않았다' },
+    { key: 'limit', label: '승인 한도 초과 — 권한 없는 승인', score: 15,
+      why: '승인 권한 — 한도를 넘는 건을 권한 없는 사람이 승인하면 이탈' },
+    { key: 'forge', label: '같은 필체 두 장 — 고의(위조) 가능성', score: 20,
+      why: '이탈의 성격 — 같은 필체로 다른 사람 서명이 반복되면 단순 실수가 아니라 고의 가능성. 부정위험 평가로 이어진다' },
+    { key: 'rely', label: '이탈률이 허용이탈률 초과 — 통제 의존 불가', score: 25,
+      why: '통제테스트 결론 — 표본 이탈률(또는 상한)이 허용이탈률을 넘으면 의존하지 않고 실증절차를 늘린다' },
+    { key: null, label: '정상 문서를 이탈로 표시하지 않음', score: 10 }
+  ];
+  var AT_TX = { ok: '—', dev: '✗ 이탈', intent: '⚠ 고의 의심' };
+  // 필체 — 같은 손은 같은 선. 시드로 그리는 짧은 필기선
+  function sigSvg(hand, cls) {
+    if (!hand) return '<span class="sig none">서명 없음</span>';
+    var R = rng(hand * 7919 + 13), x = 6, d = 'M' + x + ' ' + (14 + R() * 6).toFixed(1);
+    for (var i = 0; i < 5; i++) {
+      var x1 = x + 4 + R() * 6, x2 = x + 8 + R() * 8, nx = x + 12 + R() * 6;
+      d += ' C' + x1.toFixed(1) + ' ' + (2 + R() * 10).toFixed(1) + ' ' + x2.toFixed(1) + ' ' + (16 + R() * 10).toFixed(1) + ' ' + nx.toFixed(1) + ' ' + (8 + R() * 12).toFixed(1);
+      x = nx;
+    }
+    return '<svg class="sig ' + (cls || '') + '" viewBox="0 0 96 30" aria-hidden="true"><path d="' + d + '"/></svg>';
+  }
+
+  var attr = {
+    name: '통제 표본',
+    labels: function () { return AT_DEFS.map(function (d) { return { label: d.label, score: d.score, why: d.why }; }); },
+    traps: function () { return [{ label: '이탈이 있는데 통제에 의존', score: -15, please: true }]; },
+    build: function (seed) {
+      var D = MD().attr, R = rng(seed || 1);
+      return { D: D, rows: shuffle(D.rows.slice(), R) };
+    },
+    grade: function (M, st) {
+      st = st || {};
+      var mark = st.mark || {};
+      function devOf(k) { return M.rows.filter(function (r) { return r.dev === k; }); }
+      var hits = [
+        devOf('nosig').every(function (r) { return mark[r.id] === 'dev' || mark[r.id] === 'intent'; }),
+        devOf('late').every(function (r) { return mark[r.id] === 'dev' || mark[r.id] === 'intent'; }),
+        devOf('limit').every(function (r) { return mark[r.id] === 'dev' || mark[r.id] === 'intent'; }),
+        devOf('forge').every(function (r) { return mark[r.id] === 'intent'; }),
+        st.decide === 'no',
+        false
+      ];
+      var falses = M.rows.filter(function (r) { return !r.dev && mark[r.id] && mark[r.id] !== 'ok'; }).length;
+      hits[5] = falses === 0 && M.rows.some(function (r) { return mark[r.id] && mark[r.id] !== 'ok'; });
+      var trap = st.decide === 'yes' ? [{ label: '이탈이 있는데 통제에 의존', score: -15, got: -15, hit: true, please: true }] : [];
+      if (falses) trap.push({ label: '정상 문서를 이탈로 표시', score: -5 * falses, got: -5 * falses, hit: true });
+      var r = pack(scored(AT_DEFS, hits), trap);
+      var n = M.rows.filter(function (x) { return mark[x.id] && mark[x.id] !== 'ok'; }).length;
+      r.detail = { flagged: n, rate: Math.round(n / M.rows.length * 100), real: M.rows.filter(function (x) { return x.dev; }).length,
+                   intent: devOf('forge').filter(function (x) { return mark[x.id] === 'intent'; }).length, decide: st.decide || null };
+      return r;
+    },
+    summary: function (M, st, g) {
+      var d = g.res.detail || {};
+      return '이탈 표시 ' + d.flagged + '건(' + d.rate + '%) · 고의 의심 ' + d.intent + '/2 · ' + (d.decide === 'no' ? '의존 불가' : d.decide === 'yes' ? '의존' : '판정 없음');
+    },
+    perfect: function (M) {
+      var mark = {};
+      M.rows.forEach(function (r) { if (r.dev) mark[r.id] = r.dev === 'forge' ? 'intent' : 'dev'; });
+      return { mark: mark, decide: 'no' };
+    },
+
+    mount: function (host, M, api) {
+      var D = M.D, st = { mark: {}, decide: null };
+      var HAND = {};
+      D.signers.forEach(function (s) { HAND[s.name] = s; });
+      host.innerHTML =
+        '<div class="mg at">' +
+          '<div class="mg-bar"><b>' + esc(D.title) + '</b>' +
+            '<span class="mg-stat">표본 <b>' + M.rows.length + '건</b></span>' +
+            '<span class="mg-stat lim">허용이탈률 ' + D.tol + '%</span>' +
+            '<span class="mg-stat">이탈 표시 <b data-k="n">0</b></span>' +
+            '<button type="button" class="btn sm" data-act="done">검사 종료 <kbd>Ctrl Enter</kbd></button></div>' +
+          '<div class="mg-hint">통제 — ' + esc(D.rule) + '. 표시를 누를 때마다 <b>이탈 → 고의 의심 → 정상</b>으로 바뀐다.</div>' +
+          '<div class="mg-split">' +
+            '<div class="at-wrap"><table class="mg-t at-t"><thead><tr><th>문서</th><th>조정일</th><th class="n">금액</th><th>승인자</th><th>서명</th><th>승인일</th><th>표시</th></tr></thead>' +
+              '<tbody data-k="rows"></tbody></table></div>' +
+            '<div><div class="sp-ws" data-k="ws"></div>' +
+              '<div class="at-ref"><div class="ws-k">서명 견본</div>' + D.signers.map(function (s) {
+                return '<div class="at-sg"><span>' + esc(s.name) + '<small>' + esc(s.role) + '</small></span>' + sigSvg(s.hand) + '</div>';
+              }).join('') + '</div></div>' +
+          '</div>' +
+        '</div>';
+      var $ = function (k) { return host.querySelector('[data-k="' + k + '"]'); };
+      function draw() {
+        $('rows').innerHTML = M.rows.map(function (r) {
+          var m = st.mark[r.id] || 'ok';
+          return '<tr class="' + (m !== 'ok' ? 'on' : '') + '"><td class="mono">' + r.id + '</td><td class="mono">' + esc(r.day) + '</td>' +
+            '<td class="n">' + won(r.amt) + '만</td><td>' + (r.appr ? esc(r.appr) : '<span class="dim">—</span>') + '</td>' +
+            '<td>' + sigSvg(r.hand) + '</td><td class="mono">' + (r.aday ? esc(r.aday) : '—') + '</td>' +
+            '<td><button type="button" class="flag-b at-b ' + m + '" data-mark="' + r.id + '">' + AT_TX[m] + '</button></td></tr>';
+        }).join('');
+        var n = M.rows.filter(function (r) { return st.mark[r.id] && st.mark[r.id] !== 'ok'; }).length;
+        var rate = n / M.rows.length * 100, scale = Math.max(D.tol * 3, rate);
+        $('n').textContent = n;
+        $('ws').innerHTML =
+          '<div class="ws-row big"><span>표본 이탈률</span><b class="' + (rate > D.tol ? 'over' : '') + '">' + rate.toFixed(0) + '%</b></div>' +
+          '<div class="ws-bar"><i class="fill' + (rate > D.tol ? ' over' : '') + '" style="width:' + Math.min(100, rate / scale * 100).toFixed(1) + '%"></i>' +
+            '<i class="tol" style="left:' + (D.tol / scale * 100).toFixed(1) + '%"><b>허용 ' + D.tol + '%</b></i></div>' +
+          '<div class="ws-k">결론</div><div class="ws-opts two">' +
+            '<button type="button" class="act-b' + (st.decide === 'yes' ? ' on' : '') + '" data-decide="yes">통제에 의존</button>' +
+            '<button type="button" class="act-b' + (st.decide === 'no' ? ' on' : '') + '" data-decide="no">의존 불가 — 실증 확대</button></div>';
+      }
+      host.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-mark],[data-decide],[data-act]');
+        if (!b || !host.contains(b)) return;
+        if (b.getAttribute('data-act') === 'done') return api.submit();
+        if (b.hasAttribute('data-mark')) {
+          var id = b.getAttribute('data-mark'), cur = st.mark[id] || 'ok';
+          st.mark[id] = cur === 'ok' ? 'dev' : cur === 'dev' ? 'intent' : 'ok';
+          api.sound && api.sound(st.mark[id] === 'ok' ? 'tick' : 'stampSm');
+        } else if (b.hasAttribute('data-decide')) {
+          st.decide = b.getAttribute('data-decide');
+          api.sound && api.sound('stamp');
+        }
+        draw();
+      });
+      var off = doneKey(api);
+      draw();
+      return { state: function () { return JSON.parse(JSON.stringify(st)); }, destroy: off };
+    },
+
+    review: function (M, st) {
+      st = st || {};
+      var mark = st.mark || {};
+      var WHY = { nosig: '서명 없음', late: '조정 뒤 승인', limit: '한도 초과 승인', forge: '같은 필체 — 위조 가능성' };
+      var rows = M.rows.filter(function (r) { return r.dev; }).map(function (r) {
+        var m = mark[r.id] || 'ok', ok = r.dev === 'forge' ? m === 'intent' : m !== 'ok';
+        return '<tr class="' + (ok ? 'ok' : 'no') + '"><td class="mono">' + r.id + '</td><td>' + WHY[r.dev] + '</td><td class="dim">' + esc(r.note || '') + '</td>' +
+          '<td class="n">' + (ok ? '✓' : m === 'ok' ? '놓침' : AT_TX[m]) + '</td></tr>';
+      }).join('');
+      return '<table class="rv-t"><caption>이탈 5건 / 25건 = 20% — 허용이탈률 ' + M.D.tol + '%를 넘어 통제에 의존할 수 없다</caption>' + rows + '</table>';
+    }
+  };
+
+  /* ============================================================
+     반품 데이터 — 추출 조건 설계 (POS 반품)
+     심야 · 원거래 없음 · 같은 관리자 · 같은 금액 같은 조건으로 부정 반품을 20건 안에서 잡는다
+     ============================================================ */
+  var RT_BASE = [
+    { key: 'night', label: '심야 · 영업시간 외 반품', score: 15,
+      why: '반품 데이터 분석 — 영업시간 밖 반품은 손님 없이 만들어진 거래일 가능성. 추출 조건의 출발점' },
+    { key: 'noorig', label: '원거래 없는 반품', score: 15,
+      why: '원거래 대사 — 판매 기록이 없는 반품은 실재성이 없다. 반품은 원거래와 결합해 본다' },
+    { key: null, label: '추출 건수를 한도 안으로', score: 10,
+      why: '추출 조건 설계 — 넓게 걸면 다 볼 수 없다. 위험 특성을 조합해 볼 수 있는 건수로' }
+  ];
+
+  var ret = {
+    name: '반품 데이터',
+    labels: function () {
+      var D = MD().ret || { rows: [] };
+      return RT_BASE.map(function (d) { return { label: d.label, score: d.score, why: d.why }; })
+        .concat(D.rows.filter(function (r) { return r.risk; }).map(function (r) { return { label: '부정 반품 추출 — ' + r.risk, score: 12 }; }));
+    },
+    traps: function () { return []; },
+    build: function (seed) {
+      var D = MD().ret, R = rng(seed || 1);
+      return { D: D, rows: shuffle(D.rows.slice(), R) };
+    },
+    grade: function (M, st) {
+      var on = (st && st.on) || [];
+      var ex = M.rows.filter(function (r) { return r.tags.some(function (t) { return on.indexOf(t) >= 0; }); });
+      var n = ex.length, inLim = n > 0 && n <= M.D.limit;
+      var hits = [on.indexOf('night') >= 0 && inLim, on.indexOf('noorig') >= 0 && inLim, inLim];
+      var must = scored(RT_BASE, hits);
+      if (!inLim && n > M.D.limit && n <= M.D.limit + 4) { must[2].got = 5; must[2].partial = true; }
+      M.D.rows.filter(function (r) { return r.risk; }).forEach(function (r) {
+        var caught = ex.some(function (x) { return x.id === r.id; });
+        must.push({ label: '부정 반품 추출 — ' + r.risk, score: 12, got: caught ? 12 : 0, hit: caught, partial: false });
+      });
+      var res = pack(must, []);
+      if (n > M.D.limit) res.flags.push('추출 ' + n + '건 — 한도 ' + M.D.limit + '건을 넘음');
+      res.detail = { extracted: n, caught: M.D.rows.filter(function (r) { return r.risk && ex.some(function (x) { return x.id === r.id; }); }).length };
+      return res;
+    },
+    summary: function (M, st, g) {
+      var d = g.res.detail || {};
+      return '추출 ' + d.extracted + '건 · 부정 반품 ' + d.caught + '/' + M.D.rows.filter(function (r) { return r.risk; }).length;
+    },
+    perfect: function () { return { on: ['night', 'noorig'] }; },
+
+    mount: function (host, M, api) {
+      var D = M.D, st = { on: [] };
+      var NAME = {};
+      D.criteria.forEach(function (c) { NAME[c.k] = c.name; });
+      function extracted() { return M.rows.filter(function (r) { return r.tags.some(function (t) { return st.on.indexOf(t) >= 0; }); }); }
+      host.innerHTML =
+        '<div class="mg jet rt">' +
+          '<div class="mg-bar"><b>' + esc(D.title) + '</b>' +
+            '<span class="mg-stat">추출 <b data-k="n">0</b> / ' + M.rows.length + '</span>' +
+            '<span class="mg-stat lim">한도 ' + D.limit + '건</span>' +
+            '<span class="mg-stat">' + esc(D.scope) + '</span>' +
+            '<button type="button" class="btn sm" data-act="done">추출 확정 <kbd>Ctrl Enter</kbd></button></div>' +
+          '<div class="crit" data-k="crit"></div>' +
+          '<div class="je-wrap"><table class="je"><thead><tr><th>일자</th><th>시각</th><th>매장</th><th>승인</th><th>원거래</th><th>환불</th><th class="n">금액(원)</th><th>해당 조건</th></tr></thead>' +
+          '<tbody data-k="rows"></tbody></table></div>' +
+        '</div>';
+      var $ = function (k) { return host.querySelector('[data-k="' + k + '"]'); };
+      function draw() {
+        var ex = extracted(), n = ex.length;
+        $('crit').innerHTML = D.criteria.map(function (c, i) {
+          var cnt = M.rows.filter(function (r) { return r.tags.indexOf(c.k) >= 0; }).length;
+          return '<button type="button" class="crit-b' + (st.on.indexOf(c.k) >= 0 ? ' on' : '') + '" data-c="' + c.k + '" title="' + esc(c.tip) + '">' +
+            '<kbd>' + (i + 1) + '</kbd>' + esc(c.name) + '<em>' + cnt + '</em></button>';
+        }).join('');
+        $('rows').innerHTML = M.rows.map(function (r) {
+          var hitT = r.tags.filter(function (t) { return st.on.indexOf(t) >= 0; });
+          return '<tr class="' + (hitT.length ? 'x' : '') + '">' +
+            '<td class="mono">' + esc(r.day) + '</td><td class="mono">' + esc(r.time) + '</td><td>' + esc(r.store) + '</td><td>' + esc(r.appr) + '</td>' +
+            '<td>' + (r.orig ? '<span class="mono">' + esc(r.orig) + '</span>' : '<i class="blank">없음</i>') + '</td><td>' + esc(r.pay) + '</td>' +
+            '<td class="n mono">' + won(r.amt) + '</td>' +
+            '<td class="tags">' + hitT.map(function (t) { return '<span>' + esc(NAME[t]) + '</span>'; }).join('') + '</td></tr>';
+        }).join('');
+        var nb = $('n');
+        nb.textContent = n;
+        nb.parentNode.classList.toggle('over', n > D.limit);
+      }
+      function toggle(k) {
+        var i = st.on.indexOf(k);
+        if (i >= 0) st.on.splice(i, 1); else st.on.push(k);
+        api.sound && api.sound('tick');
+        draw();
+      }
+      host.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-c],[data-act]');
+        if (!b || !host.contains(b)) return;
+        if (b.getAttribute('data-act') === 'done') return api.submit();
+        toggle(b.getAttribute('data-c'));
+      });
+      var off = keyHandler(function (e) {
+        if (/^[1-9]$/.test(e.key) && D.criteria[+e.key - 1]) { e.preventDefault(); toggle(D.criteria[+e.key - 1].k); }
+      });
+      var off2 = doneKey(api);
+      draw();
+      return { state: function () { return { on: st.on.slice() }; }, destroy: function () { off(); off2(); } };
+    },
+
+    review: function (M, st) {
+      var on = (st && st.on) || [];
+      var rows = M.rows.filter(function (r) { return r.risk; }).map(function (r) {
+        var caught = r.tags.some(function (t) { return on.indexOf(t) >= 0; });
+        var names = r.tags.map(function (t) { return (M.D.criteria.filter(function (c) { return c.k === t; })[0] || {}).name; }).join(' · ');
+        return '<tr class="' + (caught ? 'ok' : 'no') + '"><td class="mono">' + esc(r.day + ' ' + r.time) + '</td><td>' + esc(r.risk) + '</td>' +
+          '<td class="dim">' + esc(names) + '</td><td class="n">' + (caught ? '✓ 추출' : '놓침') + '</td></tr>';
+      }).join('');
+      return '<table class="rv-t"><caption>부정 반품 ' + M.rows.filter(function (r) { return r.risk; }).length + '건 — 심야 · 원거래 없음 두 조건이면 한도 안에서 모두 잡힌다</caption>' + rows + '</table>';
+    }
+  };
+
+  /* ============================================================
+     현장 공정 대조 — 보고된 공정률을 현장 사진 · 공정 일보와 맞춘다
+     괴리 난 공종을 표시하고(틀리면 시간이 줄어든다), 다시 잡은 총예정원가로 공정률을 재추정한다
+     ============================================================ */
+  var ST_DEFS = [
+    { key: 'roof', label: '지붕 — 보고 공정률과 현장의 괴리', score: 15,
+      why: '현장 대조 — 보고된 공종별 진척을 사진 · 공정 일보 같은 독립적 증거와 맞춘다' },
+    { key: 'skin', label: '외장 — 보고 공정률과 현장의 괴리', score: 15 },
+    { key: 'mep', label: '설비 — 보고 공정률과 현장의 괴리', score: 15 },
+    { key: null, label: '일치하는 공종을 괴리로 표시하지 않음', score: 10 },
+    { key: 'rate', label: '보고된 공정률과 현장 대조 — 공정률 재추정', score: 30,
+      why: '진행률 — 원가 기준이면 투입 원가 ÷ 다시 잡은 총예정원가. 총예정원가가 과소하면 진행률 · 매출이 부풀어 오른다' },
+    { key: 'ev', label: '공정 일보 원본으로 확인', score: 15,
+      why: '증거 — 본사 보고가 아니라 현장에서 손으로 쓴 공정 일보 원본' }
+  ];
+
+  var site = {
+    name: '현장 공정 대조',
+    labels: function () { return ST_DEFS.map(function (d) { return { label: d.label, score: d.score, why: d.why }; }); },
+    traps: function () { return [{ label: '보고 공정률을 그대로 인정', score: -12, please: true }]; },
+    build: function (seed) {
+      var D = MD().site, R = rng(seed || 1);
+      return { D: D, rows: shuffle(D.works.slice(), R) };
+    },
+    grade: function (M, st) {
+      st = st || {};
+      var mark = st.mark || {}, open = st.open || {};
+      function w(k) { return M.rows.filter(function (r) { return r.k === k; })[0]; }
+      var pr = (M.D.rates.filter(function (x) { return x.k === st.rate; })[0] || {});
+      var gaps = M.rows.filter(function (r) { return r.gap; });
+      var falses = M.rows.filter(function (r) { return !r.gap && mark[r.k]; }).length;
+      var hits = [!!mark.roof && w('roof').gap, !!mark.skin && w('skin').gap, !!mark.mep && w('mep').gap,
+                  falses === 0 && gaps.some(function (r) { return mark[r.k]; }), !!pr.ok,
+                  gaps.every(function (r) { return open[r.k]; })];
+      var trap = st.rate === 'reported' ? [{ label: '보고 공정률을 그대로 인정', score: -12, got: -12, hit: true, please: true }] : [];
+      var r = pack(scored(ST_DEFS, hits), trap);
+      r.detail = { gaps: gaps.filter(function (x) { return mark[x.k]; }).length, falses: falses, rate: pr.v == null ? null : pr.v };
+      return r;
+    },
+    summary: function (M, st, g) {
+      var d = g.res.detail || {};
+      return '괴리 공종 ' + d.gaps + '/3 · 오표시 ' + d.falses + '건 · 재추정 공정률 ' + (d.rate == null ? '고르지 않음' : d.rate + '%');
+    },
+    perfect: function (M) {
+      var mark = {}, open = {};
+      M.rows.forEach(function (r) { if (r.gap) { mark[r.k] = true; open[r.k] = true; } });
+      return { mark: mark, open: open, rate: 're' };
+    },
+
+    mount: function (host, M, api) {
+      var D = M.D, st = { mark: {}, open: {}, rate: null };
+      host.innerHTML =
+        '<div class="mg site">' +
+          '<div class="mg-bar"><b>' + esc(D.title) + '</b>' +
+            '<span class="mg-stat">보고 공정률 <b>' + D.reported + '%</b></span>' +
+            '<span class="mg-stat">계약 ' + D.contract + '억 · 원가 투입 ' + D.spent + '억</span>' +
+            '<span class="mg-stat">괴리 <b data-k="n">0</b></span>' +
+            '<button type="button" class="btn sm" data-act="done">대조 종료 <kbd>Ctrl Enter</kbd></button></div>' +
+          '<div class="mg-hint">공종마다 현장과 본사 보고를 맞춘다. <b>괴리가 아닌 공종</b>을 표시하면 시간이 줄어든다.</div>' +
+          '<div class="mg-split">' +
+            '<div><table class="mg-t st-t"><thead><tr><th>공종</th><th class="n">비중</th><th class="n">보고</th><th>현장 사진</th><th>공정 일보</th><th>판정</th></tr></thead>' +
+              '<tbody data-k="rows"></tbody></table></div>' +
+            '<div class="sp-ws" data-k="ws"></div>' +
+          '</div>' +
+        '</div>';
+      var $ = function (k) { return host.querySelector('[data-k="' + k + '"]'); };
+      function draw() {
+        $('rows').innerHTML = M.rows.map(function (r) {
+          var on = !!st.mark[r.k], op = !!st.open[r.k];
+          return '<tr class="' + (on ? 'on' : '') + '"><td><b>' + esc(r.name) + '</b></td><td class="n">' + r.w + '%</td><td class="n">' + r.rep + '%</td>' +
+            '<td><span class="st-ph">' + esc(r.photo) + '</span></td>' +
+            '<td>' + (op ? '<span class="ev-open">' + esc(r.log) + '</span>' : '<button type="button" class="ev-b" data-open="' + r.k + '">일보 보기</button>') + '</td>' +
+            '<td><button type="button" class="flag-b' + (on ? ' on' : '') + '" data-mark="' + r.k + '">' + (on ? '✗ 괴리' : '일치') + '</button></td></tr>';
+        }).join('');
+        $('n').textContent = M.rows.filter(function (r) { return st.mark[r.k]; }).length;
+        var pr = D.rates.filter(function (x) { return x.k === st.rate; })[0];
+        $('ws').innerHTML =
+          '<div class="ws-k">원가 기준 진행률</div>' +
+          '<div class="ws-row"><span>원가 투입 누계</span><b>' + D.spent + '억</b></div>' +
+          '<div class="ws-row"><span>회사 총예정원가</span><b>' + D.eac + '억</b></div>' +
+          '<div class="ws-row"><span>다시 잡은 총예정원가</span><b>' + D.eac2 + '억</b></div>' +
+          '<div class="ws-k">재추정 공정률 <small>하나</small></div><div class="ws-opts">' + D.rates.map(function (x) {
+            return '<button type="button" class="act-b' + (st.rate === x.k ? ' on' : '') + '" data-rate="' + x.k + '">' + esc(x.t) + '</button>';
+          }).join('') + '</div>' +
+          '<div class="ws-row big"><span>공정률</span><b class="' + (pr && pr.v < D.reported ? 'over' : '') + '">' + (pr ? pr.v + '%' : '—') + '</b></div>';
+      }
+      host.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-mark],[data-open],[data-rate],[data-act]');
+        if (!b || !host.contains(b)) return;
+        if (b.getAttribute('data-act') === 'done') return api.submit();
+        if (b.hasAttribute('data-open')) {
+          st.open[b.getAttribute('data-open')] = true;
+          if (api.spend) api.spend(D.costSec || 3);
+          api.sound && api.sound('flip');
+        } else if (b.hasAttribute('data-mark')) {
+          var k = b.getAttribute('data-mark');
+          st.mark[k] = !st.mark[k];
+          var row = M.rows.filter(function (r) { return r.k === k; })[0];
+          if (st.mark[k] && row && !row.gap && api.spend) api.spend(D.wrongSec || 5);   // 틀린 표시 — 시간이 준다
+          api.sound && api.sound(st.mark[k] ? 'stampSm' : 'tick');
+        } else if (b.hasAttribute('data-rate')) {
+          st.rate = b.getAttribute('data-rate');
+          api.sound && api.sound('tick');
+        }
+        draw();
+      });
+      var off = doneKey(api);
+      draw();
+      return { state: function () { return JSON.parse(JSON.stringify(st)); }, destroy: off };
+    },
+
+    review: function (M, st) {
+      st = st || {};
+      var mark = st.mark || {};
+      var rows = M.rows.map(function (r) {
+        var ok = !!mark[r.k] === !!r.gap;
+        return '<tr class="' + (ok ? 'ok' : 'no') + '"><td>' + esc(r.name) + '</td><td class="dim">' + esc(r.photo) + ' · ' + esc(r.log) + '</td>' +
+          '<td class="n">보고 ' + r.rep + '% · 현장 ' + r.real + '%</td><td class="n">' + (ok ? '✓' : mark[r.k] ? '오표시' : '놓침') + '</td></tr>';
+      }).join('');
+      var right = M.D.rates.filter(function (x) { return x.ok; })[0];
+      return '<table class="rv-t"><caption>괴리 공종 셋(지붕 · 외장 · 설비) — ' + esc(right.t) + '</caption>' + rows + '</table>';
+    }
+  };
+
+  global.MINIS = { count: count, jet: jet, cutoff: cutoff, confirm: confirm, unrec: unrec, sample: sample, ic: ic,
+                   attr: attr, ret: ret, site: site };
 })(typeof window !== 'undefined' ? window : this);

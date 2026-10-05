@@ -136,7 +136,7 @@
 
     {
       "id": "daon",
-      "status": "design only",
+      "status": "implemented — data/daon.js (2026-10-05). 미니게임 attr(승인 서명 대조) · ret(반품 추출)은 js/minis.js",
       "title": "계산대 뒤의 통제",
       "company": {
         "name": "㈜다온마켓", "market": "코스닥 상장", "industry": "식자재 유통 · 매장 84곳 · 온라인몰",
@@ -239,7 +239,7 @@
 
     {
       "id": "haesol",
-      "status": "design only",
+      "status": "implemented — data/haesol.js (2026-10-05). 미니게임 site(공정률 현장 대조)는 js/minis.js",
       "title": "공정률의 거짓말",
       "company": {
         "name": "㈜해솔건설", "market": "코스닥 상장", "industry": "중견 건설 · 주택 · 물류센터 시공",
@@ -326,7 +326,7 @@
       ],
       "beats": [
         { "id": "hs_pro", "at": "pro", "room": "team", "pov": "partner", "gist": "팀 방 — 한결이 안전화를 샀다고 사진을 올린다.", "choice": { "opts": ["현장은 안전이 먼저지", "한결 씨는 평택부터 가게", "원가 파일부터 받게"] } },
-        { "id": "hs_site", "at": "e3", "room": "talk", "pov": "assoc", "place": "평택 현장 컨테이너 사무실", "gist": "장만석이 '공정률은 본사가 불러 준 기라'라고 흘린다.", "choice": { "right": "공정 일보 원본을 보여 주실 수 있을까요", "wrong": ["본사 숫자로 가겠습니다"] } },
+        { "id": "hs_site", "at": "e3", "room": "talk", "pov": "assoc", "place": "평택 현장 사무실", "gist": "장만석이 '공정률은 본사가 불러 준 기라'라고 흘린다.", "choice": { "right": "공정 일보 원본을 보여 주실 수 있을까요", "wrong": ["본사 숫자로 가겠습니다"] } },
         { "id": "hs_cost", "at": "e2", "room": "dm:ecost", "pov": "manager", "gist": "나은비가 '견적이 두 벌이에요'라고 메일 없이 USB 를 건넨다.", "choice": { "ethics": "제보 — 신원 보호 · 증거로 확인", "right": "파일은 우리가 따로 받는 걸로 하죠", "wrong": ["전무님께 확인하겠습니다"] } },
         { "id": "hs_cfo", "at": "e6", "room": "talk", "pov": "partner", "place": "재무담당 전무실", "gist": "하도윤이 '불확실성 단락 들어가면 차환이 막힙니다'.", "choice": { "ethics": "보고 내용을 거래하지 않는다", "right": "공시가 충분하면 단락은 들어갑니다", "wrong": ["차환 뒤로 미루시죠"] } }
       ],

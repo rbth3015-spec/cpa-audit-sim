@@ -1540,6 +1540,7 @@
      감리 결과
      ============================================================ */
   var STATE_TXT = { found: '발견 · 수정 거부', fixed: '발견 · 수정', missed: '놓침', cleared: '없음 확인', lucky: '없었음' };
+  // 금액이 없는 판단의 문제(중요한 취약점 등)는 고칠 숫자가 없다 — '발견 · 보고'
 
   function ending() {
     stopClock();
@@ -1589,9 +1590,9 @@
         '<section class="n-sec"><h3><span>숨어 있던 사실</span><span>발견 ' + E.found + '억 · 놓침 ' + E.missed + '억</span></h3><ul class="redact">' +
           E.rows.map(function (r, i) {
             return '<li style="--d:' + (0.6 + i * 0.35) + 's"><span class="acct">' + esc(r.account) + '</span>' +
-              '<span class="rd"><b>' + esc(r.title) + (r.active ? ' · ' + r.amount.toFixed(1) + '억원' : '') + '</b>' + esc(r.text) +
+              '<span class="rd"><b>' + esc(r.title) + (r.active && !r.nonMonetary ? ' · ' + r.amount.toFixed(1) + '억원' : '') + '</b>' + esc(r.text) +
                 (r.state === 'missed' && r.how ? '<small>' + esc(r.how) + '</small>' : '') + '</span>' +
-              '<span class="st ' + r.state + '">' + esc(STATE_TXT[r.state]) + '</span></li>';
+              '<span class="st ' + r.state + '">' + esc(r.nonMonetary && r.state === 'found' ? '발견 · 보고' : STATE_TXT[r.state]) + '</span></li>';
           }).join('') + '</ul></section>' +
         '<section class="n-sec"><h3><span>시즌 기록</span></h3><div class="n-stats">' +
           '<div><span class="k">평균 점수</span><b>' + avg + '</b></div>' +

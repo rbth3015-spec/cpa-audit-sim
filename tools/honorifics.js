@@ -17,7 +17,7 @@ const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 const ctx = { console, Math, JSON, Date }; ctx.window = ctx; vm.createContext(ctx);
 for (const f of ['data/lexicon.js', 'data/cast.js', 'data/scenes1.js', 'data/scenes2.js', 'data/truth.js', 'data/cases.js',
-                 'data/minis.js', 'data/story.js', 'data/deck.js', 'data/raon.js', 'data/gureum.js', 'data/haneul.js',
+                 'data/minis.js', 'data/story.js', 'data/deck.js', 'data/raon.js', 'data/gureum.js', 'data/haneul.js', 'data/daon.js', 'data/haesol.js',
                  'js/engine.js', 'js/minis.js', 'js/story.js', 'js/season.js', 'data/seasons.js'])
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
 const { SEASON, SEASONS } = ctx;
@@ -149,8 +149,8 @@ function sweepBeats(label, D, scenes) {
       (o.reply || []).forEach(r => {
         if (!r.from) return;
         if (r.from === pov) { issues.push(`${where} 답${i + 1}  시점 인물이 자기에게 답장: "${r.t}"`); return; }
-        // 대면에서 제3자가 끼어들면 그 말은 상대에게 한다
-        const to = b.room === 'talk' && r.from !== other ? other : (team ? top(r.from) : pov);
+        // 대면에서 제3자가 끼어들면 그 말은 상대에게 한다. 팀 방의 답장은 방금 말한 시점 인물에게(부름말이 있으면 그 사람)
+        const to = b.room === 'talk' && r.from !== other ? other : (team ? (vocative(r.t) || pov) : pov);
         say(`${where} 답${i + 1}`, r.from, to, r.t);
       });
     });
@@ -167,7 +167,7 @@ function sweepBeats(label, D, scenes) {
   });
 }
 
-['seorin', 'raon', 'gureum'].forEach(id => {
+SEASONS.list().map(b => b.id).forEach(id => {
   SEASONS.use(id);
   const label = SEASONS.current().name;
   sweepScenes(label, ctx.SCENES);
