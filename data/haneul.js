@@ -658,7 +658,7 @@
           { t: '매니저님, 대사표는 제가 만들어 둘게요.', fx: { E: 1, bond: { kyuri: 5 } },
             reply: [{ from: 'kyuri', t: '양식 보내 줄게요.' }] },
           { t: '선배, 선적 서류는 물류센터에 제가 요청할게요.', fx: { E: 1, bond: { manager: 4 } },
-            reply: [{ from: 'manager', t: '좋아. 29일 선적분 전부.' }] }
+            reply: [{ from: 'manager', t: '한결 씨, 29일 선적분 전부 받아.' }] }
         ] } },
 
       { id: 'han_lan', at: 'h4', room: 'dm:lan', pov: 'assoc', time: '1. 25. (월) 23:10', bg: 'night',
@@ -752,7 +752,7 @@
 
     FATES: [
       { who: 'hcfo', list: [
-        { when: function (s) { return s.foundAmount >= 150; }, t: '손상을 반영한 해에 사임했다. 후임은 가정 표부터 바꿨다.' },
+        { when: function (s) { return s.foundIds.indexOf('gw') >= 0; }, t: '손상을 끝내 인정하지 않았다. 이듬해 사임했고, 후임은 가정 표부터 바꿨다.' },
         { when: function (s) { return s.missedAmount >= 150; }, t: '1년 뒤 영업권 재작성 공시와 함께 물러났다.' },
         { when: function () { return true; }, t: '연결 결산을 계속 총괄했다. 부문 보고 양식을 한 장 늘렸다.' }
       ] },

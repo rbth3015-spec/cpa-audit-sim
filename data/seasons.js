@@ -43,6 +43,16 @@
       tag: '그룹감사 · 부문감사인', art: 'board', data: global.SEASON_HANEUL,
       brief: '연결 종속 여섯 곳. 베트남 부문감사인이 세무자문도 맡고 있다.' });
   }
+  if (global.SEASON_DAON) {
+    BOOK.push({ id: 'daon', name: '㈜다온마켓', market: '코스닥', industry: '식자재 유통 · 매장 84곳',
+      tag: '내부회계 · IT 통제', art: 'server', data: global.SEASON_DAON,
+      brief: '올해 처음 내부회계 감사를 받는다. 경영진 평가는 미비점 없음.' });
+  }
+  if (global.SEASON_HAESOL) {
+    BOOK.push({ id: 'haesol', name: '㈜해솔건설', market: '코스닥', industry: '중견 건설 · 주택 · 물류센터',
+      tag: '추정치 · 계속기업', art: 'warehouse', data: global.SEASON_HAESOL,
+      brief: '진행률로 매출을 잡는다. PF 보증 1,800억원, 미분양이 번지고 있다.' });
+  }
 
   // 인물 사실은 그 회사 이야기에서만 열린다 — 회사 표시(co)를 붙여 두고 지금 회사 것만 센다
   //   법인 팀원 사실 중 회사 이야기에 딸린 것은 cast.js 에 co 를 직접 적는다
