@@ -57,7 +57,7 @@
 .mem .pc.ph { display: grid; place-items: center; padding-bottom: 22px; font-size: 40px; filter: none; }
 .mem div { position: absolute; left: 0; right: 0; bottom: 0; padding: 16px 7px 6px; background: linear-gradient(180deg, transparent, rgba(12, 10, 9, .92)); }
 .mem > div b { display: block; font: 800 13px/1.1 var(--sans); }
-.mem > div span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font: 500 10px/1.25 var(--sans); color: rgba(243, 242, 242, .7); overflow: hidden; word-break: keep-all; }
+.mem > div span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font: 500 10px/1.25 var(--sans); letter-spacing: -.02em; color: rgba(243, 242, 242, .7); overflow: hidden; word-break: keep-all; overflow-wrap: anywhere; }
 .stats-h { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid rgba(243, 242, 242, .25); background: rgba(20, 18, 17, .6); }
 .stats-h div { padding: 10px 14px; border-left: 1px solid rgba(243, 242, 242, .18); }
 .stats-h div:first-child { border-left: 0; }
@@ -69,14 +69,26 @@
 .hist td.mono { font-family: var(--mono); }
 .hist tr:first-child td { border-top: 0; }
 .hist .tone-bad { color: #ff8a76; } .hist .tone-warn { color: #e0a33c; } .hist .tone-ok { color: #8fd1a2; }
+/* 노트북 화면(높이 800 이하) — 홈이 한 화면에 들어오게 줄인다 */
+@media (max-height: 800px) {
+  .home-grid { padding-top: 3vh; padding-bottom: 24px; gap: 40px; }
+  .brand h1 { font-size: clamp(52px, 6.4vw, 92px); }
+  .brand p { margin-top: 12px; font-size: 17px; }
+  .menu { margin-top: 20px; }
+  .menu .m { padding: 11px 16px; }
+  .menu .m b { font-size: 17px; }
+  .home-r { gap: 10px; }
+  .card-d th, .card-d td { padding: 6px 14px; }
+  .mem img, .mem .pc { aspect-ratio: 1 / 1; }
+}
 
 /* ── 연습 고르기 ─────────────────────────────────────── */
 .prac-in { width: min(980px, 100%); background: var(--bg); border: 1px solid var(--strong); box-shadow: 0 30px 80px rgba(0, 0, 0, .5); }
-.prac-h { display: flex; align-items: center; gap: 18px; padding: 18px 22px; background: var(--ink); color: var(--bg); }
+.prac-h { display: flex; align-items: center; gap: 18px; padding: 18px 22px; background: var(--chrome); color: var(--on-chrome); }
 .prac-h h2 { margin: 0; font: 800 24px/1 var(--display); }
 .ptabs { display: flex; gap: 4px; margin-left: 12px; }
 .ptab { font: 700 13px/1 var(--sans); padding: 9px 12px; border: 1px solid rgba(243, 242, 242, .3); color: rgba(243, 242, 242, .8); }
-.ptab.on { background: var(--bg); color: var(--ink); border-color: var(--bg); }
+.ptab.on { background: var(--on-chrome); color: var(--chrome); border-color: var(--on-chrome); }
 .prac-h .x { margin-left: auto; font-size: 22px; color: rgba(243, 242, 242, .7); }
 .prac-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 20px 22px; max-height: 62vh; overflow: auto; }
 .pr-item { display: flex; flex-direction: column; gap: 8px; text-align: left; padding: 14px 16px; background: var(--panel); border: 1px solid var(--strong); transition: transform .12s var(--ease), box-shadow .12s; }
@@ -166,12 +178,12 @@
 .n-seal { margin-left: auto; width: 70px; height: 70px; border-radius: 50%; border: 2px solid var(--red); color: var(--red-2); display: grid; place-items: center; text-align: center; font: 800 12px/1.15 var(--sans); transform: rotate(-10deg); animation: stamp .55s 1.2s var(--ease) both; }
 
 /* 감사 대상 고르기 (회사가 둘 이상일 때) */
-.pick-co { display: grid; grid-auto-flow: column; gap: 6px; }
-.co { border: 1px solid rgba(243, 242, 242, .28); padding: 10px 12px; color: #f3f2f2; background: rgba(20, 18, 17, .55); text-align: left; transition: background .15s, border-color .15s; }
+/* 회사가 여섯 — 이름만 한 줄로 고르고, 논점은 아래 감사 대상 표에 */
+.pick-co { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
+.co { border: 1px solid rgba(243, 242, 242, .28); padding: 11px 4px; color: #f3f2f2; background: rgba(20, 18, 17, .55); text-align: center; transition: background .15s, border-color .15s; }
 .co:hover { border-color: rgba(243, 242, 242, .6); }
 .co.on { background: var(--red); border-color: var(--red); }
-.co b { display: block; font: 800 14px/1.2 var(--sans); }
-.co span { display: block; margin-top: 3px; font: 500 11px/1.2 var(--mono); opacity: .75; }
+.co b { display: block; font: 800 clamp(12px, .95vw, 14px)/1.2 var(--sans); white-space: nowrap; overflow: hidden; text-overflow: clip; letter-spacing: -.01em; }
 
 /* ── 흑백 → 컬러 ─────────────────────────────────────
    사진 원본은 컬러다. 게임 내내 흑백으로 보여 주다가,
@@ -223,8 +235,7 @@
 .cr-last h2 em { color: var(--red); font-style: normal; margin-left: 12px; }
 .cr-end { display: inline-block; margin-top: 30px; padding: 12px 16px; border: 3px solid var(--red); color: var(--red); font: 800 20px/1 var(--sans); letter-spacing: .4em; transform: rotate(-6deg); }
 .credits .cr-skip { position: absolute; right: 24px; bottom: 20px; z-index: 1; font: 500 12px/1 var(--mono); opacity: .6; }
-.btn.cr-go { background: var(--red); color: #fff; border-color: var(--red); animation: pulse 1.6s 3.5s ease-in-out 3; }
-@keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(236, 48, 19, .25); } }
+.btn.cr-go { background: var(--red); color: #fff; border-color: var(--red); }
 @media (prefers-reduced-motion: reduce) {
   .end.bloom .end-bg .eb-c { animation: none; --r: 170%; }
   .ink-drop { display: none; }
@@ -236,10 +247,11 @@
 /* ── 타이틀 — 영상이 끝나면 키 비주얼로, 제목은 한 줄씩 ─────── */
 .hero-media .title-key { opacity: 0; transform: scale(1.04); transition: opacity 2.4s ease, transform 30s linear; }
 .hero-media .title-key.on { opacity: 1; transform: scale(1.12); }
-.brand h1 { animation: wipe 1.1s .35s cubic-bezier(.2, .7, .1, 1) both; }
-.brand h1 em { animation: slam .5s 1.25s cubic-bezier(.3, 1.6, .5, 1) both; }
-.brand .kick, .brand p { animation: rise .7s 1.5s var(--ease) both; }
-.menu { animation: rise .7s 1.7s var(--ease) both; }
+/* 처음 들어올 때만 (home.intro) — 회사를 바꾸거나 돌아올 때는 그대로 둔다 */
+.home.intro .brand h1 { animation: wipe .9s .2s cubic-bezier(.2, .7, .1, 1) both; }
+.home.intro .brand h1 em { animation: slam .45s .9s cubic-bezier(.3, 1.6, .5, 1) both; }
+.home.intro .brand .kick, .home.intro .brand p { animation: rise .6s 1s var(--ease) both; }
+.home.intro .menu { animation: rise .6s 1.1s var(--ease) both; }
 @keyframes wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 -10% -10% 0); } }
 @keyframes slam { from { opacity: 0; transform: scale(1.6) rotate(-4deg); } to { opacity: 1; transform: none; } }
 

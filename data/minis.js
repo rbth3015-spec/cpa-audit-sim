@@ -19,7 +19,7 @@ window.MINIDATA = {
   confirm: {
     title: '매출채권 조회서 발송',
     client: '㈜한빛전자',
-    pm: 8.4, total: 233, others: '그 밖의 거래처 1,184곳 · 111.2억 — 표본으로 따로 본다',
+    pm: 8.4, total: 233, others: '그 밖의 거래처 1,184곳 · 111.2억은 표본으로 따로 본다',
     costSec: 3,
     rows: [
       { id: 'K1', name: '㈜대양전기', amt: 42.0, flag: '12월 매출 급증',
@@ -95,8 +95,8 @@ window.MINIDATA = {
       { id: 'S12', name: '㈜성진물산', book: 1.3, audit: 1.3 }
     ],
     methods: [
-      { k: 'ratio', t: '비율 추정 — 왜곡표시 ÷ 표본 금액 × 모집단' },
-      { k: 'none', t: '추정 안 함 — 표본에서 찾은 금액 그대로' }
+      { k: 'ratio', t: '비율 추정 (왜곡표시 ÷ 표본 금액 × 모집단)' },
+      { k: 'none', t: '추정 안 함 (표본에서 찾은 금액 그대로)' }
     ],
     after: [
       { k: 'ask', t: '경영진에게 수정 요청', ok: true },
@@ -278,7 +278,7 @@ window.MINIDATA = {
     scope: '12월 반품 3만 1천 건 중 경기 4개 매장 44건',
     limit: 20,
     criteria: [
-      { k: 'night', name: '심야 반품', tip: '23시 ~ 06시 — 영업시간 밖' },
+      { k: 'night', name: '심야 반품', tip: '23시 ~ 06시, 영업시간 밖' },
       { k: 'noorig', name: '원거래 없음', tip: '같은 영수증의 판매 기록이 없는 반품' },
       { k: 'cash', name: '현금 환불', tip: '카드 취소가 아니라 현금으로 돌려줌' },
       { k: 'round', name: '같은 금액 반복', tip: '같은 금액이 세 번 이상' },
@@ -347,7 +347,7 @@ window.MINIDATA = {
       { k: 'finish', name: '마감 · 조경', w: 10, rep: 0, real: 0, photo: '착수 전', log: '—', gap: false }
     ],
     rates: [
-      { k: 'reported', t: '본사 보고 그대로 — 71%', v: 71 },
+      { k: 'reported', t: '본사 보고 그대로 · 71%', v: 71 },
       { k: 're', t: '원가 투입 257억 ÷ 다시 잡은 총예정원가 444억 = 58%', v: 58, ok: true },
       { k: 'old', t: '원가 투입 257억 ÷ 회사 총예정원가 362억 = 71%', v: 71 },
       { k: 'bill', t: '기성 청구 누계 291억 ÷ 계약금액 410억 = 71%', v: 71 }

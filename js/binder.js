@@ -145,7 +145,7 @@
         '<div><div class="wp-q">' + esc(p.ask) + '</div>' +
           '<div class="wp-a' + (p.ans ? '' : ' empty') + '">' + (p.ans ? esc(p.ans) : '(무응답)') + '</div>' +
           '<ul class="wp-ticks">' + ticks + '</ul>' +
-          (missed.length ? '<div class="wp-pen">검토 — ' + esc(missed.join(' · ')) + ' 보완</div>' : '<div class="wp-pen" style="color:#2f5d43">검토 — 이상 없음</div>') +
+          (missed.length ? '<div class="wp-pen">검토: ' + esc(missed.join(' · ')) + ' 보완</div>' : '<div class="wp-pen" style="color:#2f5d43">검토: 이상 없음</div>') +
           (p.keyText ? '<details class="wp-model"><summary>모범답안 · 정답</summary><p>' + esc(p.keyText).replace(/\n/g, '<br>') + '</p></details>' : '') +
         '</div><div class="grd"><b>' + letter(p.pct) + '</b><span>' + p.pct + '점</span></div></div>';
     }).join('');
@@ -164,7 +164,7 @@
       var got = (x.clues || []).filter(function (c) { return c.got; }).length;
       return '<div class="ev-card"><h4>' + esc(x.no + ' ' + x.title) + '<span>단서 ' + got + '/' + (x.clues || []).length + '</span></h4><ul>' +
         (x.clues || []).map(function (c, i) {
-          return '<li class="' + (c.got ? '' : 'miss') + '"><b>EV-' + ('0' + (i + 1)).slice(-2) + '</b>' + esc(c.t) + (c.got ? '' : ' — 놓침') + '</li>';
+          return '<li class="' + (c.got ? '' : 'miss') + '"><b>EV-' + ('0' + (i + 1)).slice(-2) + '</b>' + esc(c.t) + (c.got ? '' : ' · 놓침') + '</li>';
         }).join('') +
         (x.mini ? '<li><b>MINI</b>' + esc(x.mini) + '</li>' : '') + '</ul></div>';
     }).join('');
@@ -444,7 +444,7 @@
       '<div class="dk-card' + (study.back ? ' back' : '') + '" data-act="flip">' +
         '<div class="dk-c-h"><b>' + esc(c.std) + '</b><i>' + esc(c.tag) + '</i></div>' +
         '<p class="dk-c-q">' + esc(c.q) + '</p>' +
-        (study.back ? cardBack(c) : '<span class="dk-c-hint">Space · 클릭 — 뒤집기</span>') + '</div>' +
+        (study.back ? cardBack(c) : '<span class="dk-c-hint">뒤집기 · Space</span>') + '</div>' +
       (study.back
         ? '<div class="dk-ans"><button type="button" class="btn" data-ans="known">안다 <kbd>1</kbd></button>' +
           '<button type="button" class="btn ghost" data-ans="again">다시 <kbd>2</kbd></button></div>'

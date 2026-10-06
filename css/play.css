@@ -15,6 +15,15 @@
 .hud-brand { display: flex; flex-direction: column; justify-content: center; min-width: 190px; }
 .hud-brand b { font: 800 15px/1.2 var(--display); letter-spacing: -.01em; }
 .hud-brand span { font: 500 11px/1.4 var(--mono); color: rgba(243, 242, 242, .6); }
+/* 게이지에 올리면 규칙 한 줄 — 처음 하는 사람이 숫자의 뜻을 알 수 있게 */
+.hud [data-hint]::after {
+  content: attr(data-hint); position: absolute; left: 12px; top: calc(100% + 6px); z-index: 45;
+  width: max-content; max-width: 260px; padding: 8px 10px; background: #f3f2f2; color: #201e1d;
+  border: 1px solid #000; box-shadow: 0 10px 24px rgba(0, 0, 0, .3); font: 500 12px/1.45 var(--sans); text-align: left;
+  opacity: 0; transform: translateY(-3px); transition: opacity .15s, transform .15s; transition-delay: 0s; pointer-events: none;
+}
+.hud [data-hint]:hover::after { opacity: 1; transform: none; transition-delay: .3s; }
+.hud .clock[data-hint]::after { left: auto; right: 12px; }
 .g { flex: 1 1 0; }
 .g.fixed { flex: 0 0 auto; min-width: 118px; }
 .g .v { display: block; font: 600 20px/1.2 var(--mono); }
@@ -174,7 +183,7 @@ table.tb tr.sum td { font-weight: 700; color: var(--red-2); border-top: 1px soli
 
 .tip {
   display: flex; align-items: center; gap: 10px; margin: -4px 0 12px; padding: 8px 12px;
-  background: var(--ink); color: var(--bg); font: 600 13px/1.4 var(--sans); animation: rise .3s both;
+  background: var(--chrome); color: var(--on-chrome); font: 600 13px/1.4 var(--sans); animation: rise .3s both;
 }
 .tip b { font: 700 11px/1 var(--mono); color: #ff9b88; letter-spacing: .06em; }
 .tip button { margin-left: auto; opacity: .7; font-size: 16px; line-height: 1; }
@@ -407,7 +416,7 @@ body.hurry::after {
 
 /* ── 업무 요청 ───────────────────────────────────────── */
 .board-in { width: min(1180px, 100%); background: var(--bg); border: 1px solid var(--strong); box-shadow: 0 30px 80px rgba(0, 0, 0, .5); }
-.bo-h { display: flex; align-items: center; gap: 16px; padding: 18px 22px; background: var(--ink); color: var(--bg); }
+.bo-h { display: flex; align-items: center; gap: 16px; padding: 18px 22px; background: var(--chrome); color: var(--on-chrome); }
 .bo-h .ring { width: 12px; height: 12px; border-radius: 50%; background: var(--red); animation: blink 1s steps(2) infinite; }
 .bo-h h2 { margin: 0; font: 800 24px/1.1 var(--display); }
 .bo-h .k { color: rgba(243, 242, 242, .6); }
