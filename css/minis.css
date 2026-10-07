@@ -4,9 +4,10 @@
 .mg { animation: rise .3s both; }
 .mg-bar {
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-  padding: 10px 14px; background: var(--ink); color: var(--bg); margin-bottom: 12px;
+  padding: 10px 14px; background: var(--chrome); color: var(--on-chrome); margin-bottom: 12px;
 }
 .mg-bar > b { font: 800 16px/1.2 var(--display); margin-right: 6px; }
+.mg-bar > b small { margin-left: 10px; font: 500 13px/1.2 var(--sans); color: rgba(243, 242, 242, .66); }
 .mg-stat { font: 500 12px/1 var(--mono); color: rgba(243, 242, 242, .7); }
 .mg-stat b { font: 700 16px/1 var(--mono); color: #f3f2f2; margin-left: 4px; }
 .mg-stat.over b { color: #ff8a76; }
@@ -233,3 +234,36 @@ table.mg-t tr.off td { opacity: .45; }
 .st-t td { vertical-align: middle; word-break: keep-all; }
 .st-ph { display: inline-block; font: 600 12px/1.35 var(--sans); padding: 4px 7px; background: var(--panel-2); border-left: 3px solid var(--strong); }
 .st-t .flag-b { width: auto; min-width: 72px; padding: 6px 8px; }
+
+/* ── 방법 — 처음 만난 미니게임 앞에 한 번 (game.js miniHow) ─────────────── */
+.mg-bar .mg-how { margin-left: auto; border: 1px solid rgba(243, 242, 242, .45); color: #f3f2f2; padding: 7px 10px; font: 600 12px/1 var(--sans); }
+.mg-bar .mg-how:hover { background: rgba(243, 242, 242, .12); }
+.mg-bar .mg-how ~ .btn { margin-left: 0; }
+.mi-in { width: min(780px, 100%); background: var(--bg); border: 1px solid var(--strong); box-shadow: 0 30px 80px rgba(0, 0, 0, .5); }
+.mi-h { padding: 18px 26px 18px; background: var(--chrome); color: var(--on-chrome); }
+.mi-h .k { color: #ff9b88; letter-spacing: .1em; }
+.mi-h h2 { margin: 8px 0 0; font: 800 28px/1.1 var(--display); letter-spacing: -.01em; }
+.mi-h p { margin: 10px 0 0; font: 400 16px/1.55 var(--serif); color: rgba(243, 242, 242, .86); word-break: keep-all; }
+.mi-steps { list-style: none; margin: 0; padding: 4px 26px; }
+.mi-steps li { display: grid; grid-template-columns: 26px 136px minmax(0, 1fr); gap: 14px; align-items: start; padding: 13px 0; border-bottom: 1px solid var(--line); }
+.mi-steps li:last-child { border-bottom: 0; }
+.mi-n { width: 24px; height: 24px; margin-top: -1px; border-radius: 50%; background: var(--ink); color: var(--bg); display: grid; place-items: center; font: 700 12px/1 var(--mono); }
+.mi-t b { display: block; font: 700 15px/1.35 var(--sans); }
+.mi-t kbd { margin-top: 6px; font-size: 11px; }
+.mi-d p { margin: 0; font: 400 14px/1.6 var(--sans); color: var(--ink-2); word-break: keep-all; }
+.mi-demo { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; pointer-events: none; }
+.mi-d p + .mi-demo { margin-top: 9px; }
+.mi-d > .mi-demo:first-child { margin-top: 0; }
+.mi-demo .flag-b { width: auto; display: inline-block; min-width: 64px; text-align: center; padding: 7px 9px; }
+.mi-demo .ev-open, .mi-demo .act-b.on, .mi-demo .rk-tick { animation: none; }
+.mi-ar { font: 500 13px/1 var(--mono); color: var(--dim); }
+.mi-gap { width: 14px; }
+.mi-chip { display: inline-flex; align-items: center; padding: 6px 9px; border: 1px solid var(--strong); background: var(--panel); font: 600 12px/1 var(--sans); }
+.mi-chip.dark { background: #191615; color: #f3f2f2; border-color: #191615; }
+.mi-lg { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid var(--line); background: var(--panel); font: 600 12px/1 var(--sans); }
+.mi-lg b { font: 800 12px/1 var(--mono); color: var(--red-2); }
+.mi-sg { display: inline-flex; align-items: center; gap: 10px; padding: 4px 10px; border: 1px solid var(--line); background: var(--panel); font: 700 12px/1 var(--sans); }
+.mi-f { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding: 14px 26px 18px; border-top: 1px solid var(--strong); }
+.mi-w { font: 700 12px/1.3 var(--sans); color: var(--red-2); }
+.mi-k { font: 500 12px/1.3 var(--mono); color: var(--dim); }
+.mi-f .btn { margin-left: auto; }

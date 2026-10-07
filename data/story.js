@@ -448,7 +448,7 @@
         { when: function () { return true; }, t: '여전히 대표이사. 한들상사와의 거래는 그해 끊겼다.' }
       ] },
       { who: 'chair', list: [
-        { when: function (s) { return s.flags.chair_backing; }, t: '감사위원회 보고서에 한 줄을 남겼다 — "감사인은 독립적이었음."' },
+        { when: function (s) { return s.flags.chair_backing; }, t: '감사위원회 보고서에 한 줄을 남겼다. "감사인은 독립적이었음."' },
         { when: function (s) { return s.bond.chair >= 50; }, t: '너무 늦게 움직였다며 사임했다. 후임에게 감사인 보고서를 그대로 넘겼다.' },
         { when: function () { return true; }, t: '감사위원회 회의록에는 "보고받음" 네 글자만 남았다.' }
       ] }

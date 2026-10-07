@@ -313,7 +313,7 @@
       (o.at || o.place ? '<div class="ch-where">' + (o.at ? '<span class="at">' + flipAt(o.atFrom, o.at) + '</span>' : '') +
         (o.place ? '<b>' + esc(o.place) + '</b>' : '') +
         (o.at && o.atFrom && gapText(o.atFrom, o.at) ? '<em class="gap">' + esc(gapText(o.atFrom, o.at)) + '</em>' : '') + '</div>' : '') +
-      '<p class="ch-text"><span class="tx"></span><span class="cur"></span></p>' +
+      '<p class="ch-text"><span class="tx"></span></p>' +
       (o.seatId ? '<div class="ch-seats"><span class="k">' +
         (moved ? '시점 이동 · ' + esc(povName(o.seatFrom)) + ' → ' + esc(povName(o.seatId)) : '나의 시점 · ' + esc(povName(o.seatId))) +
         '</span>' + seatTiles(o.seatId, o.seatFrom) + '</div>' : '') +
@@ -369,8 +369,11 @@
     var chats = beats.filter(function (b) { return b.mode !== 'talk'; });
     if (!chats.length || beats[0].mode === 'talk') return go();
     var d = document.createElement('div'), done = false;
-    d.className = 'phn';
-    d.innerHTML = '<div class="rg-phone">' + chats.slice(0, 3).map(function (b, i) {
+    // 시즌 첫 알림은 아직 빈 조서 위에서 울린다 — 빈 화면 대신 첫 대화의 사진을 어둡게 깐다
+    var task = $('#task'), cold = !task || !task.children.length;
+    d.className = 'phn' + (cold ? ' cold' : '');
+    d.innerHTML = (cold ? '<div class="phn-bg" style="background-image:url(' + window.ART.sceneSrc(chats[0].bg) + ')"></div>' : '') +
+      '<div class="rg-phone">' + chats.slice(0, 3).map(function (b, i) {
       var first = (b.msgs || []).filter(function (m) { return m.from && m.from !== b.pov; })[0] || {};
       var who = first.from || b.who || 'manager';
       return '<div class="rg" style="--i:' + i + '">' + av(who, null, 'rg-av') +
@@ -468,6 +471,7 @@
     return h < 24 ? h + '시간 전' : Math.round(h / 24) + '일 전';
   }
 
+  var homeSeen = false;
   function home() {
     stopClock();
     closeOverlays();
@@ -479,9 +483,11 @@
     var book = window.SEASONS ? window.SEASONS.current() : { id: '-', name: '' };
     var C = window.COMPANY;
     var themeName = { auto: '화면 자동', light: '화면 밝게', dark: '화면 어둡게' }[load(THEME, 'auto')];
+    var intro = !homeSeen;            // 제목 연출은 처음 한 번 — 회사를 바꿀 때마다 메뉴가 다시 떠오르지 않게
+    homeSeen = true;
 
     $('#screen-home').innerHTML =
-      '<div class="home">' +
+      '<div class="home' + (intro ? ' intro' : '') + '">' +
         '<div class="hero-media">' + window.ART.title() + '</div><div class="hero-shade"></div>' +
         '<div class="home-top"><span class="k">세종회계법인 · 제6기 정기감사</span><div class="top-b">' +
           '<button type="button" data-act="snd">' + (FX.isOn() ? '소리 켬' : '소리 끔') + '</button>' +
@@ -499,17 +505,18 @@
             '<button type="button" data-act="seed">이 코드로 시작</button></div>' +
         '</div><div class="home-r">' +
           (books.length > 1 ? '<div class="pick-co">' + books.map(function (b) {
-            return '<button type="button" class="co' + (b.id === book.id ? ' on' : '') + '" data-act="co" data-co="' + b.id + '">' +
-              '<b>' + esc(b.name) + '</b><span>' + esc(b.tag) + '</span></button>';
+            return '<button type="button" class="co' + (b.id === book.id ? ' on' : '') + '" data-act="co" data-co="' + b.id + '" title="' + esc(b.tag) + '">' +
+              '<b>' + esc(b.name.replace('㈜', '')) + '</b></button>';
           }).join('') + '</div>' : '') +
           '<div class="card-d"><div class="cd-h"><b>감사 대상</b><span>' + esc(C.fy) + '</span></div><table>' +
-            [['회사', C.name + ' · ' + C.market], ['업종', C.industry], ['매출액', C.revenue], ['자산총계', C.assets], ['중요성', C.materiality + ' · 수행 ' + C.pm]]
+            [['회사', C.name + ' · ' + C.market], ['논점', book.tag || ''], ['업종', C.industry], ['매출액', C.revenue], ['자산총계', C.assets], ['중요성', C.materiality + ' · 수행 ' + C.pm]]
+              .filter(function (r) { return r[1]; })
               .map(function (r) { return '<tr><th>' + esc(r[0]) + '</th><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</table></div>' +
           homeCast().map(function (row) {
             return '<div class="cast-row"><span class="cr-h">' + esc(row[0]) + '</span><div class="team">' + row[1].map(function (w) {
               var c = cast(w);
               return '<button type="button" class="mem" data-act="person" data-who="' + w + '" title="' + esc(c.tag || '') + '">' +
-                window.ART.card(w, 'pc') + '<div><b>' + esc(c.name) + '</b><span>' + esc(c.role) + '</span></div></button>';
+                window.ART.card(w, 'pc') + '<div><b>' + esc(c.name) + '</b><span>' + esc(c.role).replace('관리검토자', '관리<wbr>검토자') + '</span></div></button>';
             }).join('') + '</div></div>';
           }).join('') +
           '<div class="stats-h"><div><span class="k">시즌</span><b>' + (P.plays || 0) + '<small>회</small></b></div>' +
@@ -632,12 +639,12 @@
         '<button type="button" class="hud-b" data-act="pause">일시정지 <kbd>Esc</kbd></button></div>';
     } else {
       h = '<div class="hud-brand"><b>감사 시즌 2026</b><span>' + esc(window.COMPANY.name) + ' · 시즌 ' + S.seed + '</span></div>' +
-        '<div class="g fixed" data-g="T"><span class="k">보고서 기한</span><span class="v"></span><i class="dl"></i><span class="track"><span class="fill"></span></span></div>' +
-        '<div class="g" data-g="E"><span class="k">감사증거</span><span class="v"></span><i class="dl"></i><span class="track"><span class="fill"></span></span></div>' +
-        '<div class="g" data-g="R"><span class="k">신뢰</span><span class="v"></span><i class="dl"></i><span class="track"><span class="fill"></span></span></div>' +
-        '<div class="g fixed" data-g="C"><span class="k">회사 태도</span><span class="v word"></span><i class="dl"></i><span class="pips"><i></i><i></i><i></i><i></i></span></div>' +
-        '<div class="g fixed g-streak" data-g="X"><span class="k">연속 적정</span><span class="v"></span><i class="dl"></i></div>' +
-        '<div class="clock pause" id="clock"><span class="k">남은 시간</span><span class="v">—</span></div>' +
+        '<div class="g fixed" data-g="T" data-hint="장면 · 업무마다 줄어든다. 0일이면 마감 실패"><span class="k">보고서 기한</span><span class="v"></span><i class="dl"></i><span class="track"><span class="fill"></span></span></div>' +
+        '<div class="g" data-g="E" data-hint="45 미만으로 끝나면 감사범위제한"><span class="k">감사증거</span><span class="v"></span><i class="dl"></i><span class="track"><span class="fill"></span></span></div>' +
+        '<div class="g" data-g="R" data-hint="상급자의 신뢰. 오개념 · 회사 편들기에 떨어진다"><span class="k">신뢰</span><span class="v"></span><i class="dl"></i><span class="track"><span class="fill"></span></span></div>' +
+        '<div class="g fixed" data-g="C" data-hint="50 아래로 내려가면 수정 요청을 거부한다"><span class="k">회사 태도</span><span class="v word"></span><i class="dl"></i><span class="pips"><i></i><i></i><i></i><i></i></span></div>' +
+        '<div class="g fixed g-streak" data-g="X" data-hint="적정 세 번 연속마다 신뢰 +2"><span class="k">연속 적정</span><span class="v"></span><i class="dl"></i></div>' +
+        '<div class="clock pause" id="clock" data-hint="0이 되면 그 상태로 제출 · 10% 감점"><span class="k">남은 시간</span><span class="v">—</span></div>' +
         '<div class="hud-act"><button type="button" class="hud-b" data-act="binder">조서<span class="badge" hidden></span></button>' +
         '<button type="button" class="hud-b" data-act="pause">일시정지 <kbd>Esc</kbd></button></div>';
     }
@@ -948,7 +955,8 @@
     $('#body').classList.toggle('wide', wide);
     $('#banner').classList.toggle('slim', wide);
     var c = cast(p.who);
-    $('#task').innerHTML = partsBar() + tipBox(p.type) +
+    // 미니게임은 TIP 대신 방법 창이 알려 준다 (같은 말을 두 번 하지 않게)
+    $('#task').innerHTML = partsBar() + (wide && window.MINIS[p.game].howto ? '' : tipBox(p.type)) +
       (wide ? povBar(it, null) + '<div class="who sm" style="margin-bottom:12px">' + av(p.who) + '<div><div class="nm">' + esc(c.name) + '<span>' + esc(c.role) + '</span></div><div class="say">' + esc(p.say) + '</div></div></div>' +
         '<p class="ask" style="font-size:18px;margin-bottom:12px">' + esc(p.ask) + '</p>' : '') +
       '<div class="part" id="part"></div><div id="after"></div>';
@@ -977,12 +985,65 @@
       spend: function (sec) { if (clock.timer) { clock.left = Math.max(1, clock.left - sec); drawClock(); } },
       sound: FX.play
     });
+    var tb = $('.mg-bar > b', host);
+    if (tb && tb.textContent.indexOf(' — ') > 0) {
+      var tp = tb.textContent.split(' — ');
+      tb.innerHTML = esc(tp[0]) + '<small>' + esc(tp.slice(1).join(' · ')) + '</small>';
+    }
+    if (M.howto) {
+      // 막대에 [방법] — 언제든 다시 본다. 처음 만난 게임이면 바로 띄운다 (보는 동안 시계는 선다)
+      var bar = $('.mg-bar', host), hb = document.createElement('button');
+      hb.type = 'button'; hb.className = 'mg-how'; hb.textContent = '방법';
+      if (bar) bar.insertBefore(hb, $('.btn', bar));
+      hb.addEventListener('click', function () { miniHow(p.game, model, false); });
+      if (!prog().tips['mg:' + p.game]) miniHow(p.game, model, true);
+    }
     return {
       model: model,
       answer: function () { return { mini: { model: model, state: inner.state() } }; },
       refresh: function () {},
       destroy: inner.destroy
     };
+  }
+
+  /* 미니게임 방법 — 처음 만날 때 한 번 (그 뒤엔 막대의 [방법]). 조작만 보여 주고 답은 적지 않는다 */
+  function miniHow(game, model, first) {
+    var G = window.MINIS[game], H = G.howto(model);
+    if ($('.mi-o')) return;
+    var el = document.createElement('div');
+    el.className = 'overlay mi-o';
+    el.innerHTML = '<div class="mi-in" role="dialog" aria-label="' + esc(G.name) + ' 방법">' +
+      '<div class="mi-h"><span class="k">미니게임' + (first ? ' · 처음' : ' · 방법') + '</span><h2>' + esc(G.name) + '</h2><p>' + esc(H.goal) + '</p></div>' +
+      '<ol class="mi-steps">' + H.steps.map(function (s, i) {
+        return '<li><span class="mi-n">' + (i + 1) + '</span>' +
+          '<div class="mi-t"><b>' + esc(s.t) + '</b>' + (s.key ? '<kbd>' + esc(s.key) + '</kbd>' : '') + '</div>' +
+          '<div class="mi-d">' + (s.d ? '<p>' + esc(s.d) + '</p>' : '') + (s.demo ? '<div class="mi-demo" aria-hidden="true">' + s.demo + '</div>' : '') + '</div></li>';
+      }).join('') + '</ol>' +
+      '<div class="mi-f">' + (H.warn ? '<span class="mi-w">감점 · ' + esc(H.warn) + '</span>' : '') +
+        '<span class="mi-k">시간이 다 되면 그 상태로 채점</span>' +
+        '<button type="button" class="btn" data-act="go">' + (first ? '시작' : '계속') + ' <kbd>Enter</kbd></button></div></div>';
+    document.body.appendChild(el);
+    var go = $('[data-act="go"]', el);
+    if (go) go.focus({ preventScroll: true });
+    function close() {
+      document.removeEventListener('keydown', onKey, true);
+      el.remove();
+      var P = prog();
+      if (!P.tips['mg:' + game]) { P.tips['mg:' + game] = 1; saveProg(P); }
+      dismissTip('mini');
+    }
+    // 열려 있는 동안 키는 이 창만 받는다 — 숫자키가 뒤의 게임으로 새지 않게
+    function onKey(e) {
+      if (!el.isConnected) { document.removeEventListener('keydown', onKey, true); return; }   // 다른 길로 창이 닫혔으면 키를 놓아준다
+      if (e.key === 'Tab') return;
+      e.stopPropagation();
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') { e.preventDefault(); close(); }
+    }
+    document.addEventListener('keydown', onKey, true);
+    el.addEventListener('click', function (e) {
+      if (e.target === el || e.target.closest('[data-act="go"]')) close();
+    });
+    FX.play('flip');
   }
 
   /* ---------- 시계 ---------- */
@@ -1108,7 +1169,7 @@
         rows += '<tr class="ok"><td class="m">✓</td><th>판단 · ' + esc(L[g.verdict.given]) + '</th><td class="p">+' + (g.verdictGot || 0) + '</td></tr>';
       } else {
         rows += '<tr class="no"><td class="m">✗</td><th>판단 · ' + esc(g.verdict.given ? L[g.verdict.given] : '없음') +
-          '<small>정답 · ' + esc(L[g.verdict.expected]) + (g.verdict.given ? ' — 근거 0점' : '') + '</small></th><td class="p">0 / ' + (g.verdictMax || 0) + '</td></tr>';
+          '<small>정답 · ' + esc(L[g.verdict.expected]) + (g.verdict.given ? ' · 근거 0점' : '') + '</small></th><td class="p">0 / ' + (g.verdictMax || 0) + '</td></tr>';
       }
     }
     var zero = g.verdict && !g.verdict.correct && g.verdict.given;
@@ -1608,7 +1669,7 @@
             E.ethics.filter(function (x) { return x.ok; }).length + ' / ' + E.ethics.length + '</span></h3><ul class="n-eth">' +
           E.ethics.map(function (x) {
             return '<li class="' + (x.ok ? 'ok' : 'no') + '"><span class="m">' + (x.ok ? '✓' : '✗') + '</span><div><b>' + esc(x.label) + '</b>' +
-              '<small>내 답 — ' + esc(x.pick) + (x.ok ? '' : ' · ' + esc(x.note || '')) + '</small></div></li>';
+              '<small>내 답 · ' + esc(x.pick) + (x.ok ? '' : ' · ' + esc(x.note || '')) + '</small></div></li>';
           }).join('') + '</ul></section>' : '') +
         '<section class="n-sec"><h3><span>그 뒤</span></h3><div class="n-epi">' +
           '<div><span class="k">' + esc(window.COMPANY.name) + '</span>' + esc(E.company.text) + '</div>' +
@@ -1706,7 +1767,8 @@
     function onKey(e) { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); close(); } }
     document.addEventListener('keydown', onKey, true);
     d.addEventListener('click', close);
-    $('.cr-roll', d).addEventListener('animationend', function () { setTimeout(close, 4000); });
+    // 크레딧 줄 자체가 다 올라갔을 때만 — 안쪽 요소의 애니메이션이 끝난 것까지 받으면 일찍 닫힌다
+    $('.cr-roll', d).addEventListener('animationend', function (e) { if (e.target === this) setTimeout(close, 4000); });
   }
 
   /* ============================================================
@@ -1918,7 +1980,7 @@
         '<b>TICKMARK</b><span>틱마크 스튜디오</span></div>' +
       '<div class="bt-card bt-note"><p>이 이야기는 허구입니다.</p>' +
         '<small>등장하는 회사 · 인물 · 사건은 실제와 관계가 없으며, 감사 절차와 기준서 논점은 CPA 2차 시험 범위를 따릅니다.</small>' +
-        '<small class="bt-hp">소리를 켜고 헤드폰을 권장합니다</small></div>';
+        '<small class="bt-hp">헤드폰 사용을 권장합니다</small></div>';
     document.body.appendChild(d);
     var step = 0, t = null;
     function next() {

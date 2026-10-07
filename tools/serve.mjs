@@ -5,7 +5,7 @@
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-const ROOT = process.argv[2] || process.cwd();   // 저장소 폴더에서 실행한다
+const ROOT = path.resolve(process.argv[2] || process.cwd());   // 저장소 폴더에서 실행한다 — '.' 같은 상대 경로도 절대 경로로
 const PORT = +(process.argv[3] || 8765);
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json', '.jpg': 'image/jpeg', '.png': 'image/png', '.mp4': 'video/mp4', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
@@ -14,7 +14,7 @@ http.createServer(async (req, res) => {
     let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (p.endsWith('/')) p += 'index.html';
     const f = path.join(ROOT, p);
-    if (!f.startsWith(path.resolve(ROOT))) { res.writeHead(403); return res.end(); }
+    if (!f.startsWith(ROOT)) { res.writeHead(403); return res.end(); }
     const buf = await readFile(f);
     res.writeHead(200, { 'Content-Type': TYPES[path.extname(f).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store' });
     res.end(buf);

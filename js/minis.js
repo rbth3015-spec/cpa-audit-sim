@@ -351,7 +351,7 @@
         must.push({ label: '위험 분개 추출 — ' + r.risk, score: 12, got: caught ? 12 : 0, hit: caught, partial: false });
       });
       var res = pack(must, []);
-      if (n > 14) res.flags.push('추출 ' + n + '건 — 조건이 너무 넓음');
+      if (n > 14) res.flags.push('추출 ' + n + '건 · 조건이 너무 넓음');
       res.detail = { extracted: n, on: on.slice() };
       return res;
     },
@@ -777,7 +777,7 @@
             '<span class="mg-stat">' + esc(D.client) + ' · 1월 지급 <b>' + M.rows.length + '건</b></span>' +
             '<span class="mg-stat">부외부채 표시 <b data-k="n">0</b></span>' +
             '<button type="button" class="btn sm" data-act="done">검사 종료 <kbd>Ctrl Enter</kbd></button></div>' +
-          '<div class="mg-hint">청구일 · 지급일이 아니라 <b>의무가 생긴 때</b> — 입고 · 용역 제공 · 사용 기간. 증빙을 열 때마다 시간이 든다.</div>' +
+          '<div class="mg-hint">청구일 · 지급일이 아니라 <b>의무가 생긴 때</b>(입고 · 용역 제공 · 사용 기간)로 본다.</div>' +
           '<table class="mg-t un-t"><thead><tr><th></th><th>지급일</th><th>거래처</th><th class="n">금액</th><th>내용</th><th>증빙</th><th>12/31 장부</th><th>판정</th></tr></thead>' +
             '<tbody data-k="rows"></tbody></table>' +
         '</div>';
@@ -905,7 +905,7 @@
             '<button type="button" class="btn sm" data-act="done">검사 종료 <kbd>Ctrl Enter</kbd></button></div>' +
           '<div class="mg-split">' +
             '<div><table class="mg-t sp-t"><thead><tr><th></th><th>거래처</th><th class="n">장부</th><th class="n">확인</th><th>표시</th></tr></thead><tbody data-k="rows"></tbody></table>' +
-              '<div class="mg-foot">나머지 ' + (D.n - M.rows.length) + '건 · 장부 ' + others.toFixed(1) + '억 — 확인 금액과 차이 없음</div></div>' +
+              '<div class="mg-foot">나머지 ' + (D.n - M.rows.length) + '건 · 장부 ' + others.toFixed(1) + '억, 확인 금액과 차이 없음</div></div>' +
             '<div class="sp-ws" data-k="ws"></div>' +
           '</div>' +
         '</div>';
@@ -962,7 +962,7 @@
           '<td class="n">' + eok(r.book - r.audit) + '</td></tr>';
       }).join('');
       return '<table class="rv-t"><caption>표본 왜곡표시 ' + eok(sum) + ' ÷ 표본 ' + M.D.sampleAmt + '억 × 모집단 ' + M.D.pop + '억 = 추정 ' + eok(proj) +
-        ' — 허용왜곡표시 ' + M.D.tol + '억을 ' + (proj > M.D.tol ? '넘어 기각' : '넘지 않아 채택') + '</caption>' + rows + '</table>';
+        '. 허용왜곡표시 ' + M.D.tol + '억을 ' + (proj > M.D.tol ? '넘어 기각' : '넘지 않아 채택') + '</caption>' + rows + '</table>';
     }
   };
 
@@ -1188,7 +1188,7 @@
             '<span class="mg-stat lim">허용이탈률 ' + D.tol + '%</span>' +
             '<span class="mg-stat">이탈 표시 <b data-k="n">0</b></span>' +
             '<button type="button" class="btn sm" data-act="done">검사 종료 <kbd>Ctrl Enter</kbd></button></div>' +
-          '<div class="mg-hint">통제 — ' + esc(D.rule) + '. 표시를 누를 때마다 <b>이탈 → 고의 의심 → 정상</b>으로 바뀐다.</div>' +
+          '<div class="mg-hint">통제 규칙 · ' + esc(D.rule) + '. 표시는 누를 때마다 <b>이탈 → 고의 의심 → 정상</b>.</div>' +
           '<div class="mg-split">' +
             '<div class="at-wrap"><table class="mg-t at-t"><thead><tr><th>문서</th><th>조정일</th><th class="n">금액</th><th>승인자</th><th>서명</th><th>승인일</th><th>표시</th></tr></thead>' +
               '<tbody data-k="rows"></tbody></table></div>' +
@@ -1216,7 +1216,7 @@
             '<i class="tol" style="left:' + (D.tol / scale * 100).toFixed(1) + '%"><b>허용 ' + D.tol + '%</b></i></div>' +
           '<div class="ws-k">결론</div><div class="ws-opts two">' +
             '<button type="button" class="act-b' + (st.decide === 'yes' ? ' on' : '') + '" data-decide="yes">통제에 의존</button>' +
-            '<button type="button" class="act-b' + (st.decide === 'no' ? ' on' : '') + '" data-decide="no">의존 불가 — 실증 확대</button></div>';
+            '<button type="button" class="act-b' + (st.decide === 'no' ? ' on' : '') + '" data-decide="no">의존 불가 · 실증 확대</button></div>';
       }
       host.addEventListener('click', function (e) {
         var b = e.target.closest('[data-mark],[data-decide],[data-act]');
@@ -1240,13 +1240,13 @@
     review: function (M, st) {
       st = st || {};
       var mark = st.mark || {};
-      var WHY = { nosig: '서명 없음', late: '조정 뒤 승인', limit: '한도 초과 승인', forge: '같은 필체 — 위조 가능성' };
+      var WHY = { nosig: '서명 없음', late: '조정 뒤 승인', limit: '한도 초과 승인', forge: '같은 필체 · 위조 가능성' };
       var rows = M.rows.filter(function (r) { return r.dev; }).map(function (r) {
         var m = mark[r.id] || 'ok', ok = r.dev === 'forge' ? m === 'intent' : m !== 'ok';
         return '<tr class="' + (ok ? 'ok' : 'no') + '"><td class="mono">' + r.id + '</td><td>' + WHY[r.dev] + '</td><td class="dim">' + esc(r.note || '') + '</td>' +
           '<td class="n">' + (ok ? '✓' : m === 'ok' ? '놓침' : AT_TX[m]) + '</td></tr>';
       }).join('');
-      return '<table class="rv-t"><caption>이탈 5건 / 25건 = 20% — 허용이탈률 ' + M.D.tol + '%를 넘어 통제에 의존할 수 없다</caption>' + rows + '</table>';
+      return '<table class="rv-t"><caption>이탈 5건 / 25건 = 20%. 허용이탈률 ' + M.D.tol + '%를 넘어 통제에 의존할 수 없다</caption>' + rows + '</table>';
     }
   };
 
@@ -1287,7 +1287,7 @@
         must.push({ label: '부정 반품 추출 — ' + r.risk, score: 12, got: caught ? 12 : 0, hit: caught, partial: false });
       });
       var res = pack(must, []);
-      if (n > M.D.limit) res.flags.push('추출 ' + n + '건 — 한도 ' + M.D.limit + '건을 넘음');
+      if (n > M.D.limit) res.flags.push('추출 ' + n + '건 · 한도 ' + M.D.limit + '건을 넘음');
       res.detail = { extracted: n, caught: M.D.rows.filter(function (r) { return r.risk && ex.some(function (x) { return x.id === r.id; }); }).length };
       return res;
     },
@@ -1361,7 +1361,7 @@
         return '<tr class="' + (caught ? 'ok' : 'no') + '"><td class="mono">' + esc(r.day + ' ' + r.time) + '</td><td>' + esc(r.risk) + '</td>' +
           '<td class="dim">' + esc(names) + '</td><td class="n">' + (caught ? '✓ 추출' : '놓침') + '</td></tr>';
       }).join('');
-      return '<table class="rv-t"><caption>부정 반품 ' + M.rows.filter(function (r) { return r.risk; }).length + '건 — 심야 · 원거래 없음 두 조건이면 한도 안에서 모두 잡힌다</caption>' + rows + '</table>';
+      return '<table class="rv-t"><caption>부정 반품 ' + M.rows.filter(function (r) { return r.risk; }).length + '건. 심야 · 원거래 없음 두 조건이면 한도 안에서 모두 잡힌다</caption>' + rows + '</table>';
     }
   };
 
@@ -1485,8 +1485,158 @@
           '<td class="n">보고 ' + r.rep + '% · 현장 ' + r.real + '%</td><td class="n">' + (ok ? '✓' : mark[r.k] ? '오표시' : '놓침') + '</td></tr>';
       }).join('');
       var right = M.D.rates.filter(function (x) { return x.ok; })[0];
-      return '<table class="rv-t"><caption>괴리 공종 셋(지붕 · 외장 · 설비) — ' + esc(right.t) + '</caption>' + rows + '</table>';
+      return '<table class="rv-t"><caption>괴리 공종 셋(지붕 · 외장 · 설비) · ' + esc(right.t) + '</caption>' + rows + '</table>';
     }
+  };
+
+  /* ============================================================
+     방법 — 미니게임을 처음 만날 때 한 번 뜨는 설명 (game.js 가 띄운다)
+     howto(M) = { goal, steps: [{ t, key, d, demo }], warn }
+     조작만 알려 준다. 무엇을 골라야 맞는지는 적지 않는다
+     demo 는 게임과 같은 클래스로 그린 버튼 모양 (누를 수 없다)
+     ============================================================ */
+  function sp(cls, html) { return '<span class="' + cls + '">' + html + '</span>'; }
+  var TO = '<span class="mi-ar">→</span>';
+  function critDemo(M, keys) {
+    return M.D.criteria.map(function (c, i) { return { c: c, i: i }; })
+      .filter(function (x) { return keys.indexOf(x.c.k) >= 0; })
+      .map(function (x, j) {
+        var n = M.rows.filter(function (r) { return r.tags.indexOf(x.c.k) >= 0; }).length;
+        return sp('crit-b' + (j === 0 ? ' on' : ''), '<kbd>' + (x.i + 1) + '</kbd>' + esc(x.c.name) + '<em>' + n + '</em>');
+      }).join('');
+  }
+
+  count.howto = function (M) {
+    var D = M.D;
+    return {
+      goal: '현품과 실사표를 양쪽에서 맞춰 본다. 숨은 예외는 다섯 건.',
+      steps: [
+        { t: '출발점 고르기', d: '랙 칸을 누르면 현품에서, 실사표 줄을 누르면 실사표에서 출발한다.',
+          demo: sp('mi-chip dark', '랙 칸') + TO + sp('mi-chip', '실사표') + '<span class="mi-gap"></span>' + sp('mi-chip', '실사표 줄') + TO + sp('mi-chip dark', '현품') },
+        { t: '세기', key: 'Space', d: '현품 수량이 열린다. 한 번에 −' + D.costSec + '초, ' + D.samples + '개까지.' },
+        { t: '틱 치기', key: '1–5',
+          demo: D.ticks.map(function (x, i) { return sp('tick', '<kbd>' + (i + 1) + '</kbd><b>' + x.mark + '</b>' + esc(x.name)); }).join('') },
+        { t: '끝내기', key: 'Ctrl Enter' }
+      ],
+      warn: '정상 품목에 예외 틱'
+    };
+  };
+  jet.howto = function (M) {
+    return {
+      goal: '추출 조건을 조합해 위험한 분개를 모두 잡는다. 추출은 ' + M.D.limit + '건 안으로.',
+      steps: [
+        { t: '조건 켜기', key: '1–9', d: '켠 조건 가운데 하나라도 맞으면 추출된다. 칩의 숫자는 그 조건에 걸리는 건수.',
+          demo: critDemo(M, ['blank', 'round']) },
+        { t: '건수 보기', d: '추출 건수가 한도를 넘으면 붉게 바뀐다.' },
+        { t: '확정', key: 'Ctrl Enter' }
+      ]
+    };
+  };
+  cutoff.howto = function (M) {
+    var T = M.D.terms;
+    return {
+      goal: '12월 31일 선 앞뒤로 나간 출고 ' + M.rows.length + '건. 매출을 잘못된 해에 잡은 거래를 찾는다.',
+      steps: [
+        { t: '인도조건 읽기', d: '조건마다 매출을 잡는 날이 다르다. 그날이 선 왼쪽이면 당기, 오른쪽이면 차기.',
+          demo: sp('mi-lg', '<b>▲</b>' + esc(T.ship.name) + ' · 출고') + sp('mi-lg', '<b>●</b>' + esc(T.dest.name) + ' · 도착') + sp('mi-lg', '<b>■</b>' + esc(T.accept.name) + ' · 검수') },
+        { t: '회사 인식과 대조', d: '줄마다 적힌 회사의 당기 · 차기 인식과 맞는지 본다.' },
+        { t: '표시', key: '1–' + M.rows.length, demo: sp('flag-b', '정상') + TO + sp('flag-b on', '✗ 귀속 오류') },
+        { t: '끝내기', key: 'Ctrl Enter' }
+      ],
+      warn: '정상 거래를 오류로 표시'
+    };
+  };
+  confirm.howto = function (M) {
+    return {
+      goal: '조회서를 보낼 거래처를 고르고, 조회처를 정해 직접 보낸 뒤, 돌아온 회신을 처리한다.',
+      steps: [
+        { t: '대상 고르기', key: '1–9', d: '번호를 눌러 조회할 거래처를 고른다.' },
+        { t: '조회처 정하기', d: '회사가 준 연락처와 감사인이 따로 확인한 연락처 가운데 하나.',
+          demo: sp('via-b on', '<em>회사 제공</em>회사가 준 주소') + sp('via-b', '<em>독립 확인</em>등기부 · 대표번호') },
+        { t: '발송', key: 'Enter', d: '한 곳에 −' + M.D.costSec + '초. 보낸 뒤에는 대상과 조회처를 바꿀 수 없다.' },
+        { t: '회신 처리', d: '일치가 아닌 회신마다 처리를 하나 고른다.',
+          demo: sp('rep ok still', '✓ 일치') + sp('rep fax still', '⚠ 회사를 거쳐 들어옴') + sp('rep none still', '✗ 미회신') + sp('rep diff still', '≠ 금액 차이') },
+        { t: '끝내기', key: 'Ctrl Enter' }
+      ]
+    };
+  };
+  unrec.howto = function (M) {
+    return {
+      goal: '1월에 나간 돈 ' + M.rows.length + '건. 12월에 이미 생긴 부채인데 장부에 없는 것을 찾는다.',
+      steps: [
+        { t: '증빙 보기', d: '의무가 생긴 때가 보인다. 한 건에 −' + (M.D.costSec || 3) + '초.',
+          demo: sp('ev-b', '증빙 보기') + TO + sp('ev-open', '의무가 생긴 때') },
+        { t: '표시', key: '0–9', demo: sp('flag-b', '정상') + TO + sp('flag-b on', '✗ 부외부채') },
+        { t: '끝내기', key: 'Ctrl Enter' }
+      ],
+      warn: '정상 지급을 부외부채로 표시'
+    };
+  };
+  sample.howto = function (M) {
+    return {
+      goal: '표본에서 나온 왜곡표시로 모집단 전체를 판정한다.',
+      steps: [
+        { t: '왜곡표시 표시', key: '0–9', d: '장부와 확인 금액을 줄마다 비교한다.',
+          demo: sp('flag-b', '—') + TO + sp('flag-b on', '✗ 왜곡표시') },
+        { t: '추정 방법', d: '두 방법 가운데 하나. 고르면 추정 금액과 허용왜곡표시 막대가 그려진다.' },
+        { t: '판정', demo: sp('act-b', '모집단 채택') + sp('act-b', '모집단 기각') },
+        { t: '후속 조치', d: '판정 뒤에 열린다. 해당하는 것을 모두 고른다.' },
+        { t: '끝내기', key: 'Ctrl Enter' }
+      ]
+    };
+  };
+  ic.howto = function (M) {
+    return {
+      goal: M.D.parent + ' 채권과 ' + M.D.sub + ' 채무의 차이를 원인별로 가르고, 제거할 미실현이익을 정한다.',
+      steps: [
+        { t: '증빙 보기', d: '선적서류 · 입고 기록이 열린다. 한 건에 −' + (M.D.costSec || 3) + '초.',
+          demo: sp('ev-b', '증빙 보기') + TO + sp('ev-open', '선적일 · 입고일') },
+        { t: '원인 고르기', d: '차이가 난 줄마다 하나.',
+          demo: sp('act-b', '운송 중') + sp('act-b', '환율') + sp('act-b', '설명 안 됨') },
+        { t: '미실현이익', d: '오른쪽 계산 기준 가운데 하나를 고른다.' },
+        { t: '끝내기', key: 'Ctrl Enter' }
+      ]
+    };
+  };
+  attr.howto = function (M) {
+    var s = M.D.signers[0];
+    return {
+      goal: '승인 문서 ' + M.rows.length + '장을 통제 규칙과 서명 견본으로 검사하고, 통제에 의존할지 정한다.',
+      steps: [
+        { t: '규칙', d: M.D.rule + '.' },
+        { t: '표시', d: '누를 때마다 바뀐다.',
+          demo: sp('flag-b at-b ok', '—') + TO + sp('flag-b at-b dev', '✗ 이탈') + TO + sp('flag-b at-b intent', '⚠ 고의 의심') + TO + sp('flag-b at-b ok', '—') },
+        { t: '필체 대조', d: '오른쪽 서명 견본과 문서의 서명을 맞춰 본다.',
+          demo: sp('mi-sg', esc(s.name) + sigSvg(s.hand)) },
+        { t: '결론', d: '표본 이탈률을 보고 통제에 의존할지 정한다.' },
+        { t: '끝내기', key: 'Ctrl Enter' }
+      ],
+      warn: '정상 문서를 이탈로 표시'
+    };
+  };
+  ret.howto = function (M) {
+    return {
+      goal: '조건을 조합해 부정 반품을 모두 잡는다. 추출은 ' + M.D.limit + '건 안으로.',
+      steps: [
+        { t: '조건 켜기', key: '1–' + M.D.criteria.length, d: '켠 조건 가운데 하나라도 맞으면 추출된다. 칩의 숫자는 그 조건에 걸리는 건수.',
+          demo: critDemo(M, ['weekend', 'big']) },
+        { t: '건수 보기', d: '추출 건수가 한도를 넘으면 붉게 바뀐다.' },
+        { t: '확정', key: 'Ctrl Enter' }
+      ]
+    };
+  };
+  site.howto = function (M) {
+    return {
+      goal: '공종마다 본사 보고와 현장을 맞추고, 공정률을 다시 잡는다.',
+      steps: [
+        { t: '일보 보기', d: '현장에서 손으로 쓴 공정 일보. 한 건에 −' + (M.D.costSec || 3) + '초.',
+          demo: sp('ev-b', '일보 보기') + TO + sp('ev-open', '공정 일보') },
+        { t: '괴리 표시', d: '사진 · 일보가 보고와 다르면 표시한다. 틀린 표시는 −' + (M.D.wrongSec || 5) + '초.',
+          demo: sp('flag-b', '일치') + TO + sp('flag-b on', '✗ 괴리') },
+        { t: '공정률 다시 잡기', d: '오른쪽 계산 가운데 하나를 고른다.' },
+        { t: '끝내기', key: 'Ctrl Enter' }
+      ]
+    };
   };
 
   global.MINIS = { count: count, jet: jet, cutoff: cutoff, confirm: confirm, unrec: unrec, sample: sample, ic: ic,
