@@ -497,7 +497,7 @@
             '<h1>감사 시즌<em>2026</em></h1><p>' + esc(book.brief || '') + '</p></div>' +
           '<div class="menu">' +
             '<button type="button" class="m primary" data-act="new"><div><b>새 시즌</b><span>장면 ' + window.SCENES.length + ' · ' + esc(window.SCENES[0].chapter) + ' → 감사의견</span></div><kbd>Enter</kbd></button>' +
-            (run && run.snap ? '<button type="button" class="m" data-act="continue"><div><b>이어하기</b><span>장면 ' + pad(Math.min(10, run.snap.i + 1)) + ' · 시즌 ' + run.snap.seed + ' · ' + ago(run.at) + '</span></div><span class="arrow">→</span></button>' : '') +
+            (run && run.snap ? '<button type="button" class="m" data-act="continue"><div><b>이어하기</b><span>장면 ' + pad(Math.min(runScenes(run), run.snap.i + 1)) + ' · 시즌 ' + run.snap.seed + ' · ' + ago(run.at) + '</span></div><span class="arrow">→</span></button>' : '') +
             '<button type="button" class="m" data-act="practice"><div><b>연습 모드</b><span>분야 · 형식 골라 풀기' + (P.wrong.length ? ' · 오답 ' + P.wrong.length : '') + '</span></div><span class="arrow">→</span></button>' +
             '<button type="button" class="m" data-act="binder"><div><b>조서 보관함</b><span>개념 카드 ' + learned + ' / ' + cards.length + (P.last ? ' · 지난 시즌 조서' : '') + '</span></div><span class="arrow">→</span></button>' +
           '</div>' +
@@ -509,7 +509,7 @@
               '<b>' + esc(b.name.replace('㈜', '')) + '</b></button>';
           }).join('') + '</div>' : '') +
           '<div class="card-d"><div class="cd-h"><b>감사 대상</b><span>' + esc(C.fy) + '</span></div><table>' +
-            [['회사', C.name + ' · ' + C.market], ['논점', book.tag || ''], ['업종', C.industry], ['매출액', C.revenue], ['자산총계', C.assets], ['중요성', C.materiality + ' · 수행 ' + C.pm]]
+            [['회사', C.name + ' · ' + C.market], ['논점', book.tag || ''], ['경로', routeCount(P, book.id)], ['업종', C.industry], ['매출액', C.revenue], ['자산총계', C.assets], ['중요성', C.materiality + ' · 수행 ' + C.pm]]
               .filter(function (r) { return r[1]; })
               .map(function (r) { return '<tr><th>' + esc(r[0]) + '</th><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</table></div>' +
           homeCast().map(function (row) {
@@ -584,6 +584,25 @@
     saveProg(P);
     buildShell();
     interlude('pro', enterScene);
+  }
+
+  /* 이어하기 줄에 쓰는 장면 수 — 저장된 시즌의 회사 것 */
+  function runScenes(run) {
+    var b = run && run.company && window.SEASONS ? window.SEASONS.find(run.company) : null;
+    return ((b && b.data && b.data.SCENES) || window.SCENES).length;
+  }
+  /* 갈림길이 있는 회사 — 지금까지 지나 본 경로 수 / 전체 (없는 회사는 빈칸) */
+  function routeCount(P, co) {
+    var total = 1, any = false;
+    window.SCENES.forEach(function (sc) {
+      if (!sc.fork) return;
+      var names = {};
+      (sc.variants || []).forEach(function (v) { if (v.route) names[v.route] = 1; });
+      var n = Object.keys(names).length;
+      if (n) { total *= n; any = true; }
+    });
+    if (!any) return '';
+    return Object.keys(((P.routes || {})[co]) || {}).length + ' / ' + total;
   }
 
   function continueSeason() {
@@ -712,7 +731,7 @@
       window.SCENES.forEach(function (sc, i) {
         var p = (S.papers || []).filter(function (x) { return x.kind === 'scene' && x.idx === i; })[0];
         var on = i === S.i && cur && cur.kind === 'scene' && !cur.wrapped;
-        h += '<div class="tab' + (on ? ' on' : p ? ' done' : '') + '" title="' + esc(sc.chapter) + '">' + pad(i + 1) +
+        h += '<div class="tab' + (on ? ' on' : p ? ' done' : '') + '" title="' + esc(p ? p.title : sc.chapter) + '">' + pad(i + 1) +
           (p ? '<span class="mk ' + mark(p.pct) + '">' + markChar(p.pct) + '</span>' : '') + '</div>';
         if (keys[sc.id]) {
           var st = S.sideAt[sc.id];
@@ -737,10 +756,10 @@
     lastAt = (op && op.at) || lastAt;
     startUnit({ kind: 'scene', it: it, idx: S.i }, {
       chapter: true, no: pad(S.i + 1), prevNo: S.i > 0 ? pad(S.i) : '', track: S.i,
-      kick: '장면 ' + pad(S.i + 1) + ' / ' + window.SCENES.length, title: sc.chapter,
+      kick: '장면 ' + pad(S.i + 1) + ' / ' + window.SCENES.length, title: it.sc.chapter,
       at: op && op.at, atFrom: atFrom, place: op && op.place, text: op ? op.text : (it.line ? '“' + it.line + '”' : ''),
       sub: it.line ? '“' + it.line + '”' : '', seat: SEASON.SEATS[it.seat].name,
-      seatId: it.seat, seatFrom: from, img: sceneImg(sc.art), vid: window.ART.video(sc.art)
+      seatId: it.seat, seatFrom: from, img: sceneImg(it.sc.art), vid: window.ART.video(it.sc.art)
     });
   }
 
@@ -1350,9 +1369,13 @@
 
     if (mode === 'practice') return practiceWrap(res);
 
+    var factsWas = Object.keys((S.story && S.story.facts) || {});
     var outcome = cur.kind === 'side'
       ? SEASON.applySide(S, it, texts, res, { timedOut: cur.timedOut, clues: found })
       : SEASON.apply(S, it, texts, res, { timedOut: cur.timedOut, clues: found });
+    // 경로 장면이 연 인물 사실 (그 길로 가야만 알게 되는 것) — 대화에서 열린 것처럼 알린다
+    var factsNew = Object.keys((S.story && S.story.facts) || {}).filter(function (k) { return factsWas.indexOf(k) < 0; });
+    if (factsNew.length) setTimeout(function () { factToast(factsNew); }, 1600);
     if (cur.kind === 'side') S.sideAt[window.SCENES[S.i].id] = it.sc.id;
     var paper = buildPaper(res, texts, outcome);
     S.papers.push(paper);
@@ -1620,6 +1643,13 @@
     save(STORE, history);
     var P = prog();
     P.best = Math.max(P.best || 0, avg);
+    var route = SEASON.routeOf(S);
+    if (route.length && window.SEASONS) {
+      var co = window.SEASONS.current().id;
+      P.routes = P.routes || {};
+      P.routes[co] = P.routes[co] || {};
+      P.routes[co][route.join(' → ')] = 1;
+    }
     P.last = { seed: S.seed, papers: papers, truths: S.truths.map(function (t) { return { id: t.id, active: t.active, amount: t.amount, found: t.found, verified: t.verified }; }),
                story: S.story, bond: S.bond };
     saveProg(P);
@@ -1655,7 +1685,7 @@
                 (r.state === 'missed' && r.how ? '<small>' + esc(r.how) + '</small>' : '') + '</span>' +
               '<span class="st ' + r.state + '">' + esc(r.nonMonetary && r.state === 'found' ? '발견 · 보고' : STATE_TXT[r.state]) + '</span></li>';
           }).join('') + '</ul></section>' +
-        '<section class="n-sec"><h3><span>시즌 기록</span></h3><div class="n-stats">' +
+        '<section class="n-sec"><h3><span>시즌 기록</span>' + (route.length ? '<span>경로 · ' + esc(route.join(' → ')) + '</span>' : '') + '</h3><div class="n-stats">' +
           '<div><span class="k">평균 점수</span><b>' + avg + '</b></div>' +
           '<div><span class="k">감사증거</span><b>' + S.gauge.E + '</b></div>' +
           '<div><span class="k">신뢰</span><b>' + S.gauge.R + '</b></div>' +
@@ -1774,7 +1804,8 @@
   /* ============================================================
      연습 모드
      ============================================================ */
-  var SCENE_TAG = { s1: '독립성', s2: '위험평가', s3: '재고실사', s4: '외부조회', s5: '회계추정치', s6: '특수관계자', s7: '기타정보', s8: '후속사건', s9: '왜곡표시', s10: '감사의견' };
+  var SCENE_TAG = { s1: '독립성', s2: '위험평가', s3: '재고실사', s4: '외부조회', s5: '회계추정치', s6: '특수관계자', s7: '기타정보', s8: '후속사건', s9: '왜곡표시', s10: '감사의견',
+                    s5b: '단서 추적', s6b: '지배기구 보고' };
 
   function allSources() {
     var list = [];

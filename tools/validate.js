@@ -142,9 +142,11 @@ SCENES.forEach(sc => {
     if (!labelsOf[sc.id].has(l)) fail(`${sc.id} confront 가 없는 라벨 참조: ${l}`);
   });
 });
+// 발견 조건이 가리키는 라벨 — or 로 적힌 다른 길까지
+const needsOf = c => !c ? [] : [].concat(c.need || [], ...(c.or || []).map(needsOf));
 TRUTH.forEach(t => ['detect', 'verify'].forEach(key => {
   if (!t[key]) return;
-  t[key].need.forEach(ref => {
+  needsOf(t[key]).forEach(ref => {
     const [sid, lab] = ref.split('#');
     if (!labelsOf[sid]) fail(`진실 ${t.id}.${key} — 없는 장면: ${sid}`);
     else if (!labelsOf[sid].has(lab)) fail(`진실 ${t.id}.${key} — ${sid} 에 없는 라벨: ${lab}`);
@@ -222,7 +224,7 @@ run('s3② 재고 실사 — 표본만 세고 틱 없음', 's3', null, 1, { mini
 
 /* ── 4. 경우의 수 시뮬레이션 ──────────────────────────── */
 function lcg(seed) { let a = seed >>> 0; return () => ((a = (a * 1664525 + 1013904223) >>> 0) / 4294967296); }
-const TRUTH_LABELS = new Set([].concat(...TRUTH.map(t => [].concat(t.detect ? t.detect.need : [], t.verify ? t.verify.need : []))));
+const TRUTH_LABELS = new Set([].concat(...TRUTH.map(t => [].concat(needsOf(t.detect), needsOf(t.verify)))));
 const isConfront = (it, m) => (it.sc.confront || []).includes(m.label);
 
 /* 메신저 선택 — 성향마다 고르는 방식이 다르다 (윤리 판정: hawk 는 옳은 쪽, dove 는 틀린 쪽) */
@@ -384,6 +386,108 @@ reach('사람들의 1년 뒤', [].concat(...STORYDATA.FATES.map(f => f.list.map(
   else console.log('  저장 · 이어하기: 이상 없음');
 }
 
+// 장면이 끼어들기 전의 저장본 — 번호가 아니라 그때의 장면으로 돌아와야 한다
+{
+  const added = SCENES.filter(sc => sc.since);
+  if (added.length) {
+    const old = SCENES.filter(sc => !sc.since);
+    const S = SEASON.create({ seed: 4321 });
+    S.i = old.length - 2;
+    S.papers.push({ id: old[1].id, kind: 'scene', idx: 1, parts: [] }, { id: old[S.i - 1].id, kind: 'scene', idx: S.i - 1, parts: [] });
+    const snap = JSON.parse(JSON.stringify(SEASON.snapshot(S)));
+    snap.v = Math.min(...added.map(sc => sc.since)) - 1;
+    const R = SEASON.restore(snap);
+    const ok = SCENES[R.i] === old[S.i] && R.papers.every(p => SCENES[p.idx] && SCENES[p.idx].id === p.id);
+    if (!ok) fail('예전 저장본 — 끼어든 장면만큼 번호를 옮기지 못했다');
+    else console.log(`  예전 저장본: 장면 ${added.map(sc => sc.id).join(' · ')} 이 끼어든 뒤에도 제자리`);
+    const R2 = SEASON.restore(JSON.parse(JSON.stringify(SEASON.snapshot(S))));
+    if (R2.i !== S.i) fail('지금 저장본의 장면 번호가 밀렸다');
+  }
+}
+
+/* ── 4½. 갈림길 ───────────────────────────────────────────
+   갈림길마다 한 길씩 골라 모든 조합을 끝까지 돌린다.
+   어느 길이든 잘하면 '지적 없음'에 닿아야 하고, 잘못 든 길에서도 돌아올 수 있어야 한다. */
+{
+  const forks = STORYDATA.BEATS.filter(b => b.fork && b.choice);
+  if (forks.length) {
+    console.log('\n═══ 갈림길 (경로마다 끝까지 · 만회)');
+    const flagOf = o => [].concat((o.fx || {}).flag || [])[0];
+    const combos = forks.map(b => b.choice.opts.map(flagOf))
+      .reduce((acc, list) => [].concat(...acc.map(a => list.map(x => a.concat([x])))), [[]]);
+    // picks 갈림길에서 고를 표지들 · opt.pick(대화) 그 대화에서 고를 번호 · opt.persona(장면) 그 장면만 다른 성향으로
+    const playRoute = (seed, picks, opt) => {
+      opt = opt || {};
+      const S = SEASON.create({ seed });
+      const r = lcg(seed * 17 + 3);
+      const at = a => STORY.beatsAt(S, a).forEach(b => {
+        b.msgs.forEach(m => STORY.log(S, b, m));
+        if (b.choice) {
+          let i = b.fork ? b.choice.opts.findIndex(o => picks.includes(flagOf(o))) : (opt.pick ? opt.pick(b) : null);
+          if (i == null) i = PICK.right(b, r);
+          if (i >= 0) STORY.choose(S, b, i);
+        }
+        STORY.markSeen(S, b);
+      });
+      at('pro');
+      const path = {};
+      SCENES.forEach((sc, i) => {
+        S.i = i;
+        const it = SEASON.resolve(sc, S);
+        if (it.v && it.v.id !== '-') path[sc.id] = it.v.id;
+        SEASON.apply(S, it, [], synth(it, (opt.persona && opt.persona(sc)) || PERSONAS.hawk, r), { over: 0, timedOut: 0 });
+        at(sc.id);
+      });
+      return { S, E: SEASON.epilogue(S), path };
+    };
+    const N = 12, seen = {};
+    combos.forEach(picks => {
+      let clean = 0, all = 0, minT = 100;
+      const names = {};
+      for (let k = 1; k <= N; k++) {
+        const x = playRoute(k * 104729, picks);
+        if (x.E.audit.id === 'clean') clean++;
+        if (x.E.missed === 0) all++;
+        minT = Math.min(minT, x.S.gauge.T);
+        const nm = SEASON.routeOf(x.S).join(' → ');
+        names[nm] = 1; seen[nm] = 1;
+      }
+      console.log(`  ${Object.keys(names).join(' / ').padEnd(30)} 지적 없음 ${clean}/${N} · 전부 발견 ${all}/${N} · 남은 시간 최저 ${minT}`);
+      if (clean < N) fail(`경로 ${picks.join(' + ')} — 다 맞혀도 '지적 없음'이 ${clean}/${N}`);
+    });
+    console.log(`  서로 다른 경로 ${Object.keys(seen).length}가지`);
+    if (Object.keys(seen).length < combos.length) fail('갈림길 조합마다 다른 경로가 나오지 않는다');
+
+    if ((process.env.SEASON || 'seorin') === 'seorin') {
+      const MISS = { pct: () => 40, must: () => false, trap: () => false, verdict: () => true };
+      const found = (x, id) => x.S.truths.some(t => t.id === id && t.found);
+      // ① 위험평가를 놓쳤어도 전수 분석에서 자금 흐름을 짚으면 순환거래가 되살아난다
+      let x = playRoute(7919, ['route_data', 'route_chair'], { persona: sc => sc.id === 's2' ? MISS : null });
+      if (x.S.flags.fraud_alert || x.path.s5b !== 'LATE' || !found(x, 'circular_flow'))
+        fail(`만회 ① 위험평가를 놓친 뒤 전수 분석 — 판본 ${x.path.s5b}, 순환거래 ${found(x, 'circular_flow') ? '발견' : '놓침'}`);
+      else console.log(`  만회 ① 위험평가 놓침 → 뒤늦은 전수 추출 → 순환거래 발견 (${x.E.audit.title})`);
+      // ② 이수아의 믿음을 잃고(제보를 경영진에게 흘림) 만나러 가면 헛걸음 — 서버실로 돌아와 같은 문항을 푼다
+      x = playRoute(7919, ['route_person', 'route_chair'],
+        { pick: b => b.id === 's4_sua' ? b.choice.opts.findIndex(o => flagOf(o) === 'sua_leak') : null });
+      if (x.path.s5b !== 'BACK' || x.path.s6 !== 'HIT' || x.E.audit.id !== 'clean')
+        fail(`만회 ② 면담 불발 — 판본 ${x.path.s5b}/${x.path.s6}, 결과 ${x.E.audit.title}`);
+      else console.log(`  만회 ② 면담 불발 → 서버실로 복귀 → ${x.E.audit.title}`);
+      // ③ 대표이사를 먼저 만났어도 감사위원장의 연락에 바로 가면 지지를 얻는다. 미루면 못 얻는다
+      x = playRoute(7919, ['route_data', 'route_ceo']);
+      const y = playRoute(7919, ['route_data', 'route_ceo'], { pick: b => b.id === 's7_chair' ? b.choice.opts.findIndex(o => o.ok === false) : null });
+      if (!x.S.flags.chair_backing || y.S.flags.chair_backing)
+        fail(`만회 ③ 대표이사 먼저 — 바로 감 ${!!x.S.flags.chair_backing}, 미룸 ${!!y.S.flags.chair_backing}`);
+      else console.log('  만회 ③ 대표이사 먼저 → 감사위원장에게 바로 가면 지지, 미루면 없음');
+      // ④ 단서 추적을 망치면 어느 길이든 뒤늦게 안다
+      ['route_data', 'route_person'].forEach(f => {
+        const z = playRoute(7919, [f, 'route_chair'], { persona: sc => sc.id === 's5b' ? MISS : null });
+        if (z.path.s6 !== 'MISS' || !z.S.late) fail(`단서 추적을 놓쳤는데(${f}) 특수관계자 판본이 ${z.path.s6}`);
+      });
+      console.log('  단서 추적을 놓치면 어느 길이든 외부 제보로 뒤늦게 인지');
+    }
+  }
+}
+
 /* ── 5. 돌발 업무 ─────────────────────────────────────── */
 console.log('\n═══ 돌발 업무 (data/cases.js)');
 {
@@ -456,8 +560,17 @@ console.log('\n═══ 인물 · 이야기 (data/cast.js · data/story.js)');
     try { rb = STORY.resolveBeat(b, S0); } catch (e) { fail(`${b.id} 풀기 예외: ${e.message}`); return; }
     if (!rb.msgs.length) fail(`${b.id} 메시지 없음`);
     rb.msgs.forEach(m => who(m.from));
+    if (b.fork && !b.choice) fail(`${b.id} 갈림길인데 답장이 없다`);
     if (b.choice) {
       if (b.choice.opts.length < 2 || b.choice.opts.length > 4) fail(`${b.id} 답장 수 ${b.choice.opts.length}`);
+      if (b.fork) {
+        if (!SCENES.some(sc => sc.fork)) fail(`${b.id} 갈림길인데 경로 장면(fork)이 없다`);
+        b.choice.opts.forEach(o => {
+          if (!o.to || !o.sub) fail(`${b.id} 갈림길 답장에 가는 곳(to · sub) 없음: ${o.t}`);
+          if (!(o.fx && o.fx.flag)) fail(`${b.id} 갈림길 답장에 경로 표지 없음: ${o.t}`);
+          if (o.ok === true || o.ok === false) fail(`${b.id} 갈림길에는 옳고 그름을 두지 않는다`);
+        });
+      }
       const judged = b.choice.opts.some(o => o.ok === true || o.ok === false);
       if (judged && !b.choice.card) fail(`${b.id} 판정이 있는데 개념 카드 없음`);
       if (judged && b.choice.opts.filter(o => o.ok === true).length !== 1) fail(`${b.id} 옳은 답장이 1개가 아님`);
@@ -482,6 +595,10 @@ console.log('\n═══ 인물 · 이야기 (data/cast.js · data/story.js)');
     const openers = new Set();
     const walk = o => { if (!o || typeof o !== 'object') return; if (o.fx && o.fx.fact) [].concat(o.fx.fact).forEach(f => openers.add(f)); Object.values(o).forEach(walk); };
     STORYDATA.BEATS.forEach(b => { (b.facts || []).forEach(f => openers.add(f)); walk(b.choice); });
+    SCENES.forEach(sc => (sc.variants || []).forEach(v => (v.facts || []).forEach(f => {
+      if (!factIds.has(f)) fail(`${sc.id}/${v.id} 없는 인물 사실: ${f}`);
+      openers.add(f);
+    })));
     const seenK = {};
     let nFacts = 0;
     ['team', 'client', 'outside', 'other'].forEach(g => (ctx.CAST_ORDER[g] || []).forEach(k => {

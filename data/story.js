@@ -14,6 +14,8 @@
      choice  { card?{label, why}, opts[{ t, ok?, note?, fx?, reply? }] }
                ok true/false 가 있으면 판정(윤리 · 독립성) — card 가 개념 카드가 된다
                fx { bond{인물: ±n}, R, E, T, C, flag, fact }   C = 회사 태도
+     fork    true 면 갈림길 — 고른 답장이 다음 장면(경로 장면)을 정한다. 건너뛸 수 없고 2개 제한에도 안 걸린다
+               opts[{ t, to(가는 장면 이름), sub(장소 · 사람), fx{flag: 'route_…'} }]  옳고 그름은 없다
    문구 — 메신저 한 줄은 32자 안팎. 설명하지 말고 사람처럼 쓴다.
    ============================================================ */
 (function () {
@@ -56,10 +58,23 @@
       s5: { at: '20×7. 2. 3. 19:20', place: '감사팀 현장 사무실', text: function (S, v) {
         return v.id === 'BIAS' ? '새 계리법인의 보고서. 가정 네 줄이 전부 같은 쪽으로 움직였다.'
           : '계리보고서가 왔다. 작년과 같은 법인, 같은 서식.'; } },
+      // 경로 장면 — 시각 · 장소도 고른 길을 따른다
+      s5b: { at: function (S, v) { return v.id === 'MEET' ? '20×7. 2. 6. 19:40' : '20×7. 2. 6. 14:00'; },
+        place: function (S, v) { return v.id === 'MEET' ? '회사에서 두 정거장 떨어진 카페' : '세종회계법인 9층 서버실'; },
+        text: function (S, v) {
+          return v.id === 'MEET' ? '이수아는 구석 자리에 먼저 와 있다. 가방을 무릎에 올려놓은 채.'
+            : v.id === 'BACK' ? '한결은 카페에서 한 시간을 기다리다 돌아왔다. 심규리가 테이블을 띄워 놓았다.'
+            : v.id === 'LATE' ? '심규리의 모니터에 진행률 막대. 12,480건 중 3,100건.'
+            : '심규리의 모니터 세 대. 가운데에 12월에 짜 둔 쿼리가 떠 있다.'; } },
       s6: { at: '20×7. 2. 10. 23:10', place: '세종회계법인 14층', text: function (S, v) {
         return v.id === 'HIT' ? '한결이 모니터를 돌려 보인다. 목록에 없는 이름 하나.'
           : v.id === 'TIP' ? '이수아가 보낸 파일이 열려 있다. 등기부등본 한 장.'
           : '발신자 없는 메일 한 통. 첨부는 등기부등본.'; } },
+      s6b: { at: function (S, v) { return v.id === 'CHAIR' ? '20×7. 2. 13. 16:00' : '20×7. 2. 13. 14:00'; },
+        place: function (S, v) { return v.id === 'CHAIR' ? '㈜서린정밀 감사위원회 회의실' : '㈜서린정밀 대표이사실'; },
+        text: function (S, v) {
+          return v.id === 'CHAIR' ? '긴 탁자에 윤서경 혼자 앉아 있다. 경영진 자리는 비워 두었다.'
+            : '임재강은 창가에 서 있다. 탁자에는 상장 기념패.'; } },
       s7: { at: '20×7. 2. 24. 15:00', place: '감사팀 현장 사무실', text: '사업보고서 초안 312쪽. 인쇄 마감은 금요일.' },
       s8: { at: '20×7. 3. 4. 06:10', place: '세종회계법인 14층', text: '새벽 속보 — 서린정밀 제2공장 화재. 한결이 먼저 와 있다.' },
       s9: { at: '20×7. 3. 8. 10:00', place: '㈜서린정밀 대회의실', text: function (S) {
@@ -273,6 +288,25 @@
           { from: 'assoc', t: '나머지는 정말 안 봐도 되는 거죠?' }
         ] },
 
+      /* ── 갈림길 1 — 전표를 팔 것인가, 사람을 만날 것인가 (다음 장면 s5b 가 여기서 정해진다) ── */
+      { id: 's5_fork', at: 's5', fork: true, room: 'team', pov: 'manager', time: '2. 5. (목) 09:10', bg: 'office',
+        msgs: function (S) {
+          return [
+            S.flags.fraud_alert ? { from: 'assoc', t: '한들상사 전표 214건, 목록 뽑아 놨어요.' }
+                                : { from: 'assoc', t: '분개 1만 2천 건 중에 본 건 25건이에요.' },
+            S.flags.fraud_alert ? { from: 'kyuri', t: '원장이랑 붙여서 전수로 볼 수 있어요. 하루.' }
+                                : { from: 'kyuri', t: '전수 추출, 지금 시작하면 이틀이에요.' },
+            { from: 'assoc', t: '회계팀 이수아 대리님도 뭔가 아는 눈치였어요.' },
+            { from: 'partner', t: '유 회계사, 어느 쪽부터 갈지 정하게.' }
+          ];
+        },
+        choice: { opts: [
+          { t: '매니저님, 전수로 돌려 주세요.', to: '분개 전수 분석', sub: '서버실 · 심규리', fx: { flag: 'route_data' },
+            reply: [{ from: 'kyuri', t: '서버실로 오세요. 테이블부터 맞춥니다.' }] },
+          { t: '한결 씨, 이수아 대리님부터 만나 봐.', to: '제보자 면담', sub: '회사 밖 · 이수아', fx: { flag: 'route_person' },
+            reply: [{ from: 'assoc', t: '넵! 회사 밖에서 뵙자고 할게요.' }] }
+        ] } },
+
       /* ── 특수관계자 뒤 ─────────────────────────── */
       { id: 's6_sua', at: 's6', room: 'dm:sua', pov: 'assoc', time: '2. 10. (화) 23:58', bg: 'night',
         when: function (S) {
@@ -283,7 +317,10 @@
         msgs: function (S) {
           return vid(S, 's6') === 'TIP'
             ? [{ from: 'sua', t: '자료 보셨어요?' }, { from: 'sua', t: '제 이름… 안 나가는 거죠?', mood: 'tense' }]
-            : [{ from: 'sua', t: '그 메일, 제가 보냈어요.' }, { from: 'sua', t: '더 일찍 말씀드렸어야 했는데…' },
+            : [{ from: 'sua', t: '그 메일, 제가 보냈어요.' },
+               // 만나서 자료까지 건넸는데 감사팀이 움직이지 않았던 경우 (s5b MEET 에서 제보를 흘려보냄)
+               vid(S, 's5b') === 'MEET' ? { from: 'sua', t: '그날 드린 자료로는 안 움직이시길래…' }
+                                        : { from: 'sua', t: '더 일찍 말씀드렸어야 했는데…' },
                { from: 'sua', t: '제 이름… 안 나가는 거죠?', mood: 'tense' }];
         },
         choice: {
@@ -309,9 +346,33 @@
           { from: 'sua', t: '다행이에요. 혼자 알고 있기 무서웠어요.', mood: 'tense' }
         ] },
 
-      { id: 's6_ceo', at: 's6', room: 'talk', pov: 'manager', place: '대표이사실', time: '2. 12. (목) 14:00', bg: 'ceo',
+      /* ── 갈림길 2 — 누구에게 먼저 가져갈 것인가 (다음 장면 s6b 가 여기서 정해진다) ── */
+      { id: 's6_fork', at: 's6', fork: true, room: 'dm:manager', pov: 'partner', time: '2. 12. (목) 08:30', bg: 'office',
+        msgs: function (S) {
+          var got = (S.truths || []).some(function (t) { return t.id === 'circular_ar' && t.found; });
+          return [
+            { from: 'manager', t: '이사님, 한들상사 건 정리했습니다.' },
+            got ? { from: 'manager', t: '매출채권은 실체를 확인하지 못했습니다.', mood: 'tense' }
+                : { from: 'manager', t: '거래 실체는 아직 확인 중입니다.' },
+            { from: 'manager', t: '대표이사실에서 면담하자는 연락이 왔습니다.' },
+            { from: 'manager', t: '감사위원장도 따로 뵙자고 하십니다.' }
+          ];
+        },
+        choice: { opts: [
+          { t: '감사위원장부터 뵙지. 경영진은 빼고.', to: '감사위원회 보고', sub: '회의실 · 윤서경',
+            fx: { flag: 'route_chair', bond: { chair: 8 }, C: -4 },
+            reply: [{ from: 'manager', t: '내일 16시, 위원장님만 계신 자리로 잡겠습니다.' }] },
+          { t: '대표이사부터 만나지. 해명은 들어 봐야지.', to: '경영진 면담', sub: '대표이사실 · 임재강',
+            fx: { flag: 'route_ceo', C: 2, bond: { chair: -8 } },   // 감사위원장은 경영진 다음 차례로 밀렸다
+            reply: [{ from: 'manager', t: '내일 14시, 대표이사실입니다.' }] }
+        ] } },
+
+      /* ── 첫 보고 뒤 — 감사위원회에 먼저 갔다면 대표이사가 부른다 ── */
+      { id: 's6_ceo', at: 's6b', room: 'talk', pov: 'manager', place: '대표이사실', time: '2. 16. (월) 10:00', bg: 'ceo',
+        when: function (S) { return !!S.flags.route_chair; },
         facts: ['ceo_wife'],
         msgs: [
+          { from: 'ceo', t: '감사위원장한테 먼저 갔다면서요.', mood: 'bad' },
           { from: 'ceo', t: '앉으세요. 커피? 아, 안 드시지.' },
           { from: 'ceo', t: '한들상사는 내 집사람 회사예요. 그게 뭐가 문제입니까.', mood: 'bad' },
           { from: 'ceo', t: '우리 회사 상장시킨 게 누군지 압니까.' }
@@ -348,7 +409,9 @@
             reply: [{ from: 'cfo', t: '…생각해 보겠습니다.', mood: 'bad' }] }
         ] } },
 
-      { id: 's7_chair', at: 's7', room: 'dm:chair', pov: 'partner', time: '2. 25. (수) 09:00', bg: 'meeting',
+      /* 대표이사를 먼저 만났다면 — 감사위원장이 따로 연락한다. 여기서 바로 가면 감사위원회의 지지를 되찾는다 (만회) */
+      { id: 's7_chair', at: 's6b', room: 'dm:chair', pov: 'partner', time: '2. 16. (월) 09:00', bg: 'meeting',
+        when: function (S) { return !S.flags.route_chair; },
         msgs: [
           { from: 'chair', t: '감사위원장 윤서경입니다.' },
           { from: 'chair', t: '한들상사 건, 경영진 보고서로만 들었습니다.' },
@@ -431,6 +494,7 @@
       ] },
       { who: 'sua', list: [
         { when: function (s) { return s.flags.sua_exposed || s.flags.sua_leak; }, t: '회사가 제보자를 찾아냈다. 한 달 뒤 권고사직.' },
+        { when: function (s) { return s.flags.lead_tip && s.flags.sua_protected; }, t: '카페에서 건넨 봉투는 조서에 「익명 제보」로만 남았다. 지금은 다른 상장사 내부감사팀에 있다.' },
         { when: function (s) { return s.flags.sua_protected; }, t: '신원은 끝까지 드러나지 않았다. 지금은 다른 상장사 내부감사팀에 있다.' },
         { when: function (s) { return s.bond.sua >= 30; }, t: '끝내 말하지 않았다. 이듬해 봄 회사를 떠났다.' },
         { when: function () { return true; }, t: '감사팀과는 인사 몇 번이 전부였다.' }
@@ -447,7 +511,12 @@
         { when: function (s) { return s.missedAmount >= 40; }, t: '관리종목 지정 날, 주주총회장에서 고개를 숙였다.' },
         { when: function () { return true; }, t: '여전히 대표이사. 한들상사와의 거래는 그해 끊겼다.' }
       ] },
+      { who: 'kyuri', list: [
+        { when: function (s) { return s.flags.lead_data; }, t: '서린정밀에서 쓴 결합 쿼리는 이듬해 법인의 표준 분개 테스트 양식이 됐다.' }
+      ] },
       { who: 'chair', list: [
+        { when: function (s) { return s.flags.route_chair && s.flags.chair_backing; }, t: '경영진 없이 받은 첫 보고를 회의록에 그대로 실었다. "감사인은 독립적이었음."' },
+        { when: function (s) { return s.flags.route_ceo && s.flags.chair_backing; }, t: '대표이사 다음에야 보고를 받았다. 그래도 회의록에는 적었다. "감사인은 독립적이었음."' },
         { when: function (s) { return s.flags.chair_backing; }, t: '감사위원회 보고서에 한 줄을 남겼다. "감사인은 독립적이었음."' },
         { when: function (s) { return s.bond.chair >= 50; }, t: '너무 늦게 움직였다며 사임했다. 후임에게 감사인 보고서를 그대로 넘겼다.' },
         { when: function () { return true; }, t: '감사위원회 회의록에는 "보고받음" 네 글자만 남았다.' }

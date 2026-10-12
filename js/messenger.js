@@ -194,8 +194,10 @@
 
     function showChoices(b) {
       state = 'choice';
-      foot.innerHTML = '<div class="mc-h">답장</div><div class="mc-list">' + b.choice.opts.map(function (o, i) {
-        return '<button type="button" class="mc" data-i="' + i + '"><kbd>' + (i + 1) + '</kbd><span>' + esc(o.t) + '</span></button>';
+      // 갈림길 — 고른 답장에 따라 다음 장면이 달라진다. 어디로 가는지 답장 밑에 적는다
+      foot.innerHTML = '<div class="mc-h' + (b.fork ? ' fork' : '') + '">' + (b.fork ? '갈림길' : '답장') + '</div><div class="mc-list' + (b.fork ? ' fork' : '') + '">' + b.choice.opts.map(function (o, i) {
+        return '<button type="button" class="mc" data-i="' + i + '"><kbd>' + (i + 1) + '</kbd><span>' + esc(o.t) +
+          (b.fork && o.to ? '<small>' + esc(o.to + (o.sub ? ' · ' + o.sub : '')) + '</small>' : '') + '</span></button>';
       }).join('') + '</div>';
       var first = foot.querySelector('.mc');
       if (first) first.focus({ preventScroll: true });
@@ -248,6 +250,20 @@
     function skipAll() {
       if (state === 'closed') return;
       clearTimeout(timer);
+      // 갈림길은 건너뛸 수 없다 — 앞 대화만 넘기고 고르는 자리에서 멈춘다
+      var fk = -1;
+      beats.forEach(function (b, i) { if (fk < 0 && i >= bi && b.fork && b.choice && b._pick == null && !S.story.seen[b.id]) fk = i; });
+      if (fk >= 0) {
+        hideTyping(); pending = null;
+        for (var j = bi; j < fk; j++) {
+          if (!S.story.seen[beats[j].id]) {
+            if (j !== bi || state === 'idle') beats[j].msgs.forEach(function (m) { STORY.log(S, beats[j], m); });
+            STORY.markSeen(S, beats[j]);
+          }
+        }
+        if (fk !== bi) startBeat(fk);
+        return rush();
+      }
       beats.forEach(function (b) {
         if (!(S.story.seen[b.id])) {
           // 건너뛴 대화도 기록에는 남긴다 — 인물 파일에서 다시 읽을 수 있다

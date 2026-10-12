@@ -52,15 +52,15 @@
       .map(function (m) { return { from: m.from || null, sys: m.sys || null, t: m.t || '', mood: m.mood || null }; });
     var ch = b.choice && (!b.choice.when || b.choice.when(S)) ? b.choice : null;
     var opts = ch ? ch.opts.map(function (o, k) {
-      return { k: k, t: o.t, ok: o.ok, note: o.note || null, fx: o.fx || {},
+      return { k: k, t: o.t, ok: o.ok, note: o.note || null, fx: o.fx || {}, to: o.to || null, sub: o.sub || null,
                reply: (o.reply || []).map(function (m) { return { from: m.from || null, sys: m.sys || null, t: m.t || '', mood: m.mood || null }; }) };
     }) : [];
-    // 판정이 걸린 답장은 시즌마다 순서를 섞는다 — "첫 번째가 정답"으로 외우지 못하게
-    if (ch && ch.card) shuffle(opts, hash((S.seed || 0) + ':' + b.id));
+    // 판정이 걸린 답장은 시즌마다 순서를 섞는다 — "첫 번째가 정답"으로 외우지 못하게. 갈림길도 같은 이유로 섞는다
+    if (ch && (ch.card || b.fork)) shuffle(opts, hash((S.seed || 0) + ':' + b.id));
     return {
       id: b.id, at: b.at, room: b.room, pov: b.pov || null, name: roomName(b.room, b.place), mode: b.room === 'talk' ? 'talk' : 'chat',
       who: roomWho(b.room), place: b.place || null, time: b.time || '', bg: b.bg || 'desk', facts: b.facts || [],
-      msgs: msgs,
+      fork: !!b.fork, msgs: msgs,
       choice: ch ? { card: ch.card || null, opts: opts } : null
     };
   }
@@ -74,7 +74,8 @@
     return a;
   }
 
-  /* 그 시점에 볼 대화 — 아직 안 본 것 중 조건이 맞는 것을 위에서부터 최대 2개, 보여 주는 순서는 시각순 */
+  /* 그 시점에 볼 대화 — 아직 안 본 것 중 조건이 맞는 것을 위에서부터 최대 2개, 보여 주는 순서는 시각순.
+     갈림길(fork)은 2개 제한과 상관없이 반드시 나온다 — 다음 장면이 거기서 정해진다 */
   function when(t) {
     var m = /(\d+)\.\s*(\d+)\.[^0-9]*(\d+):(\d+)/.exec(t || '');
     if (!m) return 0;
@@ -83,9 +84,12 @@
   }
   function beatsAt(S, at) {
     init(S);
-    return D().BEATS.filter(function (b) {
+    var all = D().BEATS.filter(function (b) {
       return b.at === at && !S.story.seen[b.id] && (!b.when || b.when(S));
-    }).slice(0, 2).sort(function (a, b) { return when(a.time) - when(b.time); })
+    });
+    var plain = all.filter(function (b) { return !b.fork; }).slice(0, 2);
+    return plain.concat(all.filter(function (b) { return b.fork; }))
+      .sort(function (a, b) { return when(a.time) - when(b.time); })
       .map(function (b) { return resolveBeat(b, S); });
   }
 
@@ -160,6 +164,8 @@
     init(S);
     var sc = it.sc, ev = [];
     if (it.v && it.v.id && it.v.id !== '-') S.story.vars[sc.id] = it.v.id;
+    // 판본이 여는 인물 사실 — 그 길로 가야만 알게 되는 것
+    arr(it.v && it.v.facts).forEach(function (f) { S.story.facts[f] = 1; });
     // 돌발 업무는 관계에 영향 없음 — 지금 회사의 장면만, 그 회사 이야기에 있는 사람만
     if (!(global.SCENES || []).some(function (x) { return x.id === sc.id; })) return ev;
     function add(k, n) { if (!n || D().BONDS[k] == null) return; var e = bump(S, k, n); if (e.event) ev.push(e.event); }
@@ -179,7 +185,9 @@
   function opener(sc, S, v) {
     var o = D().OPEN[sc.id];
     if (!o) return null;
-    return { at: o.at, place: o.place, text: typeof o.text === 'function' ? o.text(S, v || { id: '-' }) : o.text };
+    // 경로 장면은 시각 · 장소도 판본을 따른다
+    var pick = function (x) { return typeof x === 'function' ? x(S, v || { id: '-' }) : x; };
+    return { at: pick(o.at), place: pick(o.place), text: pick(o.text) };
   }
 
   /* 1년 뒤 사람들 — ctx 는 SEASON.epilogue 의 ctx (flags · bond · 금액) */
