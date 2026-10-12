@@ -317,9 +317,18 @@
        부분 점수 합계는 아래에서 만점의 절반까지만 인정한다. */
     var TIER = { hyper: 0.6, half: 0.5, part: 0.45, aim: 0.4 };
     var partials = [], partialGot = 0;
+    /* 바깥 채점(opt.ai — AI 연동 채점, js/aigrade.js)이 논점마다 내린 판정
+         { must{라벨: 'full'|'half'|'none'}, trap{라벨: bool}, bonus{라벨: bool}, why{라벨: 한 줄 이유} }
+       판정이 온 논점은 키워드 대신 그 판정을 쓴다. 점수 셈(부분 점수 상한 · 가점 · 문장 점수 · 분량)은 그대로 여기서 한다. */
+    var EXT = opt.ai || null;
+    function ext(kind, label) {
+      var m = EXT && EXT[kind];
+      return m && Object.prototype.hasOwnProperty.call(m, label) ? m[label] : undefined;
+    }
     (rubric.must || []).forEach(function (it) {
       mustMax += it.score;
-      var r = evalItem(hay, it);
+      var given = ext('must', it.label);
+      var r = given !== undefined ? { hit: given === 'full' } : evalItem(hay, it);
       var got = 0, tier = null, note = null;
       function tryKw(kws, name, fuzzy) {
         if (tier || !kws || !kws.length) return;
@@ -327,6 +336,10 @@
         if (g.hit) { tier = name; r = g; got = Math.round(it.score * TIER[name]); }
       }
       if (r.hit) { got = it.score; tier = 'full'; }
+      else if (given !== undefined) {
+        if (given === 'half') { tier = 'half'; got = Math.round(it.score * TIER.half); }
+        note = ext('why', it.label) || null;
+      }
       else {
         var hyper = hypersOf(it.kw);
         tryKw(hyper, 'hyper', false);
@@ -350,7 +363,7 @@
       var row = { label: it.label, score: it.score, got: got,
                   hit: tier === 'full', partial: partial, tier: tier, note: note,
                   negated: !!r.negated, nearMiss: !!r.nearMiss,
-                  fuzzy: !!r.fuzzy, matched: r.matched, hint: it.hint, why: it.why };
+                  fuzzy: !!r.fuzzy, matched: r.matched, hint: it.hint, why: it.why, ext: given !== undefined };
       R.must.push(row);
       if (partial) partials.push(row);
     });
@@ -368,7 +381,8 @@
     var bCap = (rubric.bonusCap != null) ? rubric.bonusCap : 15;
     var bRaw = 0;
     (rubric.bonus || []).forEach(function (it) {
-      var r = evalItem(hay, it);
+      var gb = ext('bonus', it.label);
+      var r = gb !== undefined ? { hit: !!gb } : evalItem(hay, it);
       var g = r.hit ? it.score : 0;
       bRaw += g;
       R.bonus.push({ label: it.label, score: it.score, got: g, hit: r.hit,
@@ -380,7 +394,8 @@
     (rubric.trap || []).forEach(function (it) {
       // 함정도 부정문 무효화를 적용한다.
       // "범위제한에 해당하지 않는다" 는 오개념이 아니라 정답 서술이므로 감점하면 안 된다.
-      var r = evalItem(hay, { kw: it.kw, negOk: it.negOk === true, fuzzy: it.fuzzy,
+      var gt = ext('trap', it.label);
+      var r = gt !== undefined ? { hit: !!gt } : evalItem(hay, { kw: it.kw, negOk: it.negOk === true, fuzzy: it.fuzzy,
                               near: it.near, within: it.within, notBefore: it.notBefore });
       if (r.hit) trapGot += it.score; // it.score 는 음수
       R.trap.push({ label: it.label, score: it.score, got: r.hit ? it.score : 0,
@@ -389,7 +404,7 @@
 
     /* 라벨에 하나도 안 걸렸지만 모범답안과 닮은 답 — 닮은 만큼만, 최대 30%.
        함정에 걸렸으면 주지 않는다. 학습 없이 글자 2-gram 으로만 잰다. */
-    if (anyTier === 0 && mustMax > 0 && opt.model && trapGot === 0 && bare0(raw) >= 10) {
+    if (!EXT && anyTier === 0 && mustMax > 0 && opt.model && trapGot === 0 && bare0(raw) >= 10) {
       var sim = cosine(grams(raw), grams(opt.model));
       if (sim >= 0.5) {
         var aimGot = Math.round(mustMax * Math.min(0.25, 0.1 + (sim - 0.5) * 0.6));
@@ -493,12 +508,12 @@
 
      판단이 틀리면 근거 서술은 0점이다 (실제 GS 채점과 같다).
   ------------------------------------------------------------------ */
-  function gradeParts(answers, parts, form) {
+  function gradeParts(answers, parts, form, ai) {
     var out = { parts: [], total: 0, max: 0, flags: [], hits: [] };
     (parts || []).forEach(function (p, i) {
       var a = answers[i] || {};
       var r = grade(a.text, p.rubric || {}, { maxChars: p.maxChars || 120, form: p.form || form,
-                                              model: typeof p.model === 'string' ? p.model : null });
+                                              model: typeof p.model === 'string' ? p.model : null, ai: ai || null });
 
       // 판단은 버튼이 아니라 답안 문장에서 읽는다
       var vMax = 0, vGot = 0, vWrong = false, ver = null;
@@ -679,8 +694,9 @@
   /* 한 칸을 형식에 맞게 채점한다.
      ans = { text, pick, picked, values, hints, assign, mini }
      돌려주는 모양은 gradeParts 의 parts[i] 와 같다 */
-  function gradeAny(part, ans) {
+  function gradeAny(part, ans, ext) {
     ans = ans || {};
+    var ai = (ext && ext.ai) || null;       // 바깥 채점의 판정 (js/aigrade.js) — 서술 · 판단 칸에만 쓴다
     var t = part.type || 'write', r;
     function wrapR(x) { return { label: part.key, verdict: null, verdictGot: 0, verdictMax: 0, res: x,
                                  total: x.total, max: x.max, percent: x.percent }; }
@@ -695,7 +711,7 @@
     }
     if (t === 'judge') {
       r = grade(ans.text, part.rubric || {}, { maxChars: part.maxChars || 120, form: part.form || 'short',
-                                                model: typeof part.model === 'string' ? part.model : null });
+                                                model: typeof part.model === 'string' ? part.model : null, ai: ai });
       var vMax = part.verdictScore != null ? part.verdictScore : 15;
       var given = ans.pick || null, exp = part.verdict ? part.verdict.answer : null;
       var correct = !!given && given === exp;
@@ -707,7 +723,7 @@
                verdictGot: correct ? vMax : 0, verdictMax: vMax, bodyZero: !!given && !correct,
                res: r, total: tot, max: mx, percent: mx ? Math.round(tot / mx * 100) : 0 };
     }
-    return gradeParts([{ text: ans.text }], [part], part.form).parts[0];
+    return gradeParts([{ text: ans.text }], [part], part.form, ai).parts[0];
   }
 
   global.AE = {

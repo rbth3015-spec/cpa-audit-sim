@@ -28,9 +28,9 @@ CPA 2차 회계감사 **실전 시뮬레이션 게임**. 설치 없이 브라우
 ## 실행
 
 ```bash
-python -m http.server 8765
+node tools/serve.mjs
 ```
-`http://localhost:8765` — `index.html` 을 바로 열어도 된다(데이터를 `.js` 로 두어 `file://` 에서도 돈다).
+`http://localhost:8765` — `python -m http.server 8765` 로 띄우거나 `index.html` 을 바로 열어도 된다(데이터를 `.js` 로 두어 `file://` 에서도 돈다). AI 연동 채점의 「이 PC」 길은 `tools/serve.mjs` 로 띄웠을 때만 있다.
 웹폰트(Archivo · Gowun Batang · IBM Plex Mono · Pretendard)는 인터넷이 없으면 시스템 글꼴로 대체된다.
 데스크톱 전용으로 설계했다 (1280px 이상 권장).
 
@@ -143,6 +143,23 @@ python -m http.server 8765
 - 검증기는 네 조합을 끝까지 돌려 모두 '지적 없음'에 닿는지, 위의 만회 길이 실제로 열리는지 본다.
 - 사진이 없는 인물은 이니셜 초상으로 나온다. 사진을 넣는 법은 `docs/image-prompts.md`.
 
+### 채점 방식 — 기본 채점 / AI 연동 채점
+홈 오른쪽 위 「기본 채점」 단추에서 고른다. 기본값은 기본 채점(키워드 엔진)이고, 설치나 로그인 없이 된다.
+
+AI 연동 채점은 **서술 · 판단 칸**의 논점을 Claude 가 판정한다. 객관식 · 빈칸 · 분류 · 미니게임은 그대로다.
+판정(논점마다 인정 · 절반 · 불인정, 감점 · 가점 해당 여부, 한 줄 이유)만 받아 오고 점수 셈은 `js/engine.js` 가 그대로 한다 — 부분 점수 상한 · 문장 점수 · 분량 감점 · 분기와 진실 발견의 규칙이 두 방식에서 같다.
+제출하면 「AI 채점 중」이 뜨고(시계는 서 있다) 몇 초 뒤 채점표가 나온다. 실패 · 거절 · 시간 초과거나 [기본 채점으로] 를 누르면 기본 채점으로 채점하고 채점표 맨 아래에 그 사실을 적는다.
+
+| 길 | 언제 | 준비 |
+|---|---|---|
+| 이 PC의 Claude Code | `node tools/serve.mjs` 로 띄웠을 때 | `node tools/serve.mjs --login` 한 번 (브라우저로 로그인). API 키 없음 — 그 계정의 Claude 사용량으로 돈다 |
+| API 키 | 배포판 · 다른 사람 | 설정 창에 자기 Anthropic API 키. 키는 그 브라우저(`localStorage`)에만 저장되고 요금은 그 키의 계정으로 청구된다 |
+
+둘 다 되면 이 PC의 Claude Code 를 쓴다. 모델은 설정 창에서 고른다(기본 Opus 5.5).
+- 로컬 서버의 `/api/grade` 는 같은 출처에서 온 요청만 받는다(다른 웹페이지가 내 사용량을 쓰지 못하게). 도구 없이 한 번 묻고 끝낸다.
+- API 키 길은 공식 SDK(`@anthropic-ai/sdk`)를 CDN 에서 모듈로 불러 브라우저에서 직접 부른다. **배포판에 내 키를 넣어 두지 말 것** — 누구나 꺼내 쓸 수 있다.
+- `node tools/aigrade-check.js` — Claude 를 부르지 않고, 서술 · 판단 칸 전부에 대해 요청이 만들어지는지와 판정 → 점수 변환이 맞는지 본다.
+
 ### 단서
 장면 데이터의 `clues` 는 지문 · 자료 속 부분 문자열이다. 빨간 점선으로 보이고, 누르면 증거로 채택된다.
 채택한 단서는 서술 칸 아래 증거 칩으로 따라다니고, 장면 정산 때 감사증거에 더해진다(최대 +4). 놓친 단서는 정산 뒤 회색으로 드러난다.
@@ -154,6 +171,7 @@ python -m http.server 8765
 | `auditSim.prog` | 시즌을 넘어 쌓이는 것 — 개념 카드 · 암기 카드 진도 · 오답 노트 · 도움말 본 기록 · 지난 시즌 조서 · 최고 평균 · 고른 회사 |
 | `auditSim.v5` | 지난 시즌 기록 (홈 표) |
 | `auditSim.snd` · `auditSim.theme` | 소리 · 화면 테마 |
+| `auditSim.grade` | 채점 방식 · 모델 · (넣었다면) API 키 |
 
 ---
 
@@ -187,6 +205,7 @@ data/
 js/
   art.js            사진 · 영상 · 이니셜 초상 (assets/manifest.js 를 본다)
   engine.js         채점 엔진 — gradeAny 가 형식별로 나눠 채점
+  aigrade.js        AI 연동 채점 — 논점 판정을 Claude 에게 받아 온다 (이 PC의 Claude Code / 자기 API 키), 설정 창
   minis.js          미니게임 — 판 만들기 · 채점 · 화면 · 정답 공개
   story.js          이야기 로직 — 대화 고르기 · 관계 · 1년 뒤 (DOM 없음)
   season.js         상태 · 분기 · 정산 · 저장 · 개념 카드 도감 (DOM 없음)
@@ -196,7 +215,9 @@ js/
   binder.js         조서 바인더 (A~H)
   game.js           화면 흐름 — 홈 · 시즌 · 채점 · 정산 · 업무 요청 · 감리 결과 · 연습
 tools/
+  serve.mjs         로컬 서버 + AI 연동 채점 창구(/api/grade) · `--login`
   validate.js       콘텐츠 · 채점 · 분기 · 이야기 검증
+  aigrade-check.js  AI 연동 채점의 요청 · 판정 변환 검사 (Claude 를 부르지 않는다)
   images.py         image/ 원본(저장소 제외) → assets/ 굽기 + manifest.js
   refdb.js          기출 · GS 참고 DB 조회 (자료/db)
   goodnotes.py      굿노트 퀴즈 노트 → 암기 카드 (자료/deck_notes.js)
