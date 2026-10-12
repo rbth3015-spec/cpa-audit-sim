@@ -17,7 +17,7 @@ for (const f of ['data/lexicon.js', 'data/cast.js', 'data/scenes1.js', 'data/sce
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
 const { AE, SEASON, SEASONS, AIGRADE, CASES } = ctx;
 
-let bad = 0, n = 0;
+let bad = 0, n = 0, nVerdict = 0;
 const fail = m => { console.log('  ✕ ' + m); bad++; };
 
 function parts(scenes) {
@@ -63,6 +63,17 @@ function sweep(label, scenes) {
     if (body(none) > 20) fail(`${tag} 전부 불인정인데 ${body(none)}점`);
     if (body(half) > 60 || half.res.must.some(m => m.hit)) fail(`${tag} 전부 절반인데 ${body(half)}점 (명중으로 치면 안 된다)`);
     if (body(base) > 30) fail(`${tag} 검사용 답안이 기본 채점에서 ${body(base)}점 — 검사 답안을 바꿀 것`);
+    // 판단 문장을 답안에 써야 하는 서술 칸 — 읽어 온 판단 방향이 그대로 쓰인다 (맞으면 판단 점수, 반대면 근거 0점, 없으면 판단 0점)
+    if (p.type === 'write' && p.verdict) {
+      nVerdict++;
+      if (!req.needVerdict || req.user.indexOf('[판단 문장]') < 0) fail(`${tag} 판단 문장을 묻지 않는다`);
+      const want = p.verdict.answer, other = want === 'yes' ? 'no' : 'yes';
+      const withV = k => { const c = canned(req, 'full'); c.verdict = k; return AE.gradeAny(p, ans, { ai: AIGRADE.toVerdicts(c, req.ids, req.needVerdict).ai }); };
+      const right = withV(want), wrong = withV(other), absent = withV('none');
+      if (!right.verdict.correct || right.percent < 80) fail(`${tag} 판단이 맞는데 ${right.percent}점`);
+      if (wrong.verdict.correct || wrong.total > 0) fail(`${tag} 판단이 반대인데 ${wrong.total}점`);
+      if (absent.verdict.correct || absent.verdictGot) fail(`${tag} 판단 문장이 없는데 판단 점수를 받았다`);
+    } else if (req.needVerdict) fail(`${tag} 판단 단추 문항인데 판단 문장을 묻는다`);
     // 판정이 하나 빠지면 그 논점만 키워드 채점으로 남는다
     if (R.must.length > 1) {
       const c = canned(req, 'full'); c.must.pop();
@@ -91,5 +102,5 @@ sweep('돌발 업무', CASES);
 // 꺼져 있으면 아무 칸도 원하지 않는다
 if (AIGRADE.on() || AIGRADE.wants(parts(ctx.SCENES)[0].p)) fail('기본값이 켜져 있다');
 
-console.log(`  서술 · 판단 칸 ${n}개` + (bad ? ` · 문제 ${bad}건` : ' · 이상 없음'));
+console.log(`  서술 · 판단 칸 ${n}개 (판단 문장 ${nVerdict}개)` + (bad ? ` · 문제 ${bad}건` : ' · 이상 없음'));
 process.exitCode = bad ? 1 : 0;

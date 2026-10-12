@@ -1139,7 +1139,8 @@
       if (e.target.closest('[data-act="skipai"]')) end(null, 'AI 채점 건너뜀 · 기본 채점');
     };
     window.AIGRADE.judge(p, ans, { situation: c.it.situation }).then(function (v) {
-      end({ ai: v.ai }, 'AI 채점 · ' + v.by + (v.comment ? ' · ' + v.comment : ''));
+      var st = window.AIGRADE.settle(v.ai, AE.gradeAny(p, ans));      // 기본 채점과 맞춰 본다 (고정 규칙 · 차이 표시)
+      end({ ai: st.ai }, 'AI 채점 · ' + v.by + ' · 기본 ' + st.basePct + '점' + (v.comment ? ' · ' + v.comment : ''));
     }, function (e) {
       end(null, 'AI 채점 실패 · ' + ((e && e.label) || '오류') + ' · 기본 채점');
     });

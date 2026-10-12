@@ -518,7 +518,11 @@
       // 판단은 버튼이 아니라 답안 문장에서 읽는다
       var vMax = 0, vGot = 0, vWrong = false, ver = null;
       if (p.verdict) {
-        ver = readVerdict(a.text, p.verdict);
+        // 바깥 채점이 판단 방향을 읽어 왔으면 그것을 쓴다 (같은 뜻을 다른 말로 쓴 판단 문장을 놓치지 않게)
+        var av = ai && ai.verdict;
+        ver = (av === 'yes' || av === 'no' || av === 'none')
+          ? { given: av === 'none' ? null : av, expected: p.verdict.answer, correct: av === p.verdict.answer }
+          : readVerdict(a.text, p.verdict);
         vMax = (p.verdictScore != null) ? p.verdictScore : 15;
         if (ver.correct) vGot = vMax;
         else {
