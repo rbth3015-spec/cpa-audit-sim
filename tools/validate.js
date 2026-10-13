@@ -715,6 +715,13 @@ if (!process.env.SEASON && !process.env.NO_LAB) {
   (hon.stdout || '').split('\n').filter(l => /✕|고칠 것/.test(l)).slice(0, 12).forEach(l => console.log('  ' + l.trim()));
   if (hon.status) { bad++; console.log('  ✕ 존칭이 어긋난 대사 — node tools/honorifics.js'); }
   else console.log('  → 이상 없음');
+
+  /* AI 연동 채점 — 요청 · 판정 변환 (tools/aigrade-check.js, Claude 를 부르지 않는다) */
+  console.log('\n═══ AI 연동 채점 (요청 · 판정 변환)');
+  const aig = require('child_process').spawnSync(process.execPath, [path.join(ROOT, 'tools', 'aigrade-check.js')], { encoding: 'utf8' });
+  (aig.stdout || '').split('\n').filter(l => /✕|칸 \d+개/.test(l)).slice(0, 12).forEach(l => console.log('  ' + l.trim()));
+  if (aig.status) { bad++; console.log('  ✕ 판정 변환이 어긋난 칸 — node tools/aigrade-check.js'); }
+  else console.log('  → 이상 없음');
 }
 
 process.exitCode = bad ? 1 : 0;

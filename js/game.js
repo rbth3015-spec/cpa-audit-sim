@@ -490,6 +490,7 @@
       '<div class="home' + (intro ? ' intro' : '') + '">' +
         '<div class="hero-media">' + window.ART.title() + '</div><div class="hero-shade"></div>' +
         '<div class="home-top"><span class="k">세종회계법인 · 제6기 정기감사</span><div class="top-b">' +
+          (window.AIGRADE ? '<button type="button" data-act="grade">' + esc(window.AIGRADE.label()) + '</button>' : '') +
           '<button type="button" data-act="snd">' + (FX.isOn() ? '소리 켬' : '소리 끔') + '</button>' +
           '<button type="button" data-act="theme">' + themeName + '</button></div></div>' +
         '<div class="home-grid"><div class="home-l">' +
@@ -530,6 +531,11 @@
         '</div></div>' +
       '</div>';
     show('home');
+    // 이 PC 의 채점 서버가 있는지는 조금 뒤에 안다 — 알게 되면 단추 글을 맞춘다
+    if (window.AIGRADE) window.AIGRADE.probe().then(function () {
+      var gb = $('#screen-home [data-act="grade"]');
+      if (gb) gb.textContent = window.AIGRADE.label();
+    });
 
     var v = $('#title-v');
     if (v) v.addEventListener('ended', function () {
@@ -559,6 +565,9 @@
         var n = parseInt($('#seed').value, 10);
         newSeason(isNaN(n) ? null : n);
       } else if (act === 'snd') { FX.setOn(!FX.isOn()); b.textContent = FX.isOn() ? '소리 켬' : '소리 끔'; }
+      else if (act === 'grade') {
+        window.AIGRADE.openSettings(function () { b.textContent = window.AIGRADE.label(); });
+      }
       else if (act === 'theme') {
         var order = ['auto', 'light', 'dark'], cur0 = load(THEME, 'auto');
         var nxt = order[(order.indexOf(cur0) + 1) % 3];
@@ -1100,11 +1109,46 @@
 
   /* ---------- 제출 · 채점 ---------- */
   function submitPart(ans, timedOut) {
-    if (!cur || cur.grades[cur.pi] || cur.wrapped) return;
+    if (!cur || cur.grades[cur.pi] || cur.wrapped || cur.judging) return;
     var p = cur.it.parts[cur.pi];
     stopClock();
     if (!ans || p.type === 'mini') ans = cur.ctrl ? cur.ctrl.answer() : {};
-    var g = AE.gradeAny(p, ans);
+    // AI 연동 채점 — 서술 · 판단 칸은 논점 판정을 받아 온 뒤에 채점한다 (js/aigrade.js). 못 받으면 기본 채점
+    var G = window.AIGRADE;
+    var worth = String(ans.text || '').trim() && !(p.type === 'judge' && p.verdict && ans.pick !== p.verdict.answer);   // 빈 답 · 판단이 틀린 답은 물어볼 것이 없다
+    if (G && G.wants(p) && worth) return judgeThen(p, ans, timedOut);
+    gradePart(p, ans, timedOut, null, null);
+  }
+
+  /* 판정을 기다리는 동안 — 답안은 잠기고 시계는 서 있다. [기본 채점으로] 를 누르면 기다리지 않는다 */
+  function judgeThen(p, ans, timedOut) {
+    var c = cur, pi = cur.pi, done = false;
+    c.judging = true;
+    $('#task').classList.add('judging');
+    $('#after').innerHTML = '<div class="res jd"><span class="jd-k">AI 채점 중</span><i class="jd-bar"></i>' +
+      '<button type="button" class="btn ghost sm" data-act="skipai">기본 채점으로</button></div>';
+    function end(ext, note) {
+      if (done) return;
+      done = true;
+      if (cur !== c || c.pi !== pi || c.wrapped) return;      // 그사이 다른 화면으로 갔다
+      c.judging = false;
+      $('#task').classList.remove('judging');
+      gradePart(p, ans, timedOut, ext, note);
+    }
+    $('#after').onclick = function (e) {
+      if (e.target.closest('[data-act="skipai"]')) end(null, 'AI 채점 건너뜀 · 기본 채점');
+    };
+    window.AIGRADE.judge(p, ans, { situation: c.it.situation }).then(function (v) {
+      var st = window.AIGRADE.settle(v.ai, AE.gradeAny(p, ans));      // 기본 채점과 맞춰 본다 (고정 규칙 · 차이 표시)
+      end({ ai: st.ai }, 'AI 채점 · ' + v.by + ' · 기본 ' + st.basePct + '점' + (v.comment ? ' · ' + v.comment : ''));
+    }, function (e) {
+      end(null, 'AI 채점 실패 · ' + ((e && e.label) || '오류') + ' · 기본 채점');
+    });
+  }
+
+  function gradePart(p, ans, timedOut, ext, note) {
+    var g = AE.gradeAny(p, ans, ext);
+    if (note) g.res.flags.push(note);
     if (timedOut) {
       var pen = Math.round(g.max * 0.1);
       g.total = Math.max(0, g.total - pen);
@@ -1196,7 +1240,7 @@
       var cls = m.hit ? 'ok' : m.partial ? 'half' : 'no';
       var got = zero ? 0 : m.got;
       // 부분 점수를 준 이유를 한 줄로 — 다음엔 정확한 용어를 쓰게 만드는 자리다
-      var note = m.partial && m.note ? '<small class="tier">' + esc(m.note) + '</small>' : '';
+      var note = (m.partial || m.ext) && !m.hit && m.note ? '<small class="tier">' + esc(m.note) + '</small>' : '';
       var why = !m.hit && m.why ? '<small>' + esc(m.why) + '</small>' : '';
       var hint = !m.hit && !m.why && m.hint ? '<small>' + esc(m.hint) + '</small>' : '';
       rows += '<tr class="' + cls + '"><td class="m">' + (m.hit ? '✓' : m.partial ? '◐' : '✗') + '</td><th>' + esc(m.label) + note + why + hint +
