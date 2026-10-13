@@ -159,10 +159,16 @@ function sweepBeats(label, D, scenes) {
   Object.keys(D.OPEN || {}).forEach(sid => {
     const o = D.OPEN[sid], seat = views[sid];
     if (!seat) return;
-    const nm = NAME(SEASON.povOf(seat));
+    // 경로 장면은 판본마다 시점이 다르다 — 그 판본의 시점 인물로 본다
+    const sc = (scenes || []).find(x => x.id === sid) || {};
+    const vs = (sc.variants || []).length ? sc.variants.map(v => ({ id: v.id, seat: v.view || seat }))
+      : ['A', 'B', 'C', 'BIAS', 'HIT', 'TIP', 'MISS', 'OPEN', 'EDIT'].map(id => ({ id, seat }));
     [o.text].flat().forEach(t => {
-      const texts = typeof t === 'function' ? ['A', 'B', 'C', 'BIAS', 'HIT', 'TIP', 'MISS', 'OPEN', 'EDIT'].map(id => { try { return t(S, { id }); } catch (e) { return ''; } }) : [t];
-      texts.forEach(x => { if (x && x.includes(nm)) issues.push(`${label} 도입 ${sid}  시점 인물(${nm})을 3인칭으로: "${x}"`); });
+      const texts = typeof t === 'function' ? vs.map(v => { try { return [t(S, { id: v.id }), v.seat]; } catch (e) { return ['', v.seat]; } }) : [[t, seat]];
+      texts.forEach(([x, st]) => {
+        const nm = NAME(SEASON.povOf(st));
+        if (x && x.includes(nm)) issues.push(`${label} 도입 ${sid}  시점 인물(${nm})을 3인칭으로: "${x}"`);
+      });
     });
   });
 }

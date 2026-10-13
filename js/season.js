@@ -160,6 +160,36 @@
     return sc.variants[Math.floor(S.rand() * sc.variants.length)];
   }
 
+  /* ---------- 경로 장면 ----------
+     갈림길(data/story.js 의 fork 대화)에서 고른 길에 따라 장면의 머리까지 바뀐다.
+     판본에 chapter · art · view · speaker … 를 적으면 그 판본으로 풀릴 때 장면의 것을 덮는다. */
+  var HEAD = ['chapter', 'art', 'view', 'speaker', 'day', 'standards', 'area', 'ref', 'prompt', 'cost', 'confront'];
+  function headOf(sc, v) {
+    if (!v || !HEAD.some(function (k) { return v[k] != null; })) return sc;
+    var o = {}, k;
+    for (k in sc) if (Object.prototype.hasOwnProperty.call(sc, k)) o[k] = sc[k];
+    HEAD.forEach(function (h) { if (v[h] != null) o[h] = v[h]; });
+    return o;
+  }
+  /* 이번 시즌에 지나온 길 — 경로 장면(fork)에서 풀린 판본의 route 이름을 순서대로 */
+  function routeOf(S) {
+    var vars = (S.story && S.story.vars) || {}, out = [];
+    (global.SCENES || []).forEach(function (sc) {
+      if (!sc.fork || !vars[sc.id]) return;
+      var v = (sc.variants || []).filter(function (x) { return x.id === vars[sc.id]; })[0];
+      if (v && v.route) out.push(v.route);
+    });
+    return out;
+  }
+  /* 숨은 사실의 발견 조건 — need 를 mode 대로 보고, or 에 적힌 다른 길 중 하나라도 맞으면 된다 */
+  function met(c, S) {
+    if (!c) return false;
+    var ok = c.mode === 'any'
+      ? c.need.some(function (k) { return S.hits[k]; })
+      : c.need.every(function (k) { return S.hits[k]; });
+    return ok || (c.or || []).some(function (x) { return met(x, S); });
+  }
+
   /* ---------- 칸 정리 ----------
      형식별 필드를 넘기고, 서술형이 아닌 칸에도 rubric(라벨 목록)을 만들어 둔다.
      apply 의 회사 태도(please) · 검증의 라벨 계약 · 개념 카드 목록이 rubric 을 읽기 때문이다. */
@@ -245,10 +275,11 @@
 
   /* ---------- 장면 해석 ---------- */
   function resolve(sc, S, forceId) {
-    S.seat = S.fixedSeat || (SEATS[sc.view] ? sc.view : 'senior');   // 장면마다 시점이 바뀐다
     var v = (forceId && sc.variants)
       ? (sc.variants.filter(function (x) { return x.id === forceId; })[0] || sc.variants[0])
       : pickVariant(sc, S);
+    sc = headOf(sc, v);                                               // 경로 장면은 판본이 머리를 바꾼다
+    S.seat = S.fixedSeat || (SEATS[sc.view] ? sc.view : 'senior');   // 장면마다 시점이 바뀐다
 
     var it = {
       sc: sc, v: v, seat: S.seat,
@@ -321,7 +352,7 @@
     }).length;
 
     // 감사시간 — 좌석과 회사 태도에 따라 다르게 든다
-    var obstruct = S.rel.company < 35 ? 3 : 0;
+    var obstruct = S.rel.company < 35 && !sc.inhouse ? 3 : 0;   // 회사 자료를 기다리지 않는 장면(inhouse)은 지연이 없다
     var cost = ((sc.cost || 8) + (it.v.extraCost || 0)) * TIME_SCALE * seat.time +
                (meta.over || 0) / 40 + (meta.timedOut ? 5 * meta.timedOut : 0) + obstruct;
 
@@ -336,7 +367,7 @@
                   (confront === 0 && !please ? 2 : 0)), 0, 100);
 
     if (obstruct) events.push({ kind: 'warn', text: '자료 제출 지연 · 기한 추가 소모' });
-    if (it.v.extraCost) events.push({ kind: 'warn', text: '뒤늦은 인지 · 추가 절차 소요' });
+    if (it.v.extraCost) events.push({ kind: 'warn', text: it.v.costNote || '뒤늦은 인지 · 추가 절차 소요' });
 
     (sc.flags || []).forEach(function (f) {
       if (S.flags[f.set]) return;
@@ -349,11 +380,7 @@
     S.truths.forEach(function (t) {
       if (t.found || t.verified) return;
       var c = t.active ? t.def.detect : (t.def.verify || t.def.detect);
-      if (!c) return;
-      var ok = c.mode === 'any'
-        ? c.need.some(function (k) { return S.hits[k]; })
-        : c.need.every(function (k) { return S.hits[k]; });
-      if (!ok) return;
+      if (!c || !met(c, S)) return;
       if (t.active) {
         t.found = true;
         S.gauge.E = clamp(S.gauge.E + 6, 0, 100);
@@ -672,8 +699,9 @@
      장면이 끝날 때마다 저장한다. 함수가 든 객체(it, def, rand)는 빼고 id 로 다시 잇는다. */
   var KEEP = ['i', 'gauge', 'rel', 'flags', 'hits', 'cards', 'log', 'sideSeen', 'sideDone', 'sideAt',
               'late', 'mis', 'decision', 'opinionOK', 'opinionNear', 'opinionPick', 'papers', 'streak', 'best', 'story', 'bond'];
+  var SNAP_V = 7;   // 7 — 경로 장면이 끼어들어 장면 번호가 밀렸다 (장면의 since 로 예전 저장본을 다시 맞춘다)
   function snapshot(S) {
-    var o = { v: 6, seed: S.seed, at: Date.now() };
+    var o = { v: SNAP_V, seed: S.seed, at: Date.now() };
     KEEP.forEach(function (k) { o[k] = clone(S[k]); });
     o.truths = S.truths.map(function (t) {
       return { id: t.id, active: t.active, amount: t.amount, found: t.found, verified: t.verified, corrected: t.corrected };
@@ -693,6 +721,14 @@
     S.active = {};
     S.truths.forEach(function (t) { S.active[t.id] = t.active; });
     if (global.STORY) global.STORY.init(S);   // 예전 저장본에는 이야기 기록이 없다
+    // 예전 저장본의 장면 번호 — 그 뒤에 끼어든 장면(since)을 빼고 센 번호였다. 지금 번호로 옮긴다
+    var ver = o.v || 0, all = global.SCENES || [];
+    var old = all.filter(function (sc) { return !(sc.since > ver); });
+    if (old.length !== all.length) {
+      var move = function (i) { var at = all.indexOf(old[i]); return at < 0 ? all.length : at; };
+      S.i = move(S.i);
+      (S.papers || []).forEach(function (p) { if (p.kind === 'scene' || p.kind === 'side') p.idx = move(p.idx); });
+    }
     return S;
   }
 
@@ -818,6 +854,7 @@
     misstatements: misstatements, decide: decide, band: band, dday: dday, asker: asker, reviewer: reviewer,
     seatWho: seatWho, bySeat: bySeat, viewOf: viewOf, rng: rng, povOf: povOf, SEAT_WHO: SEAT_WHO,
     snapshot: snapshot, restore: restore, cardIndex: cardIndex, resetCards: resetCards,
+    routeOf: routeOf, met: met, SNAP_V: SNAP_V,
     SEATS: SEATS, FLAG_TEXT: FLAG_TEXT, MAT: MAT, OPINIONS: OPINIONS, KEYS: KEYS,
     SIDE_AFTER: SIDE_AFTER, sideKeys: sideKeys, mat: mat,
     TIME_SCALE: TIME_SCALE, DAY_RATE: DAY_RATE, TYPE_NAME: TYPE_NAME

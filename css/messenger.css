@@ -119,6 +119,13 @@
 .mc:hover, .mc:focus-visible { background: var(--ink); color: var(--bg); }
 .mc:active { transform: translateY(1px); }
 .mc kbd { opacity: .6; }
+/* 갈림길 — 답장 둘이 나란히, 밑에 가는 곳 */
+.mc-h.fork { color: var(--red-2); }
+.mc-list.fork { grid-template-columns: 1fr 1fr; gap: 8px; }
+.mc-list.fork .mc { align-items: start; padding: 13px 14px; border-width: 2px; }
+.mc-list.fork .mc span { display: grid; gap: 7px; }
+.mc-list.fork .mc small { font: 600 11px/1 var(--mono); letter-spacing: .04em; color: var(--dim); }
+.mc-list.fork .mc:hover small, .mc-list.fork .mc:focus-visible small { color: inherit; opacity: .75; }
 
 /* ---------- 이니셜 초상 (사진이 아직 없는 인물) ---------- */
 .ph {
