@@ -24,6 +24,12 @@ export function findClaude() {
   const exe = WIN ? 'claude.exe' : 'claude';
   const roots = [];
   if (process.env.APPDATA) roots.push(path.join(process.env.APPDATA, 'Claude', 'claude-code'));
+  // 스토어판(MSIX) 데스크톱 앱은 AppData 가 꾸러미 안으로 돌려져 있다 — 앱 밖의 터미널에서는 %APPDATA% 로 안 보이고 실제 자리에만 있다
+  if (process.env.LOCALAPPDATA) {
+    const pk = path.join(process.env.LOCALAPPDATA, 'Packages');
+    for (const name of dirs(pk).filter(n => /^(Claude|Anthropic)/i.test(n)))
+      roots.push(path.join(pk, name, 'LocalCache', 'Roaming', 'Claude', 'claude-code'));
+  }
   roots.push(path.join(os.homedir(), 'Library', 'Application Support', 'Claude', 'claude-code'));
   for (const root of roots) {
     for (const ver of dirs(root).filter(v => /^\d+(\.\d+)+$/.test(v)).sort(newestFirst)) {
