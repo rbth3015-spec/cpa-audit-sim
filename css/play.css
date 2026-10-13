@@ -461,3 +461,11 @@ body.hurry::after {
   font: 700 11px/1 var(--mono); color: #fff; background: var(--red); padding: 6px 8px;
   transition: transform .42s cubic-bezier(.5, -0.2, .6, 1), opacity .42s; box-shadow: 0 6px 16px rgba(0, 0, 0, .25);
 }
+
+/* AI 연동 채점을 기다리는 동안 — 답안은 잠기고 붉은 줄이 지나간다 */
+#task.judging #part { pointer-events: none; opacity: .55; }
+.res.jd { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 16px 18px; }
+.jd-k { font: 700 14px/1 var(--sans); }
+.jd-bar { position: relative; height: 2px; background: var(--line); overflow: hidden; }
+.jd-bar::after { content: ''; position: absolute; inset: 0 auto 0 0; width: 34%; background: var(--red); animation: jdRun 1.5s linear infinite; }
+@keyframes jdRun { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
