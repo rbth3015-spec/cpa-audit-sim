@@ -499,6 +499,29 @@ reach('사람들의 1년 뒤', [].concat(...STORYDATA.FATES.map(f => f.list.map(
         x = playRoute(7919, ['route_confirm', 'route_funding'], { tweak: (S, sc) => { if (sc.id === 'r3b') S.rel.company = 30; } });
         check(x.path.r3b === 'BLOCK' && x.E.audit.id === 'clean',
           '막힌 길 ② 회사가 비협조적이면 조회가 막히고 연구 기록으로 → 지적 없음', `판본 ${x.path.r3b}, ${x.E.audit.title}`);
+      },
+      gureum() {
+        const ghost = seedWhere(a => a.ghost_bill), prog = seedWhere(a => a.progress);
+        const IT = sc => (sc.id === 'g2' || sc.id === 'g3') ? MISS : null;   // 로그 검사 · 데이터 분석을 다 놓친다
+        let x = playRoute(ghost, ['route_full', 'route_client'], { persona: IT });
+        check(x.path.g2b === 'FULL' && found(x, 'ghost_bill'),
+          '만회 ① 로그 · 데이터 분석 놓침 → 전수 재계산의 차이 추적 → 가공 청구 발견', `판본 ${x.path.g2b}, 발견 ${found(x, 'ghost_bill')}`);
+        x = playRoute(ghost, ['route_fix', 'route_client'], { persona: IT });
+        check(x.path.g2b === 'FIX' && found(x, 'ghost_bill') && !!x.S.story.seen.gur_dev04,
+          '만회 ② 로그 · 데이터 분석 놓침 → 개선 통제 테스트의 계정 목록 → 살아 있던 계정 → 가공 청구 발견',
+          `판본 ${x.path.g2b}, 발견 ${found(x, 'ghost_bill')}, 서태오 ${!!x.S.story.seen.gur_dev04}`);
+        x = playRoute(7919, ['route_full', 'route_site'], { persona: sc => sc.id === 'g6' ? MISS : null });
+        check(x.path.g5b === 'SITE' && found(x, 'moru'),
+          '만회 ③ 특수관계자 장면 놓침 → 모루 현장의 4대보험 가입 내역 → 하도급비 과다 지급 발견', `판본 ${x.path.g5b}, 발견 ${found(x, 'moru')}`);
+        x = playRoute(prog, ['route_fix', 'route_client'], { persona: sc => sc.id === 'g4' ? LACK('투입공수를 근태 등 독립적 기록과 대조') : null });
+        check(x.path.g5b === 'CLIENT' && found(x, 'progress'),
+          '만회 ④ 투입공수 대조 놓침 → 발주처 출입 기록 → SI 진행률 과대 발견', `판본 ${x.path.g5b}, 발견 ${found(x, 'progress')}`);
+        x = playRoute(7919, ['route_fix', 'route_site'], { pick: b => b.id === 'gur_ops' ? 2 : null });
+        check(x.path.g2b === 'STALL' && x.E.audit.id === 'clean',
+          '막힌 길 ① 서태오를 밀어내면 권한 회수가 미뤄지고 전수 재계산으로 → 지적 없음', `판본 ${x.path.g2b}, ${x.E.audit.title}`);
+        x = playRoute(7919, ['route_full', 'route_site'], { pick: b => b.id === 'gur_sipm' ? b.choice.opts.findIndex(o => flagOf(o) === 'sipm_cold') : null });
+        check(x.path.g5b === 'SHUT' && x.E.audit.id === 'clean',
+          '막힌 길 ② 문경호를 자극하면 모루가 문을 닫고 발주처로 → 지적 없음', `판본 ${x.path.g5b}, ${x.E.audit.title}`);
       }
     };
     const co = process.env.SEASON || 'seorin';
