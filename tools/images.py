@@ -174,7 +174,8 @@ def _face(p):
         if f:
             x, y, fw, fh = max(f, key=lambda r: r[2] * r[3])
             return x + fw / 2, y + fh / 2, fw
-    return w / 2, h * .36, w * .36
+    # 시트 프롬프트(머리 · 어깨, 눈높이 38%)대로 나온 칸의 얼굴 폭은 칸의 30% 안팎 — 크게 잡으면 기존 사진보다 얼굴이 작아진다
+    return w / 2, h * .37, w * .30
 
 
 def _box(p, cx, top, bw, bh):
