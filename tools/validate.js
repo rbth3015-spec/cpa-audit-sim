@@ -512,7 +512,7 @@ reach('사람들의 1년 뒤', [].concat(...STORYDATA.FATES.map(f => f.list.map(
           `판본 ${x.path.g2b}, 발견 ${found(x, 'ghost_bill')}, 서태오 ${!!x.S.story.seen.gur_dev04}`);
         x = playRoute(7919, ['route_full', 'route_site'], { persona: sc => sc.id === 'g6' ? MISS : null });
         check(x.path.g5b === 'SITE' && found(x, 'moru'),
-          '만회 ③ 특수관계자 장면 놓침 → 모루 현장의 4대보험 가입 내역 → 하도급비 과다 지급 발견', `판본 ${x.path.g5b}, 발견 ${found(x, 'moru')}`);
+          '만회 ③ 특수관계자 장면 놓침 → 진우 현장의 4대보험 가입 내역 → 하도급비 과다 지급 발견', `판본 ${x.path.g5b}, 발견 ${found(x, 'moru')}`);
         x = playRoute(prog, ['route_fix', 'route_client'], { persona: sc => sc.id === 'g4' ? LACK('투입공수를 근태 등 독립적 기록과 대조') : null });
         check(x.path.g5b === 'CLIENT' && found(x, 'progress'),
           '만회 ④ 투입공수 대조 놓침 → 발주처 출입 기록 → SI 진행률 과대 발견', `판본 ${x.path.g5b}, 발견 ${found(x, 'progress')}`);
@@ -521,7 +521,7 @@ reach('사람들의 1년 뒤', [].concat(...STORYDATA.FATES.map(f => f.list.map(
           '막힌 길 ① 서태오를 밀어내면 권한 회수가 미뤄지고 전수 재계산으로 → 지적 없음', `판본 ${x.path.g2b}, ${x.E.audit.title}`);
         x = playRoute(7919, ['route_full', 'route_site'], { pick: b => b.id === 'gur_sipm' ? b.choice.opts.findIndex(o => flagOf(o) === 'sipm_cold') : null });
         check(x.path.g5b === 'SHUT' && x.E.audit.id === 'clean',
-          '막힌 길 ② 문경호를 자극하면 모루가 문을 닫고 발주처로 → 지적 없음', `판본 ${x.path.g5b}, ${x.E.audit.title}`);
+          '막힌 길 ② 문경호를 자극하면 진우가 문을 닫고 발주처로 → 지적 없음', `판본 ${x.path.g5b}, ${x.E.audit.title}`);
       },
       haneul() {
         const tax = seedWhere(a => a.tp_tax);

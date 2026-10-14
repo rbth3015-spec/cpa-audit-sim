@@ -17,39 +17,39 @@
 (function (global) {
   'use strict';
 
-  // 첫 회사(㈜서린정밀)는 scenes1·2 · truth · story 가 전역에 올려 둔 것을 그대로 쓴다
+  // 첫 회사(㈜도원정밀)는 scenes1·2 · truth · story 가 전역에 올려 둔 것을 그대로 쓴다
   var SEORIN = {
     COMPANY: global.COMPANY, SCENES: global.SCENES, TRUTH: global.TRUTH, STORY: global.STORYDATA,
     CAST: null, CAST_ORDER: (global.CAST_ORDER || {}).client
   };
 
   var BOOK = [
-    { id: 'seorin', name: '㈜서린정밀', market: '코스닥', industry: '이차전지 장비 제조',
+    { id: 'seorin', name: '㈜도원정밀', market: '코스닥', industry: '이차전지 장비 제조',
       tag: '부정 · 특수관계자', art: 'office', data: SEORIN,
       brief: '4분기 매출이 두 배로 뛰었다. 대표이사의 배우자 회사가 거래처에 있다.' }
   ];
   if (global.SEASON_RAON) {
-    BOOK.push({ id: 'raon', name: '㈜라온바이오', market: '코스닥', industry: '신약 개발 · 임상 3상',
+    BOOK.push({ id: 'raon', name: '㈜신진바이오', market: '코스닥', industry: '신약 개발 · 임상 3상',
       tag: '초도감사 · 계속기업', art: 'lab', data: global.SEASON_RAON,
       brief: '증권선물위원회가 지정한 감사인으로 처음 들어간다. 자금이 6개월치 남았다.' });
   }
   if (global.SEASON_GUREUM) {
-    BOOK.push({ id: 'gureum', name: '㈜구름결', market: '코스닥', industry: 'SaaS 구독 · SI',
+    BOOK.push({ id: 'gureum', name: '㈜동인정보기술', market: '코스닥', industry: 'SaaS 구독 · SI',
       tag: 'IT 통제 · 데이터', art: 'server', data: global.SEASON_GUREUM,
       brief: '거래 340만 건을 시스템이 인식한다. 운영 DB 권한이 개발팀에 열려 있다.' });
   }
   if (global.SEASON_HANEUL) {
-    BOOK.push({ id: 'haneul', name: '㈜한울그룹', market: '유가증권', industry: '전자부품 지주 · 연결 6곳',
+    BOOK.push({ id: 'haneul', name: '㈜삼한그룹', market: '유가증권', industry: '전자부품 지주 · 연결 6곳',
       tag: '그룹감사 · 부문감사인', art: 'board', data: global.SEASON_HANEUL,
       brief: '연결 종속 여섯 곳. 베트남 부문감사인이 세무자문도 맡고 있다.' });
   }
   if (global.SEASON_DAON) {
-    BOOK.push({ id: 'daon', name: '㈜다온마켓', market: '코스닥', industry: '식자재 유통 · 매장 84곳',
+    BOOK.push({ id: 'daon', name: '㈜대풍마켓', market: '코스닥', industry: '식자재 유통 · 매장 84곳',
       tag: '내부회계 · IT 통제', art: 'server', data: global.SEASON_DAON,
       brief: '올해 처음 내부회계 감사를 받는다. 경영진 평가는 미비점 없음.' });
   }
   if (global.SEASON_HAESOL) {
-    BOOK.push({ id: 'haesol', name: '㈜해솔건설', market: '코스닥', industry: '중견 건설 · 주택 · 물류센터',
+    BOOK.push({ id: 'haesol', name: '㈜청림건설', market: '코스닥', industry: '중견 건설 · 주택 · 물류센터',
       tag: '추정치 · 계속기업', art: 'warehouse', data: global.SEASON_HAESOL,
       brief: '진행률로 매출을 잡는다. PF 보증 1,800억원, 미분양이 번지고 있다.' });
   }

@@ -4,9 +4,9 @@
 
 | 줄기 | 상태 |
 |---|---|
-| ㈜한울그룹 (그룹감사) | **게임에 옮김** — `data/haneul.js` (2026-09-30). 미니게임 `ic`(내부거래 대사)도 `js/minis.js` 에 |
-| ㈜다온마켓 (내부회계 · IT) | **게임에 옮김** — `data/daon.js` (2026-10-05). 미니게임 `attr`(승인 서명 대조) · `ret`(반품 추출)도 `js/minis.js` 에 |
-| ㈜해솔건설 (추정치 · 계속기업) | **게임에 옮김** — `data/haesol.js` (2026-10-05). 미니게임 `site`(공정률 현장 대조)도 `js/minis.js` 에 |
+| ㈜삼한그룹 (그룹감사) | **게임에 옮김** — `data/haneul.js` (2026-09-30). 미니게임 `ic`(내부거래 대사)도 `js/minis.js` 에 |
+| ㈜대풍마켓 (내부회계 · IT) | **게임에 옮김** — `data/daon.js` (2026-10-05). 미니게임 `attr`(승인 서명 대조) · `ret`(반품 추출)도 `js/minis.js` 에 |
+| ㈜청림건설 (추정치 · 계속기업) | **게임에 옮김** — `data/haesol.js` (2026-10-05). 미니게임 `site`(공정률 현장 대조)도 `js/minis.js` 에 |
 
 - `storylines.json` — 회사 세 곳과, 회사를 가로지르는 세종회계법인 감사2본부의 한 해
 
@@ -35,7 +35,7 @@
 
 ## 옮길 때 순서
 
-1. `company`와 `cast`로 `data/<회사>.js` 뼈대를 만든다 (구름결 `data/gureum.js`가 본보기).
+1. `company`와 `cast`로 `data/<회사>.js` 뼈대를 만든다 (동인정보기술 `data/gureum.js`가 본보기).
 2. 장면마다 `parts`의 `must`를 채점표로 옮긴다. 흔한 낱말 하나를 만점 채점어로 두지 않는다.
    `node tools/gradelab.js --why=<칸>`으로 띠를 확인한다.
 3. `beats`는 시점 인물(`pov`)을 먼저 정하고 쓴다. `node tools/honorifics.js`로 호칭을 확인한다.

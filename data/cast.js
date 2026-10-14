@@ -7,7 +7,7 @@
    (어떤 사진이 있는지는 tools/images.py 가 만드는 assets/manifest.js 에 적힌다).
 
    필드
-     group   team 법인 · client 서린정밀 · outside 외부 · other 다른 고객사
+     group   team 법인 · client 도원정밀 · outside 외부 · other 다른 고객사
      tag     인물 파일 첫 줄 (한 줄)
      facts   조서 '인물' 탭에 쌓이는 사실. open: true 면 처음부터 보인다.
              나머지는 메신저 선택 · 장면 결과로 열린다 (data/story.js fx.fact)
@@ -24,7 +24,7 @@ window.CAST = {
     facts: [
       { id: 'p_rule', t: '입버릇 — "조서에 없는 건 한 일이 아니다"', open: true },
       { id: 'p_scar', t: '2014년 대운건설 감사 — 조서 미비로 감리 경고를 받았다', open: true },
-      { id: 'p_press', co: 'seorin', t: '법인 경영위원회가 서린정밀 수임 유지를 주문했다' }
+      { id: 'p_press', co: 'seorin', t: '법인 경영위원회가 도원정밀 수임 유지를 주문했다' }
     ]
   },
   manager: {
@@ -44,10 +44,10 @@ window.CAST = {
     voice: '존댓말, "선배!", 긴장하면 말끝을 흐린다. 메신저에서는 ㅠ · ㅎ 가끔',
     facts: [
       { id: 'k_first', t: '상장사 감사는 이번이 처음', open: true },
-      { id: 'k_stock', co: 'seorin', t: '입사 전에 산 서린정밀 주식 10주가 있었다' },
+      { id: 'k_stock', co: 'seorin', t: '입사 전에 산 도원정밀 주식 10주가 있었다' },
       { id: 'k_sold', co: 'seorin', t: '주식을 처분하고 품질관리실에 보고했다' },
       { id: 'k_kept', co: 'seorin', t: '주식을 그대로 둔 채 시즌을 계속했다' },
-      { id: 'k_night', co: 'seorin', t: '새벽 입력 전표에서 한들상사라는 이름을 처음 봤다' }
+      { id: 'k_night', co: 'seorin', t: '새벽 입력 전표에서 경일상사라는 이름을 처음 봤다' }
     ]
   },
   kyuri: {
@@ -72,39 +72,39 @@ window.CAST = {
     tag: '장면마다 앉는 자리가 바뀐다', facts: []
   },
 
-  /* ── ㈜서린정밀 ── */
+  /* ── ㈜도원정밀 ── */
   cfo: {
-    name: '박정후', role: '재무담당임원', org: '㈜서린정밀', group: 'client', avatar: 'cfo', age: 51,
+    name: '박정후', role: '재무담당임원', org: '㈜도원정밀', group: 'client', avatar: 'cfo', age: 51,
     tag: '전직 회계사 · 감사를 안다',
     voice: '정중한 존댓말 속 압박. "~하시죠", "~아니겠습니까"',
     facts: [
       { id: 'c_ex', t: '대형 회계법인 출신. 감사인이 무엇을 볼지 안다', open: true },
       { id: 'c_list', t: '임가공 재고 명세서를 회계팀에 직접 넘겼다' },
-      { id: 'c_order', t: '한들상사 거래는 대표이사 지시였다고 말했다' }
+      { id: 'c_order', t: '경일상사 거래는 대표이사 지시였다고 말했다' }
     ]
   },
   ceo: {
-    name: '임재강', role: '대표이사', org: '㈜서린정밀', group: 'client', avatar: 'ceo', age: 61,
+    name: '임재강', role: '대표이사', org: '㈜도원정밀', group: 'client', avatar: 'ceo', age: 61,
     tag: '창업자 · 상장 신화',
     voice: '느긋한 하대. 상대를 직함으로 부른다. "정 이사, ~요"',
     facts: [
       { id: 'ceo_found', t: '2009년 창업, 2019년 코스닥 상장', open: true },
-      { id: 'ceo_wife', t: '배우자 서미란이 ㈜한들상사 대표이사다' }
+      { id: 'ceo_wife', t: '배우자 서미란이 ㈜경일상사 대표이사다' }
     ]
   },
   sua: {
-    name: '이수아', role: '회계팀 대리', org: '㈜서린정밀', group: 'client', avatar: 'sua', age: 29,
+    name: '이수아', role: '회계팀 대리', org: '㈜도원정밀', group: 'client', avatar: 'sua', age: 29,
     tag: '말수가 적다',
     voice: '조심스러운 존댓말. 말끝을 흐린다 "…"',
     facts: [
       { id: 's_desk', t: '결산 자료를 감사팀에 가져다주는 담당', open: true },
       { id: 's_sheet', t: '임가공 재고 명세서는 자기가 만든 게 아니라고 했다' },
-      { id: 's_handle', t: '한들상사 거래 전표는 늘 대표이사 결재로 내려왔다고 했다' },
-      { id: 's_tip', t: '한들상사 건을 감사팀에 제보했다' }
+      { id: 's_handle', t: '경일상사 거래 전표는 늘 대표이사 결재로 내려왔다고 했다' },
+      { id: 's_tip', t: '경일상사 건을 감사팀에 제보했다' }
     ]
   },
   sales: {
-    name: '문석호', role: '영업본부장', org: '㈜서린정밀', group: 'client', avatar: 'sales', age: 48,
+    name: '문석호', role: '영업본부장', org: '㈜도원정밀', group: 'client', avatar: 'sales', age: 48,
     tag: '목표가 곧 인격',
     voice: '호탕한 존댓말, 허허 웃는다. 숫자 이야기만 한다',
     facts: [
@@ -112,7 +112,7 @@ window.CAST = {
     ]
   },
   warehouse: {
-    name: '배만수', role: '물류센터장', org: '㈜서린정밀', group: 'client', avatar: 'warehouse', age: 55,
+    name: '배만수', role: '물류센터장', org: '㈜도원정밀', group: 'client', avatar: 'warehouse', age: 55,
     tag: '창고 30년',
     voice: '투박하고 짧다. 본 것만 말한다',
     facts: [
@@ -121,7 +121,7 @@ window.CAST = {
     ]
   },
   chair: {
-    name: '윤서경', role: '감사위원장 · 사외이사', org: '㈜서린정밀', group: 'client', avatar: 'chair', age: 63,
+    name: '윤서경', role: '감사위원장 · 사외이사', org: '㈜도원정밀', group: 'client', avatar: 'chair', age: 63,
     tag: '전직 부장판사',
     voice: '격식체, 짧고 정확하다. "~습니까"',
     facts: [
@@ -140,7 +140,7 @@ window.CAST = {
 
   /* ── 다른 고객사 (돌발 업무) ── */
   raon: {
-    name: '최도현', role: '재무이사', org: '㈜라온바이오', group: 'other', avatar: 'raon', age: 47,
+    name: '최도현', role: '재무이사', org: '㈜신진바이오', group: 'other', avatar: 'raon', age: 47,
     tag: '임상 3상 · 자금이 급하다',
     voice: '빠른 존댓말. 결론을 재촉한다',
     facts: [ { id: 'r_role', t: '초도감사 고객사 재무 책임자', open: true } ]
