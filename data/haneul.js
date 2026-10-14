@@ -17,7 +17,12 @@
     bias: '가정의 편의 신호 평가',
     expert: '감사인측 전문가 이용',
     fraud: '그룹 업무팀의 직접 평가',
-    gov: '지배기구와 커뮤니케이션'
+    gov: '지배기구와 커뮤니케이션',
+    // 경로 장면 (갈림길)
+    tpDirect: '이전가격 과세 위험을 그룹 업무팀이 직접 평가',
+    tpSpecific: '이전가격 과세 위험에 특정 절차 지시',
+    field: '수주잔고 · 고객 계약으로 성장률 가정 검증',
+    board: '실적을 반영한 손상검사 재수행 요구'
   };
 
   /* ── 회사 ───────────────────────────────────── */
@@ -91,7 +96,10 @@
       amount: 210.0,
       hidden: '인수 때 쓴 매출 성장률 18%를 그대로 두었다. 첫해 실제 성장률은 4% — 회수가능액을 다시 잡으면 영업권 손상 210억원.',
       howFound: '가정이 한 방향으로만 유리한지 따지고, 감사인측 전문가로 성장률 · 할인율을 따로 검증했다면 드러났을 사항.',
-      detect: { mode: 'all', need: ['h5#' + L.bias, 'h5#' + L.expert] }
+      detect: { mode: 'all', need: ['h5#' + L.bias, 'h5#' + L.expert],
+                // 영업권 장면에서 한쪽을 놓쳐도 갈림길의 증거(현장 수주잔고 · 감사위원회를 통한 재검사)가 메운다
+                or: [{ mode: 'all', need: ['h5#' + L.bias, 'h5b#' + L.field] }, { mode: 'all', need: ['h5#' + L.expert, 'h5b#' + L.field] },
+                     { mode: 'all', need: ['h5#' + L.bias, 'h5b#' + L.board] }, { mode: 'all', need: ['h5#' + L.expert, 'h5b#' + L.board] }] }
     },
     {
       id: 'tp_tax', p: 0.75, soft: true, account: '당기법인세부채',
@@ -101,8 +109,8 @@
       hidden: '부문감사인이 스스로 자문한 이전가격 정책을 감사하며 과세 위험을 보지 않았다 — 불확실한 법인세 처리로 부채 26억원 미인식.',
       clean: '이전가격 정책은 현지 과세당국의 사전합의를 받았다. 과세 위험은 이미 부채에 반영되어 있었다.',
       howFound: '부문감사인의 독립성을 이해하고 그룹 업무팀이 세무 부문에 직접 관여했다면 드러났을 사항.',
-      detect: { mode: 'any', need: ['h2#' + L.indep] },
-      verify: { mode: 'any', need: ['h2#' + L.indep] }
+      detect: { mode: 'any', need: ['h2#' + L.indep], or: [{ mode: 'any', need: ['h2b#' + L.tpDirect, 'h2b#' + L.tpSpecific] }] },
+      verify: { mode: 'any', need: ['h2#' + L.indep], or: [{ mode: 'any', need: ['h2b#' + L.tpDirect, 'h2b#' + L.tpSpecific] }] }
     },
     {
       id: 'ic_profit', p: 0.8, soft: true, jitter: false, account: '재고자산',
@@ -138,7 +146,7 @@
   {
     id: 'h1', day: '20×7. 9. 18.', chapter: '그룹감사 계획', tag: '그룹감사',
     art: 'board', view: 'partner', area: '감사계획과 위험평가', standards: ['KSA 600', 'KSA 320'],
-    speaker: 'manager', cost: 7,
+    speaker: 'manager', cost: 6,
     line: '이사님, 부문 여섯 곳 정리했습니다. 작년 방식이 걸립니다.',
     situation: '㈜한울그룹은 국내외 종속기업 여섯 곳을 연결한다. 그룹 업무팀은 부문마다 그룹 매출에서 차지하는 비중과 위험을 정리했다. 전년 감사팀은 여섯 곳 모두에 부문중요성을 정하고 부문재무정보 전체를 감사했다. 올해 인수한 PT Hanul Indo 에는 영업권 612억원이 잡혀 있다.',
     clues: ['여섯 곳 모두에 부문중요성을 정하고', '올해 인수한 PT Hanul Indo', '영업권 612억원'],
@@ -214,7 +222,7 @@
   {
     id: 'h2', day: '20×7. 10. 7.', chapter: '부문감사인', tag: '그룹감사',
     art: 'meeting', view: 'senior', area: '감사계획과 위험평가', standards: ['KSA 600', '윤리기준'],
-    speaker: 'assoc', cost: 8,
+    speaker: 'assoc', cost: 7,
     variants: [
       { id: 'TOLD', label: '회사가 먼저 알림', when: function (S) { return S.rel.company >= 45; },
         line: '선배, CFO 님이 먼저 알려 주셨어요. 세무자문도 한대요.',
@@ -275,6 +283,122 @@
         ] }
     ],
     ref: 'KSA 600 (부문감사인의 이해 · 윤리적 요구사항) · 윤리기준 (자기검토 · 이기적 위협)'
+  },
+
+  /* ── 2b. 베트남 세무 부문 ★갈림길 1 — 하노이로 직접 갈 것인가, 다른 감사인을 들일 것인가 ──
+     부문감사인 장면 뒤 팀 방에서 고른 길(han_fork1)대로 장소 · 사람 · 문항이 바뀐다.
+       하노이 직접 관여  Pham & Partners 사무실 · Minh Anh   HANOI  (그룹 CFO 에게 부문 일을 「현지 일」로 넘기지 않았을 때)
+       다른 감사인 투입  감사팀 현장 사무실 · 유가온          SWAP   빠르다. 대신 새 감사인의 독립성 · 적격성을 가려야 한다
+       DENY  하노이를 골랐는데 CFO 에게 「현지 일」을 맡겨 두었다면 Hanul Vina 가 방문을 미룬다 — 다른 감사인으로, 시간이 더 든다
+     이전가격 과세 위험을 직접 평가하거나 새 감사인에게 특정 절차를 맡기면, 부문감사인 장면을 놓쳐도 세무위험이 드러난다 (진실 or) */
+  {
+    id: 'h2b', since: 7, fork: true, inhouse: true,
+    day: '20×7. 10. 21.', chapter: '베트남 세무 부문', tag: '그룹감사',
+    art: 'meeting', view: 'senior', area: '감사계획과 위험평가', standards: ['KSA 600', '윤리기준'],
+    speaker: 'minh', cost: 4,
+    variants: [
+      { id: 'HANOI', label: 'Pham 조서 직접 검토', route: '하노이 직접 관여',
+        when: function (S) { return !!S.flags.route_hanoi && !S.flags.local_only; },
+        chapter: '하노이 직접 관여', cost: 5,
+        line: '조서는 다 보여 드리죠. 세무 파일도요, of course.' },
+      { id: 'SWAP', label: '다른 감사인 선정', route: '다른 감사인 투입',
+        when: function (S) { return !S.flags.route_hanoi; },
+        chapter: '다른 감사인 투입', art: 'desk', view: 'staff', speaker: 'manager', cost: 3,
+        line: '세무 부문은 다른 법인에 맡긴다. 후보 셋 중에 골라.',
+        lead: '그룹 업무팀은 Hanul Vina 의 세무 부문만 다른 현지 감사인에게 맡기기로 하였다.' },
+      { id: 'DENY', label: '방문 미뤄짐 · 다른 감사인으로', route: '다른 감사인 투입', extraCost: 3, costNote: '하노이 방문 미뤄짐 · 다른 감사인 투입으로',
+        chapter: '다른 감사인 투입', art: 'desk', view: 'staff', speaker: 'manager', cost: 3,
+        note: 'Hanul Vina 가 그룹 업무팀 방문을 미룸',
+        line: '하노이는 안 된대. 「현지 일」이라고. 다른 법인으로 가.',
+        lead: 'Hanul Vina 는 「현지 일」이라며 그룹 업무팀의 방문을 미뤘다. 그룹 업무팀은 세무 부문만 다른 현지 감사인에게 맡기기로 하였다.' }
+    ],
+    situation: function (v) {
+      if (v.id === 'HANOI') return '그룹 업무팀은 하노이의 Pham & Partners 사무실에서 Hanul Vina 감사조서를 직접 검토하였다. 이전가격 조서는 세 쪽인데, 그중 두 쪽은 Pham & Partners 세무본부가 회사에 낸 자문 의견서 사본이다. 조서에는 현지 과세당국과의 사전합의 여부도, 최근 세무조사 이력도 적혀 있지 않다. 이전가격 거래는 Hanul Vina 매출의 70%를 차지한다.';
+      return v.lead + ' 후보는 세 곳이다. Saigon Assurance 는 감독기관의 정기 점검을 받고 이전가격 감사 경험이 많다. Delta Audit 에는 Hanul Vina 법인장의 처남이 파트너로 있다. Mekong CPA 는 보수가 가장 싸지만 이전가격 감사 경험이 없다.';
+    },
+    clues: function (v) {
+      return v.id === 'HANOI'
+        ? ['두 쪽은 Pham & Partners 세무본부가 회사에 낸 자문 의견서 사본', '사전합의 여부도, 최근 세무조사 이력도', '매출의 70%']
+        : ['감독기관의 정기 점검을 받고 이전가격 감사 경험', '법인장의 처남이 파트너', '이전가격 감사 경험이 없다'];
+    },
+    exhibits: function (v) {
+      if (v.id === 'HANOI') return [{ type: 'kv', title: 'Hanul Vina 감사조서 — 이전가격', items: [
+        ['조서 분량', '3쪽'], ['그중 자문 의견서 사본', '2쪽 (Pham 세무본부 작성)'], ['사전합의', '조서에 없음'],
+        ['세무조사 이력', '조서에 없음'], ['이전가격 거래 비중', '매출의 70%']] }];
+      return [{ type: 'table', title: '후보 감사인', head: ['법인', '감독 · 점검', '이전가격 경험', '비고'],
+        rows: [['Saigon Assurance', '정기 점검 대상', '많음', '—'],
+               ['Delta Audit', '정기 점검 대상', '보통', '법인장의 처남이 파트너'],
+               ['Mekong CPA', '점검 이력 없음', '없음', '보수 최저']] }];
+    },
+    prompt: '부문감사인을 쓸 수 없을 때 그룹 업무팀의 대응',
+    parts: function (v) {
+      var PRE = { kw: ['사전합의', 'APA', '세무조사 이력', '세무조사'], score: 10, label: '사전합의 · 세무조사 이력 확인' };
+      var TAX = { kw: ['불확실한 법인세', '법인세 처리의 불확실성', '부채로 인식', '부채 인식', '충당부채', '부채를 측정'], half: ['부채', '법인세'], score: 10,
+        label: '과세 위험을 불확실한 법인세 처리로 측정',
+        why: '불확실한 법인세 처리 — 과세당국이 받아들이지 않을 가능성이 높으면 최빈값이나 기댓값으로 측정해 부채에 반영' };
+
+      if (v.id === 'HANOI') return [
+        { type: 'choice', multi: true, who: 'assoc',
+          say: '선배, 조서에서 뭘 봐야 해요?',
+          ask: '그룹 업무팀이 부문감사인의 조서를 검토할 때 볼 사항으로 적절한 것을 모두 고르시오.',
+          options: [
+            { t: '유의적 위험에 수행한 절차와 결론이 충분한 증거에 근거하는지', ok: true, score: 12,
+              label: '유의적 위험 대응 절차의 충분성',
+              why: '부문감사인 조서 검토 — 유의적 위험에 대한 대응과 결론, 그룹 업무팀에 알려야 할 사항을 본다' },
+            { t: '부문감사인이 스스로 낸 자문 결과를 감사증거로 다시 쓰고 있는지', ok: true, score: 10,
+              label: '자기검토 — 자문 결과를 감사증거로 씀',
+              why: '자기검토 위협 — 자기가 만든 결과를 자기가 평가하면 객관성이 사라진다' },
+            { t: '그룹 업무팀에 알려야 할 부정 · 유의적 미비점이 빠지지 않았는지', ok: true, score: 8,
+              label: '보고해야 할 사항의 누락 여부' },
+            { t: '조서 쪽수가 전기와 비슷한지', pen: 6, label: '조서 분량만 비교' },
+            { t: '부문감사인 대표의 서명이 있으니 결론은 그대로 받는다', pen: 10, please: true,
+              label: '서명만 보고 결론 수용', why: '서명 — 결론의 근거를 대신하지 못한다' }
+          ] },
+        { type: 'write', who: 'partner',
+          say: '세무 조서가 자기 의견서라니. 그럼 우리가 뭘 하나?',
+          ask: '이전가격 과세 위험에 대해 그룹 업무팀이 할 일을 서술하시오.',
+          guide: ['누가 — 직접 하는지', '무엇을 — 사전합의 · 세무조사', '결과 — 부채로'], maxChars: 120, timeLimit: 105,
+          rubric: { bonusCap: 6,
+            must: [
+              { kw: ['그룹 업무팀이 직접', '직접 평가', '직접 수행', '직접 검토', '직접 관여'], near: ['이전가격', '세무', '과세'], within: 30, half: ['직접'], score: 14,
+                label: L.tpDirect,
+                why: '부문감사인의 독립성에 문제가 있으면 — 그 업무를 쓰지 않고 그룹 업무팀이 유의적 위험에 직접 절차를 수행' },
+              PRE, TAX],
+            bonus: [{ kw: ['세무 전문가', '감사인측 전문가'], score: 6, label: '감사인측 세무 전문가 이용' }],
+            trap: [{ kw: ['자문 의견서대로', '의견서를 그대로', '부문감사인 결론대로'], score: -12, label: '자문 의견서를 감사증거로 그대로 씀', please: true }] },
+          model: '그룹 업무팀이 이전가격 과세 위험을 직접 평가한다. 사전합의 여부와 세무조사 이력을 확인하고, 과세 가능성이 높으면 불확실한 법인세 처리로 부채를 측정하게 한다.' }
+      ];
+
+      return [
+        { type: 'sort', who: 'manager',
+          say: '셋 다 되냐? 이유까지 갈라 봐.',
+          ask: '각 후보를 Hanul Vina 세무 부문의 감사인으로 쓸 수 있는지에 따라 분류하시오.',
+          cats: ['쓸 수 있음', '독립성 문제', '적격성 문제'],
+          items: [
+            { t: 'Saigon Assurance — 정기 점검 · 이전가격 경험 많음', cat: 0, score: 8, label: 'Saigon — 독립성 · 적격성 충족',
+              why: '부문 업무를 맡길 감사인 — 윤리적 요구사항(독립성) · 전문가적 적격성 · 감독 규제 환경을 함께 본다' },
+            { t: 'Delta Audit — 법인장의 처남이 파트너', cat: 1, score: 10, label: 'Delta — 경영진과의 가족 관계는 독립성 위협',
+              why: '친밀 위협 — 감사 대상 경영진과의 가족 관계는 독립성을 해친다',
+              wrong: { 0: { label: '가족 관계를 보지 않고 선정', pen: 10, please: true } } },
+            { t: 'Mekong CPA — 보수 최저 · 이전가격 경험 없음', cat: 2, score: 8, label: 'Mekong — 경험 없음은 적격성 문제',
+              wrong: { 0: { label: '보수만 보고 선정', pen: 8 } } }
+          ] },
+        { type: 'write', who: 'manager',
+          say: 'Saigon 으로 간다. 이전가격은 뭘 시킬 거야?',
+          ask: '새 감사인에게 이전가격 과세 위험에 대해 지시할 절차를 서술하시오.',
+          guide: ['무엇을 — 사전합의 · 세무조사', '결과 — 부채로', '그룹 — 무엇을 받을지'], maxChars: 120, timeLimit: 105,
+          rubric: { bonusCap: 6,
+            must: [
+              { kw: ['특정 절차', '추가 절차', '절차를 지시', '절차를 요청', '절차를 맡'], near: ['이전가격', '세무', '과세'], within: 30, half: ['지시', '요청'], score: 14,
+                label: L.tpSpecific,
+                why: '다른 감사인 투입 — 그룹 업무팀이 유의적 위험(이전가격 과세)에 수행할 특정 절차와 보고 사항을 지시하고 그 결과를 평가' },
+              PRE, TAX],
+            bonus: [{ kw: ['결과를 보고', '보고받', '조서를 검토', '조서 검토'], score: 6, label: '결과 보고 · 조서 검토' }],
+            trap: [{ kw: ['기존 의견서대로', '기존 결론대로', '의견서를 그대로'], score: -12, label: '기존 자문 의견서를 그대로 씀', please: true }] },
+          model: 'Saigon Assurance 에 이전가격 과세 위험에 대한 특정 절차를 지시한다. 사전합의 여부와 세무조사 이력을 확인하고, 과세 가능성이 높으면 불확실한 법인세 처리로 부채를 측정했는지 보고하게 한다.' }
+      ];
+    },
+    ref: 'KSA 600 (부문감사인 · 그룹 업무팀의 관여) · 윤리기준 (자기검토 · 친밀 위협) · 기업회계기준해석서 2123'
   },
 
   /* ── 3. 지침서한 ─────────────────────────────── */
@@ -369,7 +493,7 @@
   {
     id: 'h5', day: '20×8. 2. 6.', chapter: '영업권 손상', tag: '회계추정치',
     art: 'review', view: 'partner', area: '감사절차 수행과 결과 보고', standards: ['KSA 540', 'KSA 620', 'KSA 500'],
-    speaker: 'manager', cost: 9,
+    speaker: 'manager', cost: 8,
     variants: [
       { id: 'BIAS', label: '가정이 모두 한쪽으로', when: function (S) { return (S.seed || 0) % 2 === 0; },
         line: '이사님, 성장률 18% 그대로입니다. 할인율도 그룹 평균이고요.',
@@ -447,11 +571,128 @@
     ref: 'KSA 540 (회계추정치 · 경영진 편의 · 소급 검토) · KSA 620 (감사인측 전문가)'
   },
 
+  /* ── 5b. 18%를 깨는 길 ★갈림길 2 — 자카르타 현장으로 갈 것인가, 감사위원회로 갈 것인가 ──
+     영업권 손상 뒤 업무수행이사가 고른 길(han_fork2)대로 장소 · 사람 · 문항이 바뀐다.
+       자카르타 현장    PT Hanul Indo 공장 · 최민혁     FIELD  (감사시간이 넉넉할 때 — 남은 시간 50 이상)
+       감사위원회 보고  본사 감사위원회실 · 강은후      BOARD
+       CUT  현장을 골랐는데 기한이 빠듯하면 출장이 취소되고 감사위원회로
+     현장 수주잔고나 감사위원회를 통한 재수행 요구가, 영업권 장면에서 놓친 한쪽(편의 판단 · 감사인측 전문가)을 메운다 (진실 or) */
+  {
+    id: 'h5b', since: 7, fork: true, inhouse: true,
+    day: '20×8. 2. 12.', chapter: '18%를 깨는 길', tag: '회계추정치',
+    art: 'meeting', view: 'partner', area: '감사절차 수행과 결과 보고', standards: ['KSA 540', 'KSA 260'],
+    speaker: 'hchair', cost: 3,
+    variants: [
+      { id: 'FIELD', label: '수주 현장 확인', route: '자카르타 현장',
+        when: function (S) { return !!S.flags.route_field && S.gauge.T >= 50; },
+        chapter: '자카르타 현장', art: 'warehouse', view: 'staff', speaker: 'hma', standards: ['KSA 540', 'KSA 500'], cost: 5,
+        confront: [L.field], ref: 'KSA 540 (가정의 근거 · 경영진 편의) · KSA 500',
+        line: '수주요? 지금 협상 중인 게 엄청납니다. 다 보여 드리죠.' },
+      { id: 'BOARD', label: '경영진 없이 보고', route: '감사위원회 보고',
+        when: function (S) { return !S.flags.route_field; },
+        chapter: '감사위원회 보고', confront: [L.board],
+        line: '경영진은 나가 있으라고 했습니다. 말씀하십시오.',
+        lead: '업무수행이사는 감사위원장 강은후를 경영진 없이 먼저 만났다.' },
+      { id: 'CUT', label: '출장 취소 · 감사위원회로', route: '감사위원회 보고',
+        chapter: '감사위원회 보고', confront: [L.board],
+        note: '기한이 빠듯해 자카르타 출장이 취소됨',
+        line: '출장은 취소하셨다고요. 여기서 듣겠습니다.',
+        lead: '기한이 빠듯해 자카르타 출장은 취소되었다. 업무수행이사는 감사위원장 강은후를 경영진 없이 먼저 만났다.' }
+    ],
+    situation: function (v) {
+      if (v.id === 'FIELD') return '감사팀은 자카르타의 PT Hanul Indo 를 찾았다. 체결된 고객 계약의 수주잔고는 전년보다 3% 늘었고, 최대 고객 한 곳은 내년 물량을 40% 줄이겠다고 통보했다. M&A 팀은 협상 중인 신규 고객 목록(성공 확률 표시 없음)을 내놓으며 18%는 충분하다고 했다. 인수 실사 보고서는 1년 전 시장 성장률을 연 15%로 봤다.';
+      return v.lead + ' 감사팀이 알릴 것은 세 가지다. 인수 때 성장률 18%를 그대로 둔 손상검사, 첫해 실제 성장률 4%, 그리고 M&A 팀이 실적 자료를 두 번 늦게 낸 일이다. 감사위원회는 다음 주 이사회 전에 회사에 지시할 수 있다.';
+    },
+    clues: function (v) {
+      return v.id === 'FIELD'
+        ? ['수주잔고는 전년보다 3% 늘었고', '물량을 40% 줄이겠다고 통보', '성공 확률 표시 없음', '1년 전 시장 성장률을 연 15%로']
+        : ['성장률 18%를 그대로 둔 손상검사', '실적 자료를 두 번 늦게 낸 일', '이사회 전에 회사에 지시할 수 있다'];
+    },
+    exhibits: function (v) {
+      if (v.id === 'FIELD') return [{ type: 'table', title: '자카르타 현장 자료', head: ['자료', '만든 곳', '내용'],
+        rows: [['고객 계약 · 수주잔고', '고객과 체결', '전년 대비 +3%'],
+               ['최대 고객 통지서', '고객', '내년 물량 −40%'],
+               ['신규 고객 협상 목록', 'M&A 팀', '성공 확률 표시 없음'],
+               ['인수 실사 보고서', '인수 자문사 (1년 전)', '시장 성장률 연 15%']] }];
+      return [{ type: 'kv', title: '감사위원회 사전 보고', items: [
+        ['참석', '감사위원장 · 업무수행이사 (경영진 배석 없음)'], ['손상검사 성장률', '연 18% (인수 때 그대로)'],
+        ['첫해 실적', '4%'], ['실적 자료 제출', '두 차례 지연']] }];
+    },
+    prompt: '손상검사 가정을 뒤집을 증거와 지배기구 커뮤니케이션',
+    ref: 'KSA 260 (지배기구와의 커뮤니케이션) · KSA 540',
+    parts: function (v) {
+      if (v.id === 'FIELD') return [
+        { type: 'sort', who: 'manager',
+          say: '자료가 넷이야. 18%랑 맞춰서 갈라 봐.',
+          ask: '성장률 가정 연 18%를 평가하는 증거로서 각 자료를 분류하시오.',
+          cats: ['가정을 뒷받침', '가정에 반함', '근거로 부족'],
+          items: [
+            { t: 'ⓐ 체결된 고객 계약의 수주잔고 — 전년 대비 +3%', cat: 1, score: 10, label: 'ⓐ 수주잔고 +3%는 가정에 반하는 증거',
+              why: '가정 평가 — 체결된 계약 같은 외부 증거가 가정과 어긋나면 반하는 증거로 함께 고려 (뒷받침하는 증거만 고르지 않는다)' },
+            { t: 'ⓑ 최대 고객의 내년 물량 40% 감소 통지', cat: 1, score: 10, label: 'ⓑ 최대 고객 물량 감소는 가정에 반하는 증거' },
+            { t: 'ⓒ 성공 확률 표시가 없는 신규 고객 협상 목록', cat: 2, score: 8, label: 'ⓒ 확률 없는 협상 목록은 근거로 부족',
+              wrong: { 0: { label: '협상 목록을 성장 근거로 봄', pen: 10, please: true } } },
+            { t: 'ⓓ 1년 전 인수 실사 보고서의 시장 성장률 15%', cat: 2, score: 8, label: 'ⓓ 1년 전 전망은 근거로 부족',
+              wrong: { 0: { label: '지난 전망을 당기 근거로 봄', pen: 8, please: true } } }
+          ] },
+        { type: 'write', who: 'manager',
+          say: '수주는 3%, 큰손은 빠진대. 이걸로 뭘 해?',
+          ask: '현장에서 확인한 자료를 영업권 손상검사에 반영하는 방법을 서술하시오.',
+          guide: ['대조 — 무엇과 무엇을', '반영 — 현금흐름에 무엇을', '요구 — 회사에 무엇을'], maxChars: 120, timeLimit: 105,
+          rubric: { bonusCap: 6,
+            must: [
+              { kw: ['수주잔고', '고객 계약', '체결된 계약'], near: ['대조', '비교', '반영', '검증', '맞춰'], within: 30, half: ['수주'], score: 14,
+                label: L.field,
+                why: '가정의 근거 — 경영진 계획 대신 체결된 계약 · 수주잔고처럼 회사 밖과 맺은 증거로 성장률을 검증' },
+              { kw: ['최대 고객', '물량 감소', '고객 이탈', '40%'], score: 8, label: '최대 고객 물량 감소를 현금흐름에 반영' },
+              { kw: ['재계산', '다시 계산', '다시 산정', '재산정', '재수행', '다시 수행'], near: ['회수가능액', '손상검사', '손상 검사', '사용가치'], within: 30, half: ['회수가능액'], score: 12,
+                label: '실적 기반으로 회수가능액 재계산 요구' }
+            ],
+            bonus: [{ kw: ['편의', '한쪽으로'], score: 6, label: '경영진 편의 평가에 반영' }],
+            trap: [{ kw: ['협상 목록대로', '협상 중인 고객을 반영', '18%를 유지', '18% 를 유지'], score: -12, label: '확률 없는 협상 목록으로 18% 인정', please: true }] },
+          model: '체결된 고객 계약의 수주잔고와 성장률 18%를 대조하고 최대 고객의 물량 감소를 현금흐름에 반영해, 실적에 근거해 회수가능액을 재계산하도록 요구한다.' }
+      ];
+
+      return [
+        { type: 'choice', multi: true, who: 'hchair',
+          say: '무엇을 알려 주시겠습니까?',
+          ask: '업무수행이사가 지금 감사위원회에 알릴 사항으로 적절한 것을 모두 고르시오.',
+          options: [
+            { t: '손상검사 가정에서 본 경영진 편의의 징후', ok: true, score: 12,
+              label: '경영진 편의 징후 커뮤니케이션',
+              why: '지배기구 커뮤니케이션 — 회계실무의 질적 측면(추정치의 편의 포함)과 감사의 유의적 발견사항을 알린다' },
+            { t: '실적 자료 제출이 두 번 늦어진 감사 수행상의 유의적 어려움', ok: true, score: 10,
+              label: '감사 중 겪은 유의적 어려움' },
+            { t: '손상이 반영되지 않으면 감사의견에 미칠 수 있는 영향', ok: true, score: 8,
+              label: '감사의견에 미칠 영향' },
+            { t: '감사팀이 손상검사 모델을 대신 다시 만들어 주겠다는 제안', pen: 12,
+              label: '경영진 책임 — 손상검사를 감사인이 대신함', why: '손상검사는 경영진 책임 — 감사인이 만들면 자기검토 위협' },
+            { t: 'M&A 팀장의 인사 조치 요구', pen: 8, label: '인사 조치 요구', why: '인사 — 감사인이 요구할 사항이 아니다' }
+          ] },
+        { type: 'write', who: 'hchair',
+          say: '감사위원회가 무엇을 하면 되겠습니까?',
+          ask: '감사위원회에 요청할 사항과 그 뒤 감사인이 할 일을 서술하시오.',
+          guide: ['요청 — 회사에 무엇을', '감사인 — 그 결과를 어떻게'], maxChars: 115, timeLimit: 100,
+          rubric: { bonusCap: 6,
+            must: [
+              { kw: ['재수행', '다시 수행', '다시 하도록', '다시 검사', '재검사', '다시 하게'], near: ['손상검사', '손상 검사', '실적', '가정'], within: 30, half: ['손상검사'], score: 14,
+                label: L.board,
+                why: '지배기구의 감독 — 경영진 편의가 의심되면 지배기구를 통해 실적을 반영한 재검사를 요구하고, 그 결과를 다시 감사' },
+              { kw: ['감사인측 전문가', '감사인 측 전문가', '독립적 추정치', '독립적인 추정치', '범위추정치'], half: ['전문가', '추정치'], score: 12,
+                label: '재수행 결과를 감사인측 증거로 검증' }
+            ],
+            bonus: [{ kw: ['핵심감사사항'], score: 6, label: '핵심감사사항 후보로 기록' }],
+            trap: [{ kw: ['위원회가 승인하면', '이사회 승인으로', '위원회 결정대로'], score: -12, label: '지배기구 승인으로 증거를 갈음', please: true }] },
+          model: '첫해 실적을 반영해 손상검사를 다시 수행하도록 회사에 지시해 달라고 요청하고, 그 결과는 감사인측 전문가와 독립적 추정치로 검증한다.' }
+      ];
+    }
+  },
+
   /* ── 6. 현지 제보 ★진실 ──────────────────── */
   {
     id: 'h6', day: '20×8. 2. 17.', chapter: '현지 제보', tag: '부정',
     art: 'night', view: 'staff', area: '감사절차 수행과 결과 보고', standards: ['KSA 240', 'KSA 600', 'KSA 260'],
-    speaker: 'lan', cost: 8,
+    speaker: 'lan', cost: 7,
     line: '본사엔… 알리지 말아 주세요.',
     situation: '하노이 출장 마지막 밤, Hanul Vina 재무팀장 레티란이 호텔 로비에서 서류 봉투를 건넸다. 법인장이 원자재 공급사 두 곳에서 매입액의 3%를 개인 계좌로 받아 왔다는 송금 내역과 단가표가 들어 있다. 레티란은 본사에는 알리지 말아 달라고 했다.',
     clues: ['매입액의 3%를 개인 계좌로', '본사에는 알리지 말아 달라고'],
@@ -544,7 +785,7 @@
   {
     id: 'h8', day: '20×8. 3. 18.', chapter: '그룹 의견', tag: '감사의견',
     art: 'report', view: 'partner', area: '감사절차 수행과 결과 보고', standards: ['KSA 700', 'KSA 705', 'KSA 600'],
-    speaker: { staff: 'manager', senior: 'partner', partner: 'manager' }, cost: 10,
+    speaker: { staff: 'manager', senior: 'partner', partner: 'manager' }, cost: 9,
     line: '마지막입니다.',
     dynamic: 'opinion',
     prompt: '표명할 그룹 감사의견과 그 근거',
@@ -586,10 +827,25 @@
       h2: { at: '20×7. 10. 7. 16:00', place: '화상회의 · 하노이', text: function (S, v) {
         return v.id === 'HID' ? '화면 너머 벽에 한울 로고가 붙은 세무 보고서가 보인다. 확인서에는 없는 일이다.'
           : '화면 너머 벽에 한울 로고가 붙은 세무 보고서가 보인다.'; } },
+      // 경로 장면 — 시각 · 장소도 고른 길을 따른다
+      h2b: { at: function (S, v) { return v.id === 'HANOI' ? '20×7. 10. 21. 10:00' : '20×7. 10. 21. 15:30'; },
+        place: function (S, v) { return v.id === 'HANOI' ? '하노이 · Pham & Partners 사무실' : '감사팀 현장 사무실'; },
+        text: function (S, v) {
+          return v.id === 'HANOI' ? '조서 상자 네 개. 세무 파일 표지에 Pham 세무본부 로고가 찍혀 있다.'
+            : v.id === 'DENY' ? '하노이행 항공권은 취소됐다. 메일 제목은 「현지 일입니다」.'
+            : '후보 감사인 세 곳의 품질 자료. 한 곳에 낯익은 성이 있다.'; } },
       h3: { at: '20×7. 11. 3. 14:30', place: '감사팀 현장 사무실', text: '지침서한 초안 11쪽. 보고 양식만 공들였다.' },
       h4: { at: '20×8. 1. 21. 10:20', place: '㈜한울전자 물류센터', text: '12월 29일, 베트남행 컨테이너 여섯 대.' },
       h5: { at: '20×8. 2. 6. 19:40', place: '세종회계법인 14층', text: '인수 때 모델의 성장률 18%. 올해 실적은 4%.' },
-      h6: { at: '20×8. 2. 17. 22:10', place: '하노이 · 호텔 로비', text: '로비 소파에 레티란이 서류 봉투를 올려놓는다.' },
+      h5b: { at: function (S, v) { return v.id === 'FIELD' ? '20×8. 2. 12. 09:00' : '20×8. 2. 12. 16:00'; },
+        place: function (S, v) { return v.id === 'FIELD' ? '자카르타 · PT Hanul Indo 공장' : '㈜한울그룹 본사 감사위원회실'; },
+        text: function (S, v) {
+          return v.id === 'FIELD' ? '창고 앞 화이트보드에 수주 목표 18%. 그 아래 실적 칸은 비어 있다.'
+            : v.id === 'CUT' ? '자카르타행은 취소됐다. 감사위원회실 문이 닫히고 경영진 의자가 비었다.'
+            : '감사위원회실 문이 닫힌다. 경영진 의자는 비어 있다.'; } },
+      h6: { at: '20×8. 2. 17. 22:10', place: '하노이 · 호텔 로비', text: function (S) {
+        return S.story.vars.h2b === 'HANOI' ? '로비 소파에 레티란이 서류 봉투를 올려놓는다. 10월 Pham 사무실에서 본 얼굴이다.'
+          : '로비 소파에 레티란이 서류 봉투를 올려놓는다.'; } },
       h7: { at: '20×8. 3. 4. 09:30', place: '감사팀 현장 사무실', text: '후보 목록 다섯 줄. 쓸 수 있는 건 두세 줄.' },
       h8: { at: '20×8. 3. 18. 08:30', place: '세종회계법인 14층 이사실', text: '발행일 아침. 베트남 부문 결론서가 하루 늦게 도착했다.' }
     },
@@ -648,6 +904,60 @@
             reply: [{ from: 'minh', t: 'Thank you. 일정이 빠듯해서요.', mood: 'good' }] }
         ] } },
 
+      /* ── 갈림길 1 — 부문감사인을 쓸 수 없을 때, 하노이로 갈 것인가 다른 감사인을 들일 것인가 (다음 장면 h2b) ── */
+      { id: 'han_fork1', at: 'h2', fork: true, room: 'team', pov: 'manager', time: '10. 8. (목) 19:20', bg: 'meeting',
+        msgs: [
+          { from: 'assoc', t: '선배, Pham 쪽 세무자문 계약서 사본 받았어요.' },
+          { from: 'assoc', t: '이전가격 정책을 그쪽이 직접 짰대요.' },
+          { from: 'partner', t: '자기가 짠 걸 자기가 감사한 셈이군.' },
+          { from: 'partner', t: '유 회계사, 베트남 세무 부문은 어떻게 하겠나.' }
+        ],
+        choice: { opts: [
+          { t: '이사님, 하노이로 가서 조서부터 직접 보겠습니다.', to: '하노이 직접 관여', sub: 'Pham & Partners · Minh Anh', fx: { flag: 'route_hanoi' },
+            recap: function (S) {
+              if (S.story.vars.h2b === 'DENY') return hit(S, 'h2b#' + L.tpSpecific) ? '하노이 문은 닫혔고, 다른 감사인에게 이전가격 절차를 맡겼다.'
+                : '하노이 문은 닫혔고, 다른 감사인에게도 이전가격을 맡기지 못했다.';
+              return !hit(S, 'h2b#' + L.tpDirect) ? '하노이까지 갔지만 세무 조서는 넘겨 보기만 했다.'
+                : S.active.tp_tax ? '세무 조서 세 쪽 중 두 쪽이 자문 의견서였다. 과세 위험을 직접 따졌다.'
+                : '조서를 직접 넘겨 보고 이전가격 사전합의까지 확인했다.'; },
+            reply: [{ from: 'partner', t: '좋아. 세무 조서는 한 장도 빼지 말고.' }] },
+          { t: '이사님, 세무 부문은 다른 감사인에게 맡기겠습니다.', to: '다른 감사인 투입', sub: '현지 감사인 세 곳', fx: { flag: 'route_swap' },
+            recap: function (S) {
+              return hit(S, 'h2b#' + L.tpSpecific) ? '새 감사인을 가려 뽑고 이전가격 특정 절차를 맡겼다.'
+                : '감사인은 바꿨지만 이전가격 절차는 맡기지 못했다.'; },
+            reply: [{ from: 'kyuri', t: '현지 후보 세 곳, 품질 자료부터 받을게요.' }] }
+        ] } },
+
+      /* 하노이 직접 관여 뒤 — 본사 없이 온 감사팀을 레티란이 처음 본다 */
+      { id: 'han_vina', at: 'h2b', room: 'dm:lan', pov: 'manager', time: '10. 21. (수) 21:30', bg: 'night',
+        when: function (S) { return S.story.vars.h2b === 'HANOI'; },
+        msgs: [
+          { from: 'lan', t: '유 회계사님, 오늘 Pham 사무실에서 뵈었어요.' },
+          { from: 'lan', t: '본사 사람 없이 오신 건 처음이에요.' },
+          { from: 'lan', t: '…나중에 따로 드릴 말씀이 있어요.', mood: 'tense' }
+        ],
+        choice: { opts: [
+          { t: '언제든 연락 주십시오. 업무팀 안에서만 듣겠습니다.', fx: { bond: { lan: 12 }, flag: 'lan_met' },
+            reply: [{ from: 'lan', t: '감사합니다. 조심할게요.' }] },
+          { t: '본사 재무팀과 같이 듣는 게 좋겠습니다.', fx: { bond: { lan: -10 } },
+            reply: [{ from: 'lan', t: '…아니에요. 잊어 주세요.' }] }
+        ] } },
+
+      /* 다른 감사인 투입 뒤 — 12년 맡아 온 부문감사인이 서운해한다 */
+      { id: 'han_saigon', at: 'h2b', room: 'dm:minh', pov: 'manager', time: '10. 22. (목) 09:00', bg: 'meeting',
+        when: function (S) { return /SWAP|DENY/.test(S.story.vars.h2b || ''); },
+        msgs: [
+          { from: 'minh', t: '유 회계사님, 세무 부문을 다른 법인에 주신다고요.' },
+          { from: 'minh', t: '12년 동안 이런 일은 없었습니다.' },
+          { from: 'minh', t: 'local practice 를 이해해 주실 줄 알았는데요.', mood: 'tense' }
+        ],
+        choice: { opts: [
+          { t: '독립성 문제입니다. 감사 부문은 계속 부탁드립니다.', fx: { E: 1 },
+            reply: [{ from: 'minh', t: '…알겠습니다. 조서는 보내 드리죠.' }] },
+          { t: '자문료가 감사보수보다 많았던 건 아시지요.', fx: { R: -1 },
+            reply: [{ from: 'minh', t: '…그건 저희 사정입니다.', mood: 'bad' }] }
+        ] } },
+
       { id: 'han_ic', at: 'h3', room: 'team', pov: 'assoc', time: '11. 5. (목) 21:40', bg: 'desk',
         msgs: [
           { from: 'kyuri', t: '내부거래 원장 12월분 뽑았어요.' },
@@ -697,6 +1007,43 @@
               reply: [{ from: 'hma', t: '그렇죠, 그게 맞습니다.' }] }
           ] } },
 
+      /* ── 갈림길 2 — 18%를 깨는 길, 자카르타 현장인가 감사위원회인가 (다음 장면 h5b) ── */
+      { id: 'han_fork2', at: 'h5', fork: true, room: 'dm:manager', pov: 'partner', time: '2. 8. (월) 21:10', bg: 'night',
+        msgs: [
+          { from: 'manager', t: '이사님, 최 팀장은 18%에서 안 물러섭니다.' },
+          { from: 'manager', t: '자카르타 수주 현장을 직접 보든지, 감사위원회로 가든지요.' },
+          { from: 'manager', t: '어느 쪽으로 할까요?' }
+        ],
+        choice: { opts: [
+          { t: '자카르타로 가지. 한결 씨 데리고 수주잔고를 직접 보게.', to: '자카르타 현장', sub: 'PT Hanul Indo · 최민혁', fx: { flag: 'route_field' },
+            recap: function (S) {
+              if (S.story.vars.h5b === 'CUT') return hit(S, 'h5b#' + L.board) ? '기한에 쫓겨 출장은 취소됐고, 감사위원회를 통해 손상검사를 다시 하게 했다.'
+                : '기한에 쫓겨 출장은 취소됐고, 감사위원회에서도 요구를 매듭짓지 못했다.';
+              return hit(S, 'h5b#' + L.field) ? '창고 앞에서 수주잔고 3%와 18%를 나란히 놓았다.'
+                : '자카르타까지 갔지만 협상 목록을 넘어서지 못했다.'; },
+            reply: [{ from: 'manager', t: '목요일 비행기로 잡겠습니다.' }] },
+          { t: '감사위원장을 먼저 만나지. 경영진 없이.', to: '감사위원회 보고', sub: '감사위원장 · 강은후', fx: { flag: 'route_board' },
+            recap: function (S) {
+              return hit(S, 'h5b#' + L.board) ? '경영진 없이 감사위원장을 만나 손상검사를 다시 하게 했다.'
+                : '감사위원장을 만났지만 무엇을 요구할지 매듭짓지 못했다.'; },
+            reply: [{ from: 'manager', t: '강 위원장님 일정 여쭙겠습니다.' }] }
+        ] } },
+
+      /* 자카르타 현장 뒤 — 공장에서 들은 한마디 */
+      { id: 'han_jkt', at: 'h5b', room: 'dm:assoc', pov: 'manager', time: '2. 12. (금) 22:40', bg: 'night',
+        when: function (S) { return S.story.vars.h5b === 'FIELD'; },
+        msgs: [
+          { from: 'assoc', t: '선배, 공장 반장님이 그러는데요.' },
+          { from: 'assoc', t: '최대 고객이 빠진 건 작년 여름부터래요.' },
+          { from: 'assoc', t: '본사엔 연말에야 보고됐대요.', mood: 'tense' }
+        ],
+        choice: { opts: [
+          { t: '조서에 남겨. 들은 사람 이름은 빼고 날짜만.', fx: { E: 2, bond: { assoc: 4 } },
+            reply: [{ from: 'assoc', t: '네, 날짜랑 내용만 적을게요.' }] },
+          { t: '소문은 소문이야. 숫자만 보자.', fx: { bond: { assoc: -2 } },
+            reply: [{ from: 'assoc', t: '…네.' }] }
+        ] } },
+
       { id: 'han_tip', at: 'h6', room: 'dm:assoc', pov: 'manager', time: '2. 18. (목) 00:40', bg: 'night',
         msgs: [
           { from: 'assoc', t: '선배, 레티란 팀장님 자료 받았어요.' },
@@ -720,11 +1067,14 @@
 
       { id: 'han_chair', at: 'h7', room: 'dm:hchair', pov: 'partner', time: '3. 8. (월) 09:00', bg: 'meeting',
         facts: ['hh_direct'],
-        msgs: [
-          { from: 'hchair', t: '감사위원장 강은후입니다.' },
-          { from: 'hchair', t: '베트남 건, 경영진 보고로만 들었습니다.' },
-          { from: 'hchair', t: '감사인께서 직접 보고해 주십시오.' }
-        ],
+        msgs: function (S) {
+          var met = /BOARD|CUT/.test((S.story && S.story.vars.h5b) || '');   // 영업권 때 이미 경영진 없이 만났다
+          return [
+            { from: 'hchair', t: met ? '강은후입니다. 영업권 때처럼 하시지요.' : '감사위원장 강은후입니다.' },
+            { from: 'hchair', t: '베트남 건, 경영진 보고로만 들었습니다.' },
+            { from: 'hchair', t: '감사인께서 직접 보고해 주십시오.' }
+          ];
+        },
         choice: { opts: [
           { t: '경영진 배석 없이 감사위원회에 직접 보고드리겠습니다.', fx: { R: 2, C: -2 },
             reply: [{ from: 'hchair', t: '다음 주 화요일로 하죠.' }] },
@@ -758,16 +1108,23 @@
       ] },
       { who: 'lan', list: [
         { when: function (s) { return s.flags.lan_exposed; }, t: '제보 사실이 새어 나갔다. 석 달 뒤 회사를 떠났다.' },
+        { when: function (s) { return s.flags.lan_met && s.flags.lan_protected; }, t: '하노이에서 처음 본 감사팀에 봉투를 건넸다. 이듬해 그룹 내부감사팀으로 옮겼다.' },
         { when: function (s) { return s.flags.lan_protected; }, t: '법인장이 교체된 뒤에도 자리에 남았다. 이듬해 그룹 내부감사팀으로 옮겼다.' },
         { when: function () { return true; }, t: '보관해 온 자료는 다시 서랍으로 들어갔다.' }
       ] },
       { who: 'minh', list: [
+        { when: function (s) { return s.flags.route_swap; }, t: '세무 부문을 다른 감사인에게 넘겼다. 이듬해 Hanul Vina 감사 계약도 끝났다.' },
         { when: function (s) { return s.flags.minh_written; }, t: '이듬해 세무자문을 내려놓고 감사만 맡았다.' },
         { when: function () { return true; }, t: '세무자문과 감사를 함께 맡았다. 이듬해 현지 감독기관 점검에서 지적을 받았다.' }
       ] },
       { who: 'hma', list: [
+        { when: function (s) { return s.flags.route_field && s.foundIds.indexOf('gw') >= 0; }, t: '창고 앞 화이트보드의 18%를 직접 지웠다. 다음 사업계획에는 수주잔고 표가 붙었다.' },
         { when: function (s) { return s.foundAmount >= 150; }, t: '다음 인수 모델에는 실적 추적표가 붙었다.' },
         { when: function () { return true; }, t: '성장률 18%는 이듬해 이사회에서도 그대로였다.' }
+      ] },
+      { who: 'hchair', list: [
+        { when: function (s) { return s.flags.route_board; }, t: '경영진 없는 감사인 보고를 감사위원회 정례 안건으로 만들었다.' },
+        { when: function () { return true; }, t: '감사위원회 질문지가 해마다 한 장씩 늘었다.' }
       ] },
       { who: 'manager', list: [
         { when: function (s) { return s.gauge.R >= 70; }, t: '그룹감사 교육 강사가 됐다. 첫 사례가 이 시즌 지침서한이다.' },

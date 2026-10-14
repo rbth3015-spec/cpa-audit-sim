@@ -522,6 +522,28 @@ reach('사람들의 1년 뒤', [].concat(...STORYDATA.FATES.map(f => f.list.map(
         x = playRoute(7919, ['route_full', 'route_site'], { pick: b => b.id === 'gur_sipm' ? b.choice.opts.findIndex(o => flagOf(o) === 'sipm_cold') : null });
         check(x.path.g5b === 'SHUT' && x.E.audit.id === 'clean',
           '막힌 길 ② 문경호를 자극하면 모루가 문을 닫고 발주처로 → 지적 없음', `판본 ${x.path.g5b}, ${x.E.audit.title}`);
+      },
+      haneul() {
+        const tax = seedWhere(a => a.tp_tax);
+        const H2 = sc => sc.id === 'h2' ? MISS : null;   // 부문감사인 장면을 통째로 놓친다
+        let x = playRoute(tax, ['route_hanoi', 'route_field'], { persona: H2 });
+        check(x.path.h2b === 'HANOI' && found(x, 'tp_tax'),
+          '만회 ① 부문감사인 장면 놓침 → 하노이 조서 직접 검토 → 이전가격 과세 위험 발견', `판본 ${x.path.h2b}, 발견 ${found(x, 'tp_tax')}`);
+        x = playRoute(tax, ['route_swap', 'route_board'], { persona: H2 });
+        check(x.path.h2b === 'SWAP' && found(x, 'tp_tax'),
+          '만회 ② 부문감사인 장면 놓침 → 새 감사인에게 특정 절차 → 이전가격 과세 위험 발견', `판본 ${x.path.h2b}, 발견 ${found(x, 'tp_tax')}`);
+        x = playRoute(7919, ['route_swap', 'route_field'], { persona: sc => sc.id === 'h5' ? LACK('감사인측 전문가 이용') : null });
+        check(x.path.h5b === 'FIELD' && found(x, 'gw'),
+          '만회 ③ 감사인측 전문가 놓침 → 자카르타 수주잔고 → 영업권 손상 발견', `판본 ${x.path.h5b}, 발견 ${found(x, 'gw')}`);
+        x = playRoute(7919, ['route_hanoi', 'route_board'], { persona: sc => sc.id === 'h5' ? LACK('가정의 편의 신호 평가') : null });
+        check(x.path.h5b === 'BOARD' && found(x, 'gw'),
+          '만회 ④ 편의 판단 놓침 → 감사위원회를 통한 재검사 → 영업권 손상 발견', `판본 ${x.path.h5b}, 발견 ${found(x, 'gw')}`);
+        x = playRoute(7919, ['route_hanoi', 'route_field'], { pick: b => b.id === 'han_cfo' ? b.choice.opts.findIndex(o => flagOf(o) === 'local_only') : null });
+        check(x.path.h2b === 'DENY' && x.E.missed === 0,
+          '막힌 길 ① CFO 에게 「현지 일」을 맡기면 하노이 문이 닫히고 다른 감사인으로 → 전부 발견', `판본 ${x.path.h2b}, 놓친 금액 ${x.E.missed}`);
+        x = playRoute(7919, ['route_swap', 'route_field'], { tweak: (S, sc) => { if (sc.id === 'h5b') S.gauge.T = Math.min(S.gauge.T, 40); } });
+        check(x.path.h5b === 'CUT' && x.E.audit.id === 'clean',
+          '막힌 길 ② 기한에 쫓기면 자카르타 출장이 취소되고 감사위원회로 → 지적 없음', `판본 ${x.path.h5b}, ${x.E.audit.title}`);
       }
     };
     const co = process.env.SEASON || 'seorin';
