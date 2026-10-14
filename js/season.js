@@ -181,6 +181,20 @@
     });
     return out;
   }
+  /* 갈림길마다 — 고른 길 · 고르지 않은 길 · 실제로 지나온 장면(판본) · 그 선택이 남긴 것(recap). 엔딩의 「지나온 길」 */
+  function routeTrail(S) {
+    var D = global.STORYDATA || {}, picks = (S.story && S.story.picks) || {}, vars = (S.story && S.story.vars) || {};
+    var ids = (global.SCENES || []).map(function (sc) { return sc.id; });
+    return (D.BEATS || []).filter(function (b) { return b.fork && b.choice; }).map(function (b, n) {
+      var k = picks[b.id], o = k != null ? b.choice.opts[k] : null;
+      var rs = (global.SCENES || []).slice(ids.indexOf(b.at) + 1).filter(function (sc) { return sc.fork; })[0];
+      var v = rs && vars[rs.id] ? (rs.variants || []).filter(function (x) { return x.id === vars[rs.id]; })[0] : null;
+      return { no: n + 1,
+               opts: b.choice.opts.map(function (x, i) { return { to: x.to, on: i === k }; }),
+               played: v ? v.label : null,
+               recap: o ? (typeof o.recap === 'function' ? o.recap(S) : (o.recap || '')) : '' };
+    });
+  }
   /* 숨은 사실의 발견 조건 — need 를 mode 대로 보고, or 에 적힌 다른 길 중 하나라도 맞으면 된다 */
   function met(c, S) {
     if (!c) return false;
@@ -854,7 +868,7 @@
     misstatements: misstatements, decide: decide, band: band, dday: dday, asker: asker, reviewer: reviewer,
     seatWho: seatWho, bySeat: bySeat, viewOf: viewOf, rng: rng, povOf: povOf, SEAT_WHO: SEAT_WHO,
     snapshot: snapshot, restore: restore, cardIndex: cardIndex, resetCards: resetCards,
-    routeOf: routeOf, met: met, SNAP_V: SNAP_V,
+    routeOf: routeOf, routeTrail: routeTrail, met: met, SNAP_V: SNAP_V,
     SEATS: SEATS, FLAG_TEXT: FLAG_TEXT, MAT: MAT, OPINIONS: OPINIONS, KEYS: KEYS,
     SIDE_AFTER: SIDE_AFTER, sideKeys: sideKeys, mat: mat,
     TIME_SCALE: TIME_SCALE, DAY_RATE: DAY_RATE, TYPE_NAME: TYPE_NAME

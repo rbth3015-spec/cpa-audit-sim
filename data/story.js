@@ -302,8 +302,10 @@
         },
         choice: { opts: [
           { t: '매니저님, 전수로 돌려 주세요.', to: '분개 전수 분석', sub: '서버실 · 심규리', fx: { flag: 'route_data' },
+            recap: function (S) { return S.flags.lead_data ? '분개 데이터에서 한들상사를 짚었다.' : '데이터를 돌렸지만 한들상사는 외부 제보로 늦게 알았다.'; },
             reply: [{ from: 'kyuri', t: '서버실로 오세요. 테이블부터 맞춥니다.' }] },
           { t: '한결 씨, 이수아 대리님부터 만나 봐.', to: '제보자 면담', sub: '회사 밖 · 이수아', fx: { flag: 'route_person' },
+            recap: function (S) { return S.flags.lead_tip ? '이수아의 제보로 한들상사를 일찍 알았다.' : S.story.vars.s5b === 'BACK' ? '이수아는 나오지 않았고, 서버실로 돌아갔다.' : '제보를 받고도 움직이지 않았다.'; },
             reply: [{ from: 'assoc', t: '넵! 회사 밖에서 뵙자고 할게요.' }] }
         ] } },
 
@@ -360,9 +362,11 @@
         },
         choice: { opts: [
           { t: '감사위원장부터 뵙지. 경영진은 빼고.', to: '감사위원회 보고', sub: '회의실 · 윤서경',
+            recap: function (S) { return S.flags.chair_backing ? '감사위원회가 끝까지 감사인 편에 섰다.' : '감사위원회에 먼저 갔지만 지지는 끝내 오지 않았다.'; },
             fx: { flag: 'route_chair', bond: { chair: 8 }, C: -4 },
             reply: [{ from: 'manager', t: '내일 16시, 위원장님만 계신 자리로 잡겠습니다.' }] },
           { t: '대표이사부터 만나지. 해명은 들어 봐야지.', to: '경영진 면담', sub: '대표이사실 · 임재강',
+            recap: function (S) { return S.flags.chair_backing ? '대표이사를 먼저 만났지만, 감사위원장의 연락에 바로 응해 지지를 되찾았다.' : '대표이사를 먼저 만났고, 감사위원회의 지지는 오지 않았다.'; },
             fx: { flag: 'route_ceo', C: 2, bond: { chair: -8 } },   // 감사위원장은 경영진 다음 차례로 밀렸다
             reply: [{ from: 'manager', t: '내일 14시, 대표이사실입니다.' }] }
         ] } },

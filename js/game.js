@@ -1687,7 +1687,7 @@
     save(STORE, history);
     var P = prog();
     P.best = Math.max(P.best || 0, avg);
-    var route = SEASON.routeOf(S);
+    var route = SEASON.routeOf(S), trail = SEASON.routeTrail(S);
     if (route.length && window.SEASONS) {
       var co = window.SEASONS.current().id;
       P.routes = P.routes || {};
@@ -1745,6 +1745,13 @@
             return '<li class="' + (x.ok ? 'ok' : 'no') + '"><span class="m">' + (x.ok ? '✓' : '✗') + '</span><div><b>' + esc(x.label) + '</b>' +
               '<small>내 답 · ' + esc(x.pick) + (x.ok ? '' : ' · ' + esc(x.note || '')) + '</small></div></li>';
           }).join('') + '</ul></section>' : '') +
+        (trail.length ? '<section class="n-sec"><h3><span>지나온 길</span><span>이 회사 경로 ' + esc(routeCount(P, window.SEASONS ? window.SEASONS.current().id : '-')) + '</span></h3><ol class="n-route">' +
+          trail.map(function (t) {
+            return '<li><span class="k">갈림길 ' + t.no + '</span><div class="nr-o">' + t.opts.map(function (o) {
+                return '<b class="' + (o.on ? 'on' : '') + '">' + esc(o.to || '') + '</b>';
+              }).join('') + '</div>' +
+              ((t.played || t.recap) ? '<p>' + (t.played ? '<em>' + esc(t.played) + '</em>' : '') + esc(t.recap || '') + '</p>' : '') + '</li>';
+          }).join('') + '</ol></section>' : '') +
         '<section class="n-sec"><h3><span>그 뒤</span></h3><div class="n-epi">' +
           '<div><span class="k">' + esc(window.COMPANY.name) + '</span>' + esc(E.company.text) + '</div>' +
           '<div><span class="k">업무팀</span>' + esc(E.career.text) + '</div></div>' +

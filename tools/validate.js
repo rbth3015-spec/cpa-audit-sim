@@ -433,6 +433,7 @@ reach('사람들의 1년 뒤', [].concat(...STORYDATA.FATES.map(f => f.list.map(
       const path = {};
       SCENES.forEach((sc, i) => {
         S.i = i;
+        if (opt.tweak) opt.tweak(S, sc);
         const it = SEASON.resolve(sc, S);
         if (it.v && it.v.id !== '-') path[sc.id] = it.v.id;
         SEASON.apply(S, it, [], synth(it, (opt.persona && opt.persona(sc)) || PERSONAS.hawk, r), { over: 0, timedOut: 0 });
@@ -449,6 +450,7 @@ reach('사람들의 1년 뒤', [].concat(...STORYDATA.FATES.map(f => f.list.map(
         if (x.E.audit.id === 'clean') clean++;
         if (x.E.missed === 0) all++;
         minT = Math.min(minT, x.S.gauge.T);
+        SEASON.routeTrail(x.S).forEach(t => { if (!t.recap) fail(`갈림길 ${t.no} — 고른 길의 한 줄(recap)이 없다`); });
         const nm = SEASON.routeOf(x.S).join(' → ');
         names[nm] = 1; seen[nm] = 1;
       }
@@ -458,33 +460,50 @@ reach('사람들의 1년 뒤', [].concat(...STORYDATA.FATES.map(f => f.list.map(
     console.log(`  서로 다른 경로 ${Object.keys(seen).length}가지`);
     if (Object.keys(seen).length < combos.length) fail('갈림길 조합마다 다른 경로가 나오지 않는다');
 
-    if ((process.env.SEASON || 'seorin') === 'seorin') {
-      const MISS = { pct: () => 40, must: () => false, trap: () => false, verdict: () => true };
-      const found = (x, id) => x.S.truths.some(t => t.id === id && t.found);
-      // ① 위험평가를 놓쳤어도 전수 분석에서 자금 흐름을 짚으면 순환거래가 되살아난다
-      let x = playRoute(7919, ['route_data', 'route_chair'], { persona: sc => sc.id === 's2' ? MISS : null });
-      if (x.S.flags.fraud_alert || x.path.s5b !== 'LATE' || !found(x, 'circular_flow'))
-        fail(`만회 ① 위험평가를 놓친 뒤 전수 분석 — 판본 ${x.path.s5b}, 순환거래 ${found(x, 'circular_flow') ? '발견' : '놓침'}`);
-      else console.log(`  만회 ① 위험평가 놓침 → 뒤늦은 전수 추출 → 순환거래 발견 (${x.E.audit.title})`);
-      // ② 이수아의 믿음을 잃고(제보를 경영진에게 흘림) 만나러 가면 헛걸음 — 서버실로 돌아와 같은 문항을 푼다
-      x = playRoute(7919, ['route_person', 'route_chair'],
-        { pick: b => b.id === 's4_sua' ? b.choice.opts.findIndex(o => flagOf(o) === 'sua_leak') : null });
-      if (x.path.s5b !== 'BACK' || x.path.s6 !== 'HIT' || x.E.audit.id !== 'clean')
-        fail(`만회 ② 면담 불발 — 판본 ${x.path.s5b}/${x.path.s6}, 결과 ${x.E.audit.title}`);
-      else console.log(`  만회 ② 면담 불발 → 서버실로 복귀 → ${x.E.audit.title}`);
-      // ③ 대표이사를 먼저 만났어도 감사위원장의 연락에 바로 가면 지지를 얻는다. 미루면 못 얻는다
-      x = playRoute(7919, ['route_data', 'route_ceo']);
-      const y = playRoute(7919, ['route_data', 'route_ceo'], { pick: b => b.id === 's7_chair' ? b.choice.opts.findIndex(o => o.ok === false) : null });
-      if (!x.S.flags.chair_backing || y.S.flags.chair_backing)
-        fail(`만회 ③ 대표이사 먼저 — 바로 감 ${!!x.S.flags.chair_backing}, 미룸 ${!!y.S.flags.chair_backing}`);
-      else console.log('  만회 ③ 대표이사 먼저 → 감사위원장에게 바로 가면 지지, 미루면 없음');
-      // ④ 단서 추적을 망치면 어느 길이든 뒤늦게 안다
-      ['route_data', 'route_person'].forEach(f => {
-        const z = playRoute(7919, [f, 'route_chair'], { persona: sc => sc.id === 's5b' ? MISS : null });
-        if (z.path.s6 !== 'MISS' || !z.S.late) fail(`단서 추적을 놓쳤는데(${f}) 특수관계자 판본이 ${z.path.s6}`);
-      });
-      console.log('  단서 추적을 놓치면 어느 길이든 외부 제보로 뒤늦게 인지');
-    }
+    /* 회사마다 — 놓친 사실을 경로 장면에서 되찾는 길, 막힌 길에서 돌아오는 길이 실제로 열리는지 */
+    const MISS = { pct: () => 40, must: () => false, trap: () => false, verdict: () => true };
+    const LACK = label => ({ pct: () => 80, must: (it, m) => m.label !== label, trap: () => false, verdict: () => true });   // 그 논점만 놓친다
+    const found = (x, id) => x.S.truths.some(t => t.id === id && t.found);
+    const seedWhere = pred => { for (let k = 1; k < 400; k++) { const sd = k * 7919; if (pred(SEASON.create({ seed: sd }).active)) return sd; } return 7919; };
+    const check = (ok, title, detail) => { if (ok) console.log('  ' + title); else fail(title + ' — ' + detail); };
+    const RECOVER = {
+      seorin() {
+        let x = playRoute(7919, ['route_data', 'route_chair'], { persona: sc => sc.id === 's2' ? MISS : null });
+        check(!x.S.flags.fraud_alert && x.path.s5b === 'LATE' && found(x, 'circular_flow'),
+          '만회 ① 위험평가 놓침 → 뒤늦은 전수 추출 → 순환거래 발견', `판본 ${x.path.s5b}, 순환거래 ${found(x, 'circular_flow')}`);
+        x = playRoute(7919, ['route_person', 'route_chair'],
+          { pick: b => b.id === 's4_sua' ? b.choice.opts.findIndex(o => flagOf(o) === 'sua_leak') : null });
+        check(x.path.s5b === 'BACK' && x.path.s6 === 'HIT' && x.E.audit.id === 'clean',
+          '만회 ② 면담 불발 → 서버실로 복귀 → 지적 없음', `판본 ${x.path.s5b}/${x.path.s6}, ${x.E.audit.title}`);
+        x = playRoute(7919, ['route_data', 'route_ceo']);
+        const y = playRoute(7919, ['route_data', 'route_ceo'], { pick: b => b.id === 's7_chair' ? b.choice.opts.findIndex(o => o.ok === false) : null });
+        check(x.S.flags.chair_backing && !y.S.flags.chair_backing,
+          '만회 ③ 대표이사 먼저 → 감사위원장에게 바로 가면 지지, 미루면 없음', `바로 감 ${!!x.S.flags.chair_backing}, 미룸 ${!!y.S.flags.chair_backing}`);
+        const late = ['route_data', 'route_person'].map(f => playRoute(7919, [f, 'route_chair'], { persona: sc => sc.id === 's5b' ? MISS : null }));
+        check(late.every(z => z.path.s6 === 'MISS' && z.S.late),
+          '단서 추적을 놓치면 어느 길이든 외부 제보로 뒤늦게 인지', late.map(z => z.path.s6).join(' · '));
+      },
+      raon() {
+        let x = playRoute(7919, ['route_confirm', 'route_clinic'], { persona: sc => sc.id === 'r4' ? MISS : null });
+        check(x.path.r3b === 'ASK' && found(x, 'license_early'),
+          '만회 ① 기술이전 장면 놓침 → 상대방 조회로 공동연구 확인 → 계약금 조기 인식 발견', `판본 ${x.path.r3b}, 발견 ${found(x, 'license_early')}`);
+        x = playRoute(seedWhere(a => a.dev_cap), ['route_record', 'route_clinic'], { persona: sc => sc.id === 'r3' ? MISS : null });
+        check(x.path.r5b === 'DATA' && found(x, 'dev_cap'),
+          '만회 ② 개발비 장면 놓침 → 데이터룸 승인 문서 → 자산화 시점 발견', `판본 ${x.path.r5b}, 발견 ${found(x, 'dev_cap')}`);
+        x = playRoute(seedWhere(a => a.rcps_class), ['route_record', 'route_funding'], { persona: sc => sc.id === 'r5' ? LACK('계약 조건을 직접 확인') : null });
+        check(x.path.r5b === 'FUND' && found(x, 'rcps_class'),
+          '만회 ③ 우선주 계약서 놓침 → 증자 서류의 상환 조건 → 분류 오류 발견', `판본 ${x.path.r5b}, 발견 ${found(x, 'rcps_class')}`);
+        x = playRoute(7919, ['route_record', 'route_clinic'], { pick: b => b.id === 'raon_clin' ? 1 : null });
+        check(x.path.r5b === 'WALL' && x.E.audit.id === 'clean',
+          '막힌 길 ① 오예린의 믿음을 잃으면 데이터룸이 닫히고 주관사로 → 지적 없음', `판본 ${x.path.r5b}, ${x.E.audit.title}`);
+        x = playRoute(7919, ['route_confirm', 'route_funding'], { tweak: (S, sc) => { if (sc.id === 'r3b') S.rel.company = 30; } });
+        check(x.path.r3b === 'BLOCK' && x.E.audit.id === 'clean',
+          '막힌 길 ② 회사가 비협조적이면 조회가 막히고 연구 기록으로 → 지적 없음', `판본 ${x.path.r3b}, ${x.E.audit.title}`);
+      }
+    };
+    const co = process.env.SEASON || 'seorin';
+    if (RECOVER[co]) RECOVER[co]();
+    else fail(`${co} — 갈림길은 있는데 만회 검사가 없다 (tools/validate.js RECOVER)`);
   }
 }
 
