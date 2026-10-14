@@ -566,6 +566,28 @@ reach('사람들의 1년 뒤', [].concat(...STORYDATA.FATES.map(f => f.list.map(
         x = playRoute(7919, ['route_wide', 'route_comp'], { pick: b => b.id === 'dn_cfo' ? 1 : null });
         check(x.path.d6b === 'NOPAPER' && x.E.audit.id === 'clean',
           '막힌 길 ② 계획 때 보고서만 받고 넘어가면 검토 증빙이 없어 영향 범위로 → 지적 없음', `판본 ${x.path.d6b}, ${x.E.audit.title}`);
+      },
+      haesol() {
+        const fall = seedWhere(a => a.collapse), E7 = sc => sc.id === 'e7' ? MISS : null;
+        let x = playRoute(7919, ['route_file', 'route_trace'], { persona: sc => sc.id === 'e2' ? LACK('전기 추정치 소급 검토') : null });
+        check(x.path.e2b === 'FILE' && found(x, 'eac'),
+          '만회 ① 소급 검토 놓침 → 제보 파일을 원천과 대조 → 총예정원가 과소 발견', `판본 ${x.path.e2b}, 발견 ${found(x, 'eac')}`);
+        x = playRoute(7919, ['route_price', 'route_await'], { persona: sc => sc.id === 'e3' ? MISS : null });
+        check(x.path.e2b === 'PRICE' && found(x, 'eac'),
+          '만회 ② 현장 대조 놓침 → 외부 단가의 독립 추정 → 총예정원가 과소 발견', `판본 ${x.path.e2b}, 발견 ${found(x, 'eac')}`);
+        x = playRoute(fall, ['route_price', 'route_trace'], { persona: E7 });
+        check(x.path.e7b === 'TRACE' && found(x, 'collapse'),
+          '만회 ③ 후속사건 분류 놓침 → 청주 공사 기록 → 설계 결함 손실 발견', `판본 ${x.path.e7b}, 발견 ${found(x, 'collapse')}`);
+        x = playRoute(fall, ['route_file', 'route_await'], { persona: E7 });
+        check(x.path.e7b === 'AWAIT' && found(x, 'collapse'),
+          '만회 ④ 후속사건 분류 놓침 → 조사위원회 결과 평가 → 설계 결함 손실 발견', `판본 ${x.path.e7b}, 발견 ${found(x, 'collapse')}`);
+        x = playRoute(7919, ['route_file', 'route_trace'],
+          { pick: b => b.id === 'hs_cost' ? b.choice.opts.findIndex(o => o.ok === false && !flagOf(o)) : null });
+        check(x.path.e2b === 'SHY' && x.E.audit.id === 'clean',
+          '막힌 길 ① 나은비의 제보를 거절하면 파일을 못 받고 외부 단가로 → 지적 없음', `판본 ${x.path.e2b}, ${x.E.audit.title}`);
+        x = playRoute(7919, ['route_price', 'route_trace'], { pick: b => b.id === 'hs_site' ? 1 : null });
+        check(x.path.e7b === 'MUTE' && x.E.audit.id === 'clean',
+          '막힌 길 ② 장만석에게 본사 숫자로 가겠다고 하면 청주가 연결되지 않고 위원회로 → 지적 없음', `판본 ${x.path.e7b}, ${x.E.audit.title}`);
       }
     };
     const co = process.env.SEASON || 'seorin';
