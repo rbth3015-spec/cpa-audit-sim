@@ -544,6 +544,28 @@ reach('사람들의 1년 뒤', [].concat(...STORYDATA.FATES.map(f => f.list.map(
         x = playRoute(7919, ['route_swap', 'route_field'], { tweak: (S, sc) => { if (sc.id === 'h5b') S.gauge.T = Math.min(S.gauge.T, 40); } });
         check(x.path.h5b === 'CUT' && x.E.audit.id === 'clean',
           '막힌 길 ② 기한에 쫓기면 자카르타 출장이 취소되고 감사위원회로 → 지적 없음', `판본 ${x.path.h5b}, ${x.E.audit.title}`);
+      },
+      daon() {
+        const D4 = sc => sc.id === 'd4' ? MISS : null, D6 = sc => sc.id === 'd6' ? MISS : null;
+        let x = playRoute(7919, ['route_store', 'route_comp'], { persona: D4 });
+        check(x.path.d4b === 'STORE' && found(x, 'ret_cash'),
+          '만회 ① 반품 데이터 조건 놓침 → 새벽 매장의 전표를 원거래와 대조 → 부정 반품 발견', `판본 ${x.path.d4b}, 발견 ${found(x, 'ret_cash')}`);
+        x = playRoute(7919, ['route_wide', 'route_spread'], { persona: D4 });
+        check(x.path.d4b === 'WIDE' && found(x, 'ret_cash'),
+          '만회 ② 반품 데이터 조건 놓침 → 전 매장 · 전 기간 확장 → 부정 반품 발견', `판본 ${x.path.d4b}, 발견 ${found(x, 'ret_cash')}`);
+        x = playRoute(7919, ['route_wide', 'route_comp'], { persona: D6 });
+        check(x.path.d6b === 'COMP' && found(x, 'mw'),
+          '만회 ③ 미비점 평가 놓침 → 보완통제의 정밀도 → 중요한 취약점 판단', `판본 ${x.path.d6b}, 발견 ${found(x, 'mw')}`);
+        x = playRoute(7919, ['route_store', 'route_spread'], { persona: D6 });
+        check(x.path.d6b === 'SPREAD' && found(x, 'mw'),
+          '만회 ④ 미비점 평가 놓침 → 변경 42건의 영향 범위 → 중요한 취약점 판단', `판본 ${x.path.d6b}, 발견 ${found(x, 'mw')}`);
+        x = playRoute(7919, ['route_store', 'route_comp'],
+          { pick: b => b.id === 'dn_store' ? b.choice.opts.findIndex(o => o.ok === false && !flagOf(o)) : null });
+        check(x.path.d4b === 'BLOCK' && x.E.audit.id === 'clean',
+          '막힌 길 ① 민효진의 제보를 흘려들으면 화성점 셔터가 닫히고 데이터 확장으로 → 지적 없음', `판본 ${x.path.d4b}, ${x.E.audit.title}`);
+        x = playRoute(7919, ['route_wide', 'route_comp'], { pick: b => b.id === 'dn_cfo' ? 1 : null });
+        check(x.path.d6b === 'NOPAPER' && x.E.audit.id === 'clean',
+          '막힌 길 ② 계획 때 보고서만 받고 넘어가면 검토 증빙이 없어 영향 범위로 → 지적 없음', `판본 ${x.path.d6b}, ${x.E.audit.title}`);
       }
     };
     const co = process.env.SEASON || 'seorin';
