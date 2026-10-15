@@ -122,12 +122,21 @@
   /* ---------- 토스트 · 슬레이트 ---------- */
   var KIND = { found: '발견', clear: '확인', card: '개념 카드', flag: '진행', warn: '주의', rel: '회사', streak: '연속', bond: '관계' };
   function toast(ev) {
+    if ((MESSENGER && MESSENGER.isOpen()) || $('.phn')) return;   // 대화 · 알림 중에 늦게 온 것은 버린다 — 같은 내용이 정산 표에 남아 있다
     var box = $('#toasts');
     var t = document.createElement('div');
     t.className = 'toast k-' + ev.kind;
     t.innerHTML = '<span class="k">' + esc(KIND[ev.kind] || '알림') + '</span>' + esc(ev.text);
     box.appendChild(t);
     setTimeout(function () { t.classList.add('out'); setTimeout(function () { t.remove(); }, 320); }, ev.kind === 'found' ? 4200 : 2800);
+  }
+  // 정산 화면의 토스트는 그 화면의 것 — 다음으로 넘어가면 예약된 것은 거두고 떠 있는 것은 걷는다
+  // (대화 · 알림 중에는 CSS 가 상자를 숨기지만, 남은 토스트가 장 도입 숫자 위에 뜨거나 대화가 끝난 뒤 다시 보이지 않게)
+  var wrapTimers = [];
+  function hushToasts() {
+    wrapTimers.forEach(clearTimeout);
+    wrapTimers = [];
+    $$('#toasts .toast:not(.out)').forEach(function (t) { t.classList.add('out'); setTimeout(function () { t.remove(); }, 320); });
   }
 
   /* ---------- 수집 알림 ----------
@@ -158,7 +167,8 @@
     h.forEach(function (o, i) { setTimeout(function () { collect(o); }, 250 + i * 420); });
   }
   function collect(o) {
-    if (MESSENGER && MESSENGER.isOpen()) { held.push(o); return; }
+    // 대화 · 업무 요청 · 장 도입 중에는 모아 둔다 — 그 화면들 위에 뜨지 않게, 장면이 깔린 뒤(startUnit) 푼다
+    if ((MESSENGER && MESSENGER.isOpen()) || $('.chap:not(.out)') || $('.board-in') || $('.slate')) { held.push(o); return; }
     var box = $('#toasts'), add = o.add || 1, from = Math.max(0, o.n - add), all = Math.max(1, o.all);
     var t = document.createElement('div');
     t.className = 'toast ct k-' + o.kind;
@@ -174,7 +184,8 @@
     }, 420);
     setTimeout(function () {
       var btn = $('#hud [data-act="binder"]');
-      if (btn && !$('#screen-play').hidden && !$('.chap') && !(MESSENGER && MESSENGER.isOpen())) fileInto($('.ct-g', t), btn);
+      // 다음으로 넘어가며 먼저 걷힌 알림(hushToasts)은 날리지 않는다 — 떨어져 나간 요소는 화면 왼쪽 위에서 날아간다
+      if (t.isConnected && btn && !$('#screen-play').hidden && !$('.chap') && !(MESSENGER && MESSENGER.isOpen())) fileInto($('.ct-g', t), btn);
       t.classList.add('out');
       setTimeout(function () { t.remove(); }, 320);
     }, 3000);
@@ -787,6 +798,7 @@
         sh.classList.remove('enter'); void sh.offsetWidth; sh.classList.add('enter');
         setTimeout(function () { sh.classList.remove('enter'); }, 1400);
       }
+      flushHeld();                                      // 대화 · 장 도입 동안 모아 둔 수집 알림
     }
     if (slateOpt && slateOpt.chapter) { slateOpt.turn = turn; chapter(slateOpt, go); }
     else if (slateOpt) slate(slateOpt, go);
@@ -1473,11 +1485,11 @@
     setTimeout(function () { FX.play('stamp'); }, 350);
     // 개념 카드는 문항마다 수집 알림으로 이미 떴다 — 정산 표에만 남긴다
     outcome.events.filter(function (e) { return e.kind !== 'card'; }).forEach(function (e, i) {
-      setTimeout(function () {
+      wrapTimers.push(setTimeout(function () {
         toast(e);
         if (e.kind === 'found') FX.play('reveal');
         else if (e.kind === 'bond') FX.play('bond');
-      }, 500 + i * 450);
+      }, 500 + i * 450));
     });
     $('#task').scrollIntoView({ block: 'nearest' });
   }
@@ -1490,6 +1502,7 @@
   }
 
   function nextStep() {
+    hushToasts();
     if (S.gauge.T <= 0) {
       drop(RUN);
       return slate({ kick: '보고서 기한', title: '기한 초과', sub: '감사보고서를 제때 내지 못했다.' }, ending);
