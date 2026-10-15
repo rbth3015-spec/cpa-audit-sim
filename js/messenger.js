@@ -195,7 +195,7 @@
     function showChoices(b) {
       state = 'choice';
       // 갈림길 — 고른 답장에 따라 다음 장면이 달라진다. 어디로 가는지 답장 밑에 적는다
-      foot.innerHTML = '<div class="mc-h' + (b.fork ? ' fork' : '') + '">' + (b.fork ? '갈림길' : '답장') + '</div><div class="mc-list' + (b.fork ? ' fork' : '') + '">' + b.choice.opts.map(function (o, i) {
+      foot.innerHTML = '<div class="mc-h' + (b.fork ? ' fork' : '') + '">' + (b.fork ? '갈림길' + (b.forkOf > 1 ? ' ' + b.forkNo + ' / ' + b.forkOf : '') : '답장') + '</div><div class="mc-list' + (b.fork ? ' fork' : '') + '">' + b.choice.opts.map(function (o, i) {
         return '<button type="button" class="mc" data-i="' + i + '"><kbd>' + (i + 1) + '</kbd><span>' + esc(o.t) +
           (b.fork && o.to ? '<small>' + esc(o.to + (o.sub ? ' · ' + o.sub : '')) + '</small>' : '') + '</span></button>';
       }).join('') + '</div>';

@@ -31,7 +31,7 @@ Black and white documentary portrait photograph of a Korean woman in her mid-30s
 Black and white documentary portrait photograph of a Korean man in his late 50s, senior quality control partner at an accounting firm. Grey side-parted hair, steel-rimmed glasses, dark grey suit with a white shirt and no tie. Cold, evaluating expression, mouth closed, looking straight into the lens. Square 1:1 composition, head and shoulders, face centered, eye line about 38% from the top. Background: blurred wall of archive binders and a closed office door. Shot on 35mm film, natural light, fine grain, high contrast, shallow depth of field. No text, no logos, no watermark.
 ```
 
-### 임재강 · ㈜서린정밀 대표이사 (61) — `character/ceo.png`
+### 임재강 · ㈜도원정밀 대표이사 (61) — `character/ceo.png`
 
 ```
 Black and white documentary portrait photograph of a Korean man in his early 60s, founder and CEO of a mid-size battery equipment manufacturer. Thick swept-back grey hair, heavy build, expensive navy suit with a tie, a slight confident smile that does not reach the eyes. Looking straight into the lens. Square 1:1 composition, head and shoulders, face centered, eye line about 38% from the top. Background: blurred executive office with a large window and a company flag. Shot on 35mm film, natural window light from the side, fine grain, high contrast, shallow depth of field. No text, no logos, no watermark.
@@ -67,7 +67,7 @@ Black and white documentary portrait photograph of a Korean woman in her early 6
 Black and white documentary portrait photograph of a Korean man in his mid-40s, senior investigator at the financial supervisory authority. Neat short hair, plain dark suit, government ID badge on a lanyard, no expression at all. Looking straight into the lens. Square 1:1 composition, head and shoulders, face centered, eye line about 38% from the top. Background: blurred government office corridor with grey filing cabinets, flat institutional lighting. Shot on 35mm film, fine grain, high contrast, shallow depth of field. No text, no logos, no watermark.
 ```
 
-## 1-2. ㈜구름결 인물 — 4명
+## 1-2. ㈜동인정보기술 인물 — 4명
 
 SaaS · SI 회사. 사무실은 밝고 캐주얼하다 — 정장보다 니트 · 후드 · 사원증.
 
@@ -186,4 +186,4 @@ Black and white documentary photograph, ultra-wide 21:9 interior. A financial su
 | 은행 조회 회신 | `background/confirm.png` | 팩스와 개봉한 봉투가 쌓인 책상 |
 | 전산실 서버 반출 | `background/data.png` | 외장 디스크와 전표 출력물이 놓인 전산실 |
 | 주주총회장 | `background/agm.png` | 접이식 의자가 늘어선 빈 주주총회장 |
-| 라온바이오 임상 시설 | `background/clinic.png` | 임상 시험 검체 냉장고가 늘어선 복도 |
+| 신진바이오 임상 시설 | `background/clinic.png` | 임상 시험 검체 냉장고가 늘어선 복도 |

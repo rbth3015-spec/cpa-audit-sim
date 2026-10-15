@@ -149,6 +149,15 @@
 .bar-r.mid .tr i { background: var(--warn); }
 .bar-r .pc { font: 700 13px/1 var(--mono); text-align: right; }
 @keyframes growX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+/* 지나온 길 — 갈림길마다 고른 길(채움) · 고르지 않은 길(점선), 그 길에서 생긴 일 */
+.n-route { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.n-route li { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px 14px; align-items: center; }
+.n-route li > .k { grid-row: span 2; align-self: start; padding-top: 8px; }
+.nr-o { display: flex; flex-wrap: wrap; gap: 6px; }
+.nr-o b { font: 700 13px/1 var(--sans); padding: 7px 10px; border: 1px dashed var(--line); color: var(--dim); }
+.nr-o b.on { border: 1px solid var(--ink); background: var(--ink); color: var(--bg); }
+.n-route p { margin: 0; font: 400 15px/1.6 var(--serif); }
+.n-route p em { font: 600 12px/1 var(--mono); font-style: normal; color: var(--dim); margin-right: 8px; }
 .n-epi { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .n-epi div { font: 400 16px/1.75 var(--serif); }
 .n-epi .k { margin-bottom: 6px; }

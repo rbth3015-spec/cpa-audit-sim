@@ -57,10 +57,11 @@
     }) : [];
     // 판정이 걸린 답장은 시즌마다 순서를 섞는다 — "첫 번째가 정답"으로 외우지 못하게. 갈림길도 같은 이유로 섞는다
     if (ch && (ch.card || b.fork)) shuffle(opts, hash((S.seed || 0) + ':' + b.id));
+    var forks = D().BEATS.filter(function (x) { return x.fork; });
     return {
       id: b.id, at: b.at, room: b.room, pov: b.pov || null, name: roomName(b.room, b.place), mode: b.room === 'talk' ? 'talk' : 'chat',
       who: roomWho(b.room), place: b.place || null, time: b.time || '', bg: b.bg || 'desk', facts: b.facts || [],
-      fork: !!b.fork, msgs: msgs,
+      fork: !!b.fork, forkNo: b.fork ? forks.indexOf(b) + 1 : 0, forkOf: forks.length, msgs: msgs,
       choice: ch ? { card: ch.card || null, opts: opts } : null
     };
   }
