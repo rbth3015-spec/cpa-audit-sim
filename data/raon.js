@@ -411,7 +411,7 @@
         when: function (S) { return !!S.flags.route_confirm && S.rel.company >= 40; },
         chapter: '상대방 조회',
         line: '상대 제약사 BD팀 주소 받았어. 조회서는 우리가 보낸다.' },
-      { id: 'RECORD', label: '연구 기록 점검', route: '연구 기록 점검',
+      { id: 'RECORD', label: '양사 회의록 대조', route: '연구 기록 점검',
         when: function (S) { return !S.flags.route_confirm; },
         chapter: '연구 기록 점검', art: 'lab', view: 'senior', speaker: 'clin', standards: ['KSA 500'],
         line: '공동연구 기록은 전부 여기 있습니다. 필요한 것만 보세요.',
