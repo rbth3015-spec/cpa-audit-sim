@@ -25,8 +25,8 @@ window.MINIDATA = {
       { id: 'K1', name: '㈜대양전기', amt: 42.0, flag: '12월 매출 급증',
         pv: '재무팀 경유 팩스 02-555-0114', iv: '대양전기 경리부 031-720-4410 (등기부 · 대표번호 확인)',
         send: { pv: { r: 'fax' }, iv: { r: 'diff', v: 34.0, why: '12/28 출고분 8.0억 — 대양은 1/4 입고로 회신' } } },
-      { id: 'K2', name: '㈜한결소재', amt: 18.5,
-        pv: '한결소재 회계팀 02-3141-2200', iv: '한결소재 회계팀 02-3141-2200',
+      { id: 'K2', name: '㈜제원소재', amt: 18.5,
+        pv: '제원소재 회계팀 02-3141-2200', iv: '제원소재 회계팀 02-3141-2200',
         send: { pv: { r: 'ok' }, iv: { r: 'ok' } } },
       { id: 'K3', name: '㈜미래테크', amt: 12.3, flag: '신규 거래처',
         pv: '미래테크 재무팀 032-455-7810', iv: '미래테크 재무팀 032-455-7810',
@@ -43,11 +43,11 @@ window.MINIDATA = {
       { id: 'K7', name: '㈜그린에너지', amt: 3.9, flag: '1년 넘게 미회수',
         pv: '그린에너지 관리팀 061-330-1200', iv: '그린에너지 관리팀 061-330-1200',
         send: { pv: { r: 'ok' }, iv: { r: 'ok' } } },
-      { id: 'K8', name: '㈜새봄산업', amt: 2.4,
-        pv: '새봄산업 총무팀 02-722-8100', iv: '새봄산업 총무팀 02-722-8100',
+      { id: 'K8', name: '㈜광명산업', amt: 2.4,
+        pv: '광명산업 총무팀 02-722-8100', iv: '광명산업 총무팀 02-722-8100',
         send: { pv: { r: 'ok' }, iv: { r: 'ok' } } },
-      { id: 'K9', name: '㈜태광정밀', amt: 1.8,
-        pv: '태광정밀 경영지원팀 055-260-7700', iv: '태광정밀 경영지원팀 055-260-7700',
+      { id: 'K9', name: '㈜태경정밀', amt: 1.8,
+        pv: '태경정밀 경영지원팀 055-260-7700', iv: '태경정밀 경영지원팀 055-260-7700',
         send: { pv: { r: 'ok' }, iv: { r: 'ok' } } }
     ],
     acts: {
@@ -64,14 +64,14 @@ window.MINIDATA = {
     rows: [
       { id: 'U1', paid: '1/5', vendor: '한국전력', amt: 1.8, doc: '12월분 전기요금', when: '사용 12/1~12/31', booked: false, owe: true },
       { id: 'U2', paid: '1/8', vendor: '㈜성진물산', amt: 4.6, doc: '원재료 대금 · 청구 1/3', when: '입고 12/28', booked: false, owe: true },
-      { id: 'U3', paid: '1/10', vendor: '㈜대림설비', amt: 2.2, doc: '생산라인 수선비 · 청구 1/6', when: '작업 완료 12/29', booked: false, owe: true },
+      { id: 'U3', paid: '1/10', vendor: '㈜삼원설비', amt: 2.2, doc: '생산라인 수선비 · 청구 1/6', when: '작업 완료 12/29', booked: false, owe: true },
       { id: 'U4', paid: '1/12', vendor: '㈜성진물산', amt: 3.1, doc: '원재료 대금 · 청구 1/6', when: '입고 1/4', booked: false, owe: false },
       { id: 'U5', paid: '1/15', vendor: '㈜태평빌딩', amt: 0.9, doc: '1월분 임차료 · 선불 조건', when: '사용 1/1~1/31', booked: false, owe: false },
       { id: 'U6', paid: '1/6', vendor: '㈜삼한로지스', amt: 1.4, doc: '12월 운송비', when: '운송 12/2~12/30', booked: true, owe: true },
       { id: 'U7', paid: '1/20', vendor: '법무법인 정언', amt: 0.6, doc: '자문료', when: '자문 1/2~1/15', booked: false, owe: false },
       { id: 'U8', paid: '1/9', vendor: '국민연금공단', amt: 0.8, doc: '12월분 회사부담금', when: '12월 급여분', booked: true, owe: true },
       { id: 'U9', paid: '1/25', vendor: '㈜미래테크', amt: 5.0, doc: '설비 선급금 · 납품 예정 3월', when: '납품 3월', booked: false, owe: false },
-      { id: 'U10', paid: '1/3', vendor: '㈜한결소재', amt: 2.7, doc: '부자재 대금 · 청구 12/24', when: '입고 12/22', booked: true, owe: true }
+      { id: 'U10', paid: '1/3', vendor: '㈜제원소재', amt: 2.7, doc: '부자재 대금 · 청구 12/24', when: '입고 12/22', booked: true, owe: true }
     ]
   },
 
@@ -83,11 +83,11 @@ window.MINIDATA = {
     rows: [
       { id: 'S01', name: '㈜대양전기', book: 12.0, audit: 12.0 },
       { id: 'S02', name: '㈜동방기계', book: 6.2, audit: 5.1, why: '반품 1.1억 미반영' },
-      { id: 'S03', name: '㈜한결소재', book: 4.8, audit: 4.8 },
+      { id: 'S03', name: '㈜제원소재', book: 4.8, audit: 4.8 },
       { id: 'S04', name: '㈜세진ENG', book: 3.9, audit: 3.9 },
       { id: 'S05', name: '㈜오성전지', book: 3.5, audit: 2.8, why: '단가 인하 0.7억 미반영' },
-      { id: 'S06', name: '㈜새봄산업', book: 3.1, audit: 3.1 },
-      { id: 'S07', name: '㈜태광정밀', book: 2.6, audit: 2.1, why: '이중 청구 0.5억' },
+      { id: 'S06', name: '㈜광명산업', book: 3.1, audit: 3.1 },
+      { id: 'S07', name: '㈜태경정밀', book: 2.6, audit: 2.1, why: '이중 청구 0.5억' },
       { id: 'S08', name: '㈜그린에너지', book: 2.4, audit: 2.4 },
       { id: 'S09', name: '㈜삼한로지스', book: 2.2, audit: 2.2 },
       { id: 'S10', name: '㈜미래셀', book: 1.9, audit: 1.9 },
