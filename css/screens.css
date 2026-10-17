@@ -69,14 +69,17 @@
 .hist td.mono { font-family: var(--mono); }
 .hist tr:first-child td { border-top: 0; }
 .hist .tone-bad { color: #ff8a76; } .hist .tone-warn { color: #e0a33c; } .hist .tone-ok { color: #8fd1a2; }
-/* 노트북 화면(높이 800 이하) — 홈이 한 화면에 들어오게 줄인다 */
-@media (max-height: 800px) {
+/* 노트북 화면(높이 960 이하 — 1280×720 · 1366×768 · 1440×900) — 홈이 한 화면에 들어오게 줄인다 */
+@media (max-height: 960px) {
   .home-grid { padding-top: 3vh; padding-bottom: 24px; gap: 40px; }
   .brand h1 { font-size: clamp(52px, 6.4vw, 92px); }
   .brand p { margin-top: 12px; font-size: 17px; }
-  .menu { margin-top: 20px; }
-  .menu .m { padding: 11px 16px; }
+  /* 메뉴가 다섯 줄(이어하기 · 채점 방식)이어도 시즌 코드 칸까지 한 화면에 */
+  .menu { margin-top: 16px; gap: 6px; }
+  .menu .m { padding: 8px 16px; }
   .menu .m b { font-size: 17px; }
+  .menu .m span { margin-top: 1px; }
+  .seedbox { margin-top: 10px; }
   .home-r { gap: 10px; }
   .card-d th, .card-d td { padding: 6px 14px; }
   .mem img, .mem .pc { aspect-ratio: 1 / 1; }

@@ -512,6 +512,7 @@
             (run && run.snap ? '<button type="button" class="m" data-act="continue"><div><b>이어하기</b><span>장면 ' + pad(Math.min(runScenes(run), run.snap.i + 1)) + ' · 시즌 ' + run.snap.seed + ' · ' + ago(run.at) + '</span></div><span class="arrow">→</span></button>' : '') +
             '<button type="button" class="m" data-act="practice"><div><b>연습 모드</b><span>분야 · 형식 골라 풀기' + (P.wrong.length ? ' · 오답 ' + P.wrong.length : '') + '</span></div><span class="arrow">→</span></button>' +
             '<button type="button" class="m" data-act="binder"><div><b>조서 보관함</b><span>개념 카드 ' + learned + ' / ' + cards.length + (P.last ? ' · 지난 시즌 조서' : '') + '</span></div><span class="arrow">→</span></button>' +
+            (window.AIGRADE ? '<button type="button" class="m" data-act="grade"><div><b>채점 방식</b><span class="gr-sub">' + esc(window.AIGRADE.sub()) + '</span></div><span class="arrow">→</span></button>' : '') +
           '</div>' +
           '<div class="seedbox"><label for="seed">시즌 코드</label><input id="seed" inputmode="numeric" maxlength="6" placeholder="무작위">' +
             '<button type="button" data-act="seed">이 코드로 시작</button></div>' +
@@ -543,10 +544,7 @@
       '</div>';
     show('home');
     // 이 PC 의 채점 서버가 있는지는 조금 뒤에 안다 — 알게 되면 단추 글을 맞춘다
-    if (window.AIGRADE) window.AIGRADE.probe().then(function () {
-      var gb = $('#screen-home [data-act="grade"]');
-      if (gb) gb.textContent = window.AIGRADE.label();
-    });
+    if (window.AIGRADE) window.AIGRADE.probe().then(gradeLabels);
 
     var v = $('#title-v');
     if (v) v.addEventListener('ended', function () {
@@ -576,9 +574,7 @@
         var n = parseInt($('#seed').value, 10);
         newSeason(isNaN(n) ? null : n);
       } else if (act === 'snd') { FX.setOn(!FX.isOn()); b.textContent = FX.isOn() ? '소리 켬' : '소리 끔'; }
-      else if (act === 'grade') {
-        window.AIGRADE.openSettings(function () { b.textContent = window.AIGRADE.label(); });
-      }
+      else if (act === 'grade') window.AIGRADE.openSettings(gradeLabels);
       else if (act === 'theme') {
         var order = ['auto', 'light', 'dark'], cur0 = load(THEME, 'auto');
         var nxt = order[(order.indexOf(cur0) + 1) % 3];
@@ -589,6 +585,14 @@
     $('#seed').addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { e.preventDefault(); var n = parseInt(this.value, 10); newSeason(isNaN(n) ? null : n); }
     });
+  }
+
+  /* 채점 방식 단추 글 — 홈 위 막대 · 홈 메뉴 (이 PC 의 채점 서버를 알게 되거나 설정을 닫은 뒤) */
+  function gradeLabels() {
+    if (!window.AIGRADE) return;
+    var top = $('#screen-home .top-b [data-act="grade"]'), sub = $('#screen-home .menu [data-act="grade"] .gr-sub');
+    if (top) top.textContent = window.AIGRADE.label();
+    if (sub) sub.textContent = window.AIGRADE.sub();
   }
 
   /* ============================================================
@@ -1596,6 +1600,7 @@
       '<button type="button" class="btn" data-act="resume">계속 <kbd>Esc</kbd></button>' +
       '<button type="button" class="btn ghost" data-act="binder">조서 보기</button>' +
       '<button type="button" class="btn ghost" data-act="snd">' + (FX.isOn() ? '소리 끄기' : '소리 켜기') + '</button>' +
+      (window.AIGRADE ? '<button type="button" class="btn ghost" data-act="grade">' + esc(window.AIGRADE.label()) + '</button>' : '') +
       '<button type="button" class="btn ghost" data-act="home">' + (mode === 'season' ? '홈으로 · 이 장면 처음부터 이어하기' : '연습 그만두기') + '</button></div>';
     document.body.appendChild(el);
     function close() { document.removeEventListener('keydown', onKey, true); el.remove(); }
@@ -1609,6 +1614,7 @@
       if (act === 'resume') close();
       else if (act === 'binder') { close(); openBinder(S, mode === 'season' ? 'B' : 'E'); }
       else if (act === 'snd') { FX.setOn(!FX.isOn()); b.textContent = FX.isOn() ? '소리 끄기' : '소리 켜기'; }
+      else if (act === 'grade') { close(); window.AIGRADE.openSettings(); }   // 설정 창이 떠 있는 동안 게임은 멈춰 있다(paused)
       else if (act === 'home') { close(); home(); }
     });
   }
