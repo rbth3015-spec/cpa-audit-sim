@@ -398,17 +398,19 @@
         b.textContent = on ? '✓' : '';
       });
     }
-    function set(r, c) {
+    // 숫자 키로 고르면 아직 안 고른 줄로 넘어가고, 마우스로 고르면 누른 줄에 표시가 머문다
+    // (⑤를 먼저 누르면 빨간 표시가 ①로 튀어 엉뚱한 줄이 잡힌 것처럼 보였다)
+    function set(r, c, byKey) {
       assign[r] = c;
       sound(api, 'tick');
       err(host, '');
       var nxt = assign.indexOf(null);
-      row = nxt >= 0 ? nxt : r;
+      row = byKey && nxt >= 0 ? nxt : r;
       draw();
     }
     host.addEventListener('click', function (e) {
       var b = e.target.closest('.cat');
-      if (b && host.contains(b)) set(+b.getAttribute('data-r'), +b.getAttribute('data-c'));
+      if (b && host.contains(b)) set(+b.getAttribute('data-r'), +b.getAttribute('data-c'), false);
       var tr = e.target.closest('tbody tr');
       if (!b && tr) { row = +tr.getAttribute('data-r'); draw(); }
     });
@@ -422,7 +424,7 @@
       if (isTyping(e) || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === 'ArrowDown') { e.preventDefault(); row = Math.min(p.items.length - 1, row + 1); draw(); }
       else if (e.key === 'ArrowUp') { e.preventDefault(); row = Math.max(0, row - 1); draw(); }
-      else if (/^[1-9]$/.test(e.key) && +e.key <= p.cats.length) { e.preventDefault(); set(row, +e.key - 1); }
+      else if (/^[1-9]$/.test(e.key) && +e.key <= p.cats.length) { e.preventDefault(); set(row, +e.key - 1, true); }
     });
     draw();
     return { answer: function () { return { assign: assign.slice() }; }, refresh: function () {}, destroy: function () { off1(); off2(); } };

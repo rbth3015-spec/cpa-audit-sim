@@ -330,7 +330,13 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
     });
   }
-  function label() { return on() ? 'AI 채점' : '기본 채점'; }
+  // 단추 글은 고른 방식을 따른다 — 연결이 없어 기본 채점으로 도는 사정은 sub() 한 줄이 알린다
+  function label() { return '채점 방식 · ' + (load().mode === 'ai' ? 'AI 연동' : '기본'); }
+  function sub() {
+    if (load().mode !== 'ai') return '기본 채점 · 키워드로 바로';
+    var how = provider();
+    return 'AI 연동 · ' + (how === 'local' ? '이 PC의 Claude Code' : how === 'key' ? 'API 키' : '연결 없음 · 지금은 기본 채점');
+  }
 
   function openSettings(onClose) {
     var c = load();
@@ -402,7 +408,7 @@
 
   global.AIGRADE = {
     MODELS: MODELS, load: load, save: save, probe: probe, provider: provider, on: on, wants: wants,
-    build: build, toVerdicts: toVerdicts, settle: settle, judge: judge, label: label, openSettings: openSettings,
+    build: build, toVerdicts: toVerdicts, settle: settle, judge: judge, label: label, sub: sub, openSettings: openSettings,
     GUIDE_V: GUIDE_V
   };
 
