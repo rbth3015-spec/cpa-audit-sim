@@ -19,7 +19,7 @@ window.MINIDATA = {
   confirm: {
     title: '매출채권 조회서 발송',
     client: '㈜한빛전자',
-    pm: 8.4, total: 233, others: '그 밖의 거래처 1,184곳 · 111.2억은 표본으로 따로 본다',
+    pm: 8.4, total: 233, others: '그 밖의 거래처 1,191곳 · 130.2억은 표본으로 따로 본다',
     costSec: 3,
     rows: [
       { id: 'K1', name: '㈜대양전기', amt: 42.0, flag: '12월 매출 급증',
@@ -75,24 +75,26 @@ window.MINIDATA = {
     ]
   },
 
-  /* 표본 평가 — 매출채권 40건 표본 중 12건을 펼쳐 보이고, 나머지 28건은 차이 없음 */
+  /* 표본 평가 — 매출채권 중 외부조회(confirm)로 따로 본 9곳을 뺀 나머지가 모집단.
+     233 − 9곳 102.8 = 130.2억 · 1,191건. 40건 표본 중 12건을 펼쳐 보이고, 나머지 28건은 차이 없음.
+     거래처는 confirm 과 겹치지 않게, 금액은 그 9곳보다 작게 */
   sample: {
     title: '매출채권 표본 평가',
     client: '㈜한빛전자',
-    pop: 233, popN: 1200, tol: 8.4, n: 40, sampleAmt: 58.0,
+    pop: 130.2, popN: 1191, tol: 8.4, n: 40, sampleAmt: 32.0,
     rows: [
-      { id: 'S01', name: '㈜대양전기', book: 12.0, audit: 12.0 },
-      { id: 'S02', name: '㈜동방기계', book: 6.2, audit: 5.1, why: '반품 1.1억 미반영' },
-      { id: 'S03', name: '㈜제원소재', book: 4.8, audit: 4.8 },
-      { id: 'S04', name: '㈜세진ENG', book: 3.9, audit: 3.9 },
-      { id: 'S05', name: '㈜오성전지', book: 3.5, audit: 2.8, why: '단가 인하 0.7억 미반영' },
-      { id: 'S06', name: '㈜광명산업', book: 3.1, audit: 3.1 },
-      { id: 'S07', name: '㈜태경정밀', book: 2.6, audit: 2.1, why: '이중 청구 0.5억' },
-      { id: 'S08', name: '㈜그린에너지', book: 2.4, audit: 2.4 },
-      { id: 'S09', name: '㈜삼한로지스', book: 2.2, audit: 2.2 },
-      { id: 'S10', name: '㈜미래셀', book: 1.9, audit: 1.9 },
-      { id: 'S11', name: '㈜대원테크', book: 1.6, audit: 1.6 },
-      { id: 'S12', name: '㈜성진물산', book: 1.3, audit: 1.3 }
+      { id: 'S01', name: '㈜대진테크', book: 1.7, audit: 1.7 },
+      { id: 'S02', name: '㈜우성하이텍', book: 1.6, audit: 0.8, why: '반품 0.8억 미반영' },
+      { id: 'S03', name: '㈜수안ENG', book: 1.5, audit: 1.5 },
+      { id: 'S04', name: '㈜삼정기전', book: 1.5, audit: 1.5 },
+      { id: 'S05', name: '㈜경도산업', book: 1.4, audit: 0.8, why: '단가 인하 0.6억 미반영' },
+      { id: 'S06', name: '㈜명성테크', book: 1.3, audit: 1.3 },
+      { id: 'S07', name: '㈜정우일렉', book: 1.2, audit: 0.7, why: '이중 청구 0.5억' },
+      { id: 'S08', name: '㈜영진정밀', book: 1.1, audit: 1.1 },
+      { id: 'S09', name: '㈜창원메탈', book: 1.0, audit: 1.0 },
+      { id: 'S10', name: '㈜세화물산', book: 0.9, audit: 0.5, why: '1월 출고분 선기록 0.4억' },
+      { id: 'S11', name: '㈜성호전기', book: 0.8, audit: 0.8 },
+      { id: 'S12', name: '㈜다인정밀', book: 0.7, audit: 0.7 }
     ],
     methods: [
       { k: 'ratio', t: '비율 추정 (왜곡표시 ÷ 표본 금액 × 모집단)' },
