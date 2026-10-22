@@ -554,15 +554,30 @@
         ['재무제표 전체 중요성', matText()], ['수행중요성', (global.COMPANY || {}).pm || '—'],
         ['명백하게 사소한 금액', (global.COMPANY || {}).trivial || '—'], ['미수정 합계', m.total.toFixed(1) + '억원']] }
     ];
-    var nTruth = m.items.filter(function (i) { return i.kind === 'truth'; }).length;
-    it.situation = '감사 중 식별된 왜곡표시를 집계하였다. ' +
-      (m.byChair ? '감사위원회의 권고로 경영진은 일반적인 조정사항은 받아들였으나 '
-        : m.coop ? '경영진은 일반적인 조정사항은 받아들였으나 ' : '경영진은 ') +
-      (nTruth ? '감사인이 식별한 주요 왜곡표시의 수정은 거부하였다.' : '나머지 사항의 수정을 거부하였다.') +
+    // 상황 문장은 실제로 남은 미수정 항목을 따른다 — 다 고쳤는데 '거부' 라고 쓰지 않는다
+    var open = m.items.filter(function (i) { return !i.corrected; });
+    var fixedSome = open.length < m.items.length;
+    var tail;
+    if (!open.length) {
+      tail = (m.byChair ? '감사위원회의 권고로 ' : '') + '경영진은 식별된 왜곡표시를 모두 수정하였다.';
+      it.clues = ['모두 수정'];
+    } else if (fixedSome) {
+      tail = (m.byChair ? '감사위원회의 권고로 ' : '') + '경영진은 일반적인 조정사항은 받아들였으나 감사인이 식별한 주요 왜곡표시의 수정은 거부하였다.';
+      it.clues = ['주요 왜곡표시의 수정은 거부'];
+    } else {
+      tail = '경영진은 식별된 왜곡표시의 수정을 모두 거부하였다.';
+      it.clues = ['수정을 모두 거부'];
+    }
+    it.situation = '감사 중 식별된 왜곡표시를 집계하였다. ' + tail +
       (S.late ? ' 특수관계자 거래는 감사 종료 직전에야 확인되어 추가 절차를 할 시간이 부족하였다.' : '');
-    it.clues = ['수정은 거부'];
-    if (nTruth) it.clues = ['주요 왜곡표시의 수정은 거부'];
-    else it.clues = ['나머지 사항의 수정을 거부'];
+    // 고칠 것이 남지 않았으면 '끝까지 거부할 때' 칸은 가정으로 묻는다
+    if (!open.length) {
+      it.parts.forEach(function (p) {
+        if (p.type !== 'write' || !/끝까지 수정을 거부할 때/.test(p.ask || '')) return;
+        p.say = '다 고쳤잖아요. 못 고쳤으면 어떻게 하셨을 건데요?';
+        p.ask = '경영진이 수정을 거부하였다면 감사인이 할 조치 두 가지를 서술하시오.';
+      });
+    }
 
     // 합계가 중요성에 미달하면 "의견 변형" 을 물을 수 없다 — 그 칸의 논점을 바꾼다
     if (m.total <= mat()) {
@@ -572,6 +587,8 @@
           score: mu.score, label: '미수정 합계가 중요성에 미달하여 의견에 영향 없음', negOk: true,
           why: mu.why };
         p.model = '미수정왜곡표시를 개별적으로 또 합산하여 중요성과 비교하고 질적 요인도 고려한다. 합계가 중요성에 미달하므로 그 자체로는 감사의견에 영향을 미치지 아니한다.';
+        p.ask = '수정되지 않은 왜곡표시가 중요한지 판단하는 방법과, 이번 집계 결과가 감사의견에 미치는 영향을 서술하시오.';
+        p.guide = ['판단 방법 — 개별로만?', '영향 — 이번 미수정 합계는'];
         p.rubric.trap = (p.rubric.trap || []).filter(function (t) { return t.label !== '중요성 초과인데 적정의견'; });
       });
     }
