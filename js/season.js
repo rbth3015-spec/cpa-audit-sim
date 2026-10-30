@@ -336,12 +336,14 @@
     var events = [];
 
     // 칸을 모두 합쳐서 본다
+    // 판단을 거꾸로 고른 칸의 논점은 진실 발견 · 개념 카드의 근거로 쓰지 않는다 — 그 칸은 0점이다
     var allMust = [], allTrap = [], vWrong = false;
     (res.parts || []).forEach(function (p) {
       if (!p) return;
-      (p.res.must || []).forEach(function (m) { allMust.push(m); });
+      var wrong = !!(p.verdict && !p.verdict.correct);
+      if (!wrong) (p.res.must || []).forEach(function (m) { allMust.push(m); });
       (p.res.trap || []).forEach(function (t) { allTrap.push(t); });
-      if (p.verdict && !p.verdict.correct) vWrong = true;
+      if (wrong) vWrong = true;
     });
 
     var newHits = [];
