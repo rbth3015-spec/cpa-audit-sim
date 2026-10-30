@@ -168,7 +168,7 @@ AI 연동 채점은 **서술 · 판단 칸**의 논점을 Claude 가 판정한�
 | 이 PC의 Claude Code | `node tools/serve.mjs` 로 띄웠을 때 | `node tools/serve.mjs --login` 한 번 (브라우저로 로그인). API 키 없음 — 그 계정의 Claude 사용량으로 돈다 |
 | API 키 | 배포판 · 다른 사람 | 설정 창에 자기 Anthropic API 키. 키는 그 브라우저(`localStorage`)에만 저장되고 요금은 그 키의 계정으로 청구된다 |
 
-둘 다 되면 이 PC의 Claude Code 를 쓴다. 모델은 설정 창에서 고른다(기본 Opus 5.5).
+둘 다 되면 이 PC의 Claude Code 를 쓴다. 모델은 설정 창에서 고른다(기본 Sonnet 5.5).
 - 로컬 서버의 `/api/grade` 는 같은 출처에서 온 요청만 받는다(다른 웹페이지가 내 사용량을 쓰지 못하게). 도구 없이 한 번 묻고 끝낸다.
 - API 키 길은 공식 SDK(`@anthropic-ai/sdk`)를 CDN 에서 모듈로 불러 브라우저에서 직접 부른다. **배포판에 내 키를 넣어 두지 말 것** — 누구나 꺼내 쓸 수 있다.
 - `node tools/aigrade-check.js` — Claude 를 부르지 않고, 서술 · 판단 칸 전부에 대해 요청이 만들어지는지와 판정 → 점수 변환이 맞는지 본다.
