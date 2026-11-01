@@ -29,6 +29,9 @@ export function findClaude() {
     const pk = path.join(process.env.LOCALAPPDATA, 'Packages');
     for (const name of dirs(pk).filter(n => /^(Claude|Anthropic)/i.test(n)))
       roots.push(path.join(pk, name, 'LocalCache', 'Roaming', 'Claude', 'claude-code'));
+    // 2026-11 데스크톱 앱은 %LOCALAPPDATA%\Claude-Data\<꾸러미 이름>\claude-code 에 둔다
+    const data = path.join(process.env.LOCALAPPDATA, 'Claude-Data');
+    for (const name of dirs(data)) roots.push(path.join(data, name, 'claude-code'));
   }
   roots.push(path.join(os.homedir(), 'Library', 'Application Support', 'Claude', 'claude-code'));
   for (const root of roots) {
