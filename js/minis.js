@@ -323,10 +323,17 @@
       why: '추출 조건 — 위험 특성에 맞춘 조합. 전부 뽑으면 검토 불가능한 모집단' }
   ];
 
+  function jetData(data) {
+    var base = MD().jet || { rows: [] }, D = {}, k;
+    for (k in base) D[k] = base[k];
+    for (k in (data || {})) D[k] = data[k];
+    return D;
+  }
+
   var jet = {
     name: '분개 테스트',
-    labels: function () {
-      var D = MD().jet || { rows: [] };
+    labels: function (data) {
+      var D = jetData(data);
       return JET_BASE.map(function (d) { return { label: d.label, score: d.score, why: d.why }; })
         .concat(D.rows.filter(function (r) { return r.risk; }).map(function (r) {
           return { label: '위험 분개 추출 — ' + r.risk, score: 12 };
@@ -334,8 +341,8 @@
     },
     traps: function () { return []; },
 
-    build: function (seed) {
-      var D = MD().jet, R = rng(seed || 1);
+    build: function (seed, data) {
+      var D = jetData(data), R = rng(seed || 1);
       return { D: D, rows: shuffle(D.rows.slice(), R) };
     },
 
