@@ -241,6 +241,8 @@ tools/
   aigrade-calib.mjs AI 연동 채점이 지침대로인지 · 모델끼리 같은지 잰다 (Claude 를 부른다)
   images.py         image/ 원본(저장소 제외) → assets/ 굽기 + manifest.js
   refdb.js          기출 · GS 참고 DB 조회 (자료/db)
+  kb_build.py       회계감사기준 .docx → 문단 지식베이스 (자료/kb)
+  kb.js             기준서 문단 검색 · 품질 측정 · 번호 점검 (docs/kb.md)
   goodnotes.py      굿노트 퀴즈 노트 → 암기 카드 (자료/deck_notes.js)
 docs/
   image-prompts.md  인물 · 표정 · 장면 이미지 프롬프트와 저장 이름
