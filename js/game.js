@@ -1058,11 +1058,14 @@
     el.className = 'overlay mi-o';
     el.innerHTML = '<div class="mi-in" role="dialog" aria-label="' + esc(G.name) + ' 방법">' +
       '<div class="mi-h"><span class="k">미니게임' + (first ? ' · 처음' : ' · 방법') + '</span><h2>' + esc(G.name) + '</h2><p>' + esc(H.goal) + '</p></div>' +
-      '<ol class="mi-steps">' + H.steps.map(function (s, i) {
+      '<div class="mi-b"><div class="mi-l">' +
+      (H.find ? '<h3>판단 기준</h3><dl class="mi-find">' + H.find.map(function (x) { return '<dt>' + esc(x[0]) + '</dt><dd>' + esc(x[1]) + '</dd>'; }).join('') + '</dl>' : '') +
+      (H.terms ? '<h3>용어</h3><dl class="mi-terms">' + H.terms.map(function (x) { return '<dt>' + esc(x[0]) + '</dt><dd>' + esc(x[1]) + '</dd>'; }).join('') + '</dl>' : '') +
+      '</div><div class="mi-r"><h3>조작</h3><ol class="mi-steps">' + H.steps.map(function (s, i) {
         return '<li><span class="mi-n">' + (i + 1) + '</span>' +
           '<div class="mi-t"><b>' + esc(s.t) + '</b>' + (s.key ? '<kbd>' + esc(s.key) + '</kbd>' : '') + '</div>' +
           '<div class="mi-d">' + (s.d ? '<p>' + esc(s.d) + '</p>' : '') + (s.demo ? '<div class="mi-demo" aria-hidden="true">' + s.demo + '</div>' : '') + '</div></li>';
-      }).join('') + '</ol>' +
+      }).join('') + '</ol></div></div>' +
       '<div class="mi-f">' + (H.warn ? '<span class="mi-w">감점 · ' + esc(H.warn) + '</span>' : '') +
         '<span class="mi-k">시간이 다 되면 그 상태로 채점</span>' +
         '<button type="button" class="btn" data-act="go">' + (first ? '시작' : '계속') + ' <kbd>Enter</kbd></button></div></div>';

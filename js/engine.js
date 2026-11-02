@@ -374,7 +374,7 @@
       var k = pCap / partialGot;
       partialGot = 0;
       partials.forEach(function (row) { row.got = Math.round(row.got * k); partialGot += row.got; });
-      R.flags.push('부분 점수 상한 — 만점의 절반까지만');
+      R.flags.push('부분 점수는 만점의 절반까지');
     }
     mustGot += partialGot;
 
@@ -410,7 +410,7 @@
         var aimGot = Math.round(mustMax * Math.min(0.25, 0.1 + (sim - 0.5) * 0.6));
         mustGot += aimGot;
         R.aim = { sim: Math.round(sim * 100) / 100, got: aimGot };
-        R.flags.push('방향은 맞음 — 기준서 용어로 다시 (+' + aimGot + ')');
+        R.flags.push('방향은 맞음. 기준서 용어로 쓰면 인정 (+' + aimGot + ')');
       }
     }
 
@@ -423,12 +423,12 @@
       if (keep < 1) {
         st.points = Math.round(st.points * keep);
         st.detail = st.detail.map(function (d) { return [d[0], Math.round(d[1] * keep), d[2]]; });
-        if (mustHits === 0) R.flags.push('논점을 짚지 못함 — 문장 점수 없음');
+        if (mustHits === 0) R.flags.push('맞은 논점 없음. 문장 점수 없음');
       }
     }
     R.structure = st;
-    if (st.listing) R.flags.push('용어 나열 — 75%까지만 인정');
-    if (negCount)   R.flags.push('부정문으로 쓴 논점 ' + negCount + '개 — 인정 안 함');
+    if (st.listing) R.flags.push('용어만 나열. 75%까지 인정');
+    if (negCount)   R.flags.push('부정문으로 쓴 논점 ' + negCount + '개는 인정 안 함');
 
     var bare = raw.replace(/\s/g, '').length;
     var maxChars = opt.maxChars || 300;
@@ -436,7 +436,7 @@
     var lenPen = 0;
     if (bare > limit) {
       lenPen = Math.min(12, Math.ceil((bare - limit) / 20));
-      R.flags.push('분량 초과 ' + bare + '자 / 권장 ' + maxChars + '자 — −' + lenPen);
+      R.flags.push('분량 초과 ' + bare + '자 / 권장 ' + maxChars + '자. −' + lenPen);
     }
 
     // 가점은 분모에 넣지 않는다. 필수 논점을 다 쓰면 만점이고,
@@ -447,7 +447,7 @@
     if (bonusGot > fill && gap > 0) {
       var kb = bonusGot ? fill / bonusGot : 0;
       R.bonus.forEach(function (b) { b.got = Math.round(b.got * kb); });
-      R.flags.push(fill ? '가점은 놓친 논점의 3분의 1까지만' : '논점 없이 곁가지만 — 가점 없음');
+      R.flags.push(fill ? '가점은 놓친 논점의 3분의 1까지' : '맞은 논점 없음. 가점 없음');
     }
     bonusGot = gap > 0 ? fill : bonusGot;
     var max = mustMax + st.max;
@@ -602,7 +602,7 @@
     var r = pack(must, trap);
     if (part.multi && wrong >= 2) {
       r.must.forEach(function (m) { if (m.hit) { m.hit = false; m.partial = true; } });
-      r.flags.push('오답 ' + wrong + '개 선택 — 명중 인정 안 함');
+      r.flags.push('오답 ' + wrong + '개 선택. 맞은 보기도 인정 안 함');
     }
     return r;
   }
@@ -720,8 +720,8 @@
       var given = ans.pick || null, exp = part.verdict ? part.verdict.answer : null;
       var correct = !!given && given === exp;
       var body = (given && !correct) ? 0 : r.total;
-      if (!given) r.flags.push('판단을 고르지 않음 — 판단 0점');
-      else if (!correct) r.flags.push('판단 반대 — 근거 0점');
+      if (!given) r.flags.push('판단을 고르지 않음. 판단 0점');
+      else if (!correct) r.flags.push('판단이 틀림. 근거도 0점');
       var tot = body + (correct ? vMax : 0), mx = r.max + vMax;
       return { label: part.key, verdict: { given: given, expected: exp, correct: correct },
                verdictGot: correct ? vMax : 0, verdictMax: vMax, bodyZero: !!given && !correct,
