@@ -39,6 +39,7 @@
     global.addEventListener(ev, function () { if (on) { wake(); tapeResume(); } }, { once: false, passive: true });
   });
 
+  var trim = 1;                                    // 지금 내는 합성 소리의 크기 배수 — play 가 정한다
   function tone(freq, start, dur, type, vol, slide) {
     var t0 = ctx.currentTime + start;
     var o = ctx.createOscillator(), g = ctx.createGain();
@@ -46,7 +47,7 @@
     o.frequency.setValueAtTime(freq, t0);
     if (slide) o.frequency.exponentialRampToValueAtTime(slide, t0 + dur);
     g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(vol || 0.4, t0 + 0.008);
+    g.gain.exponentialRampToValueAtTime((vol || 0.4) * trim, t0 + 0.008);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     o.connect(g); g.connect(master);
     o.start(t0); o.stop(t0 + dur + 0.02);
@@ -58,7 +59,7 @@
     for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.2);
     var s = ctx.createBufferSource(), g = ctx.createGain(), f = ctx.createBiquadFilter();
     f.type = 'highpass'; f.frequency.value = hp || 600;
-    s.buffer = buf; g.gain.value = vol || 0.3;
+    s.buffer = buf; g.gain.value = (vol || 0.3) * trim;
     s.connect(f); f.connect(g); g.connect(master);
     s.start(t0);
   }
@@ -123,6 +124,9 @@
     return true;
   }
 
+  // 파일이 없는 합성 소리의 크기 — 파일 소리(tools/sfx_picks.json 의 level)와 같은 기준으로 재서 맞춘 배수
+  var TRIM = { alert: 5.2, chapter: 2.16, send: 3.4, whoosh: 1.7, count: 3, click: 5.75, type: 3.9 };
+
   // 큰 소리가 날 때 음악을 잠깐 눌러 준다
   var DUCK = { stamp: 0.45, chapter: 0.35, reveal: 0.35, alert: 0.6, great: 0.55, bad: 0.55, card: 0.7 };
 
@@ -130,7 +134,9 @@
     if (!on) return;
     if (!wake()) return;
     if (DUCK[name]) { Tape.duckTo = DUCK[name]; Tape.duckEnd = Date.now() + 700; }
+    trim = TRIM[name] || 1;
     try { if (!sample(name)) (SOUNDS[name] || SOUNDS.click)(); } catch (e) { /* 소리는 실패해도 게임은 계속 */ }
+    trim = 1;
   }
 
   /* ---------- 음악 파일 --------------------------------------
@@ -140,6 +146,7 @@
   ------------------------------------------------------------ */
   var TRACKS = { home: ['title'], scene: ['play_a', 'play_b'], tense: ['tense'], end: ['end_bad'], happy: ['end_good'] };
   var XFADE = 2.6;
+  var MUSIC_TRIM = 0.4;                            // 완성곡은 효과음보다 크게 만들어져 있다 — 글 읽는 데 방해되지 않게 낮춘다
   var Tape = { mood: null, tense: false, cur: null, decks: [], missing: {}, pos: {}, turn: {},
                duck: 1, duckTo: 1, duckEnd: 0, timer: 0, last: 0 };
 
@@ -214,7 +221,7 @@
     Tape.decks.slice().forEach(function (d) {
       var step = d.rate * dt;
       d.level = d.level < d.target ? Math.min(d.target, d.level + step) : Math.max(d.target, d.level - step);
-      try { d.el.volume = Math.max(0, Math.min(1, Math.sin(d.level * Math.PI / 2) * vol.music * Tape.duck)); } catch (e) { /* 무시 */ }
+      try { d.el.volume = Math.max(0, Math.min(1, Math.sin(d.level * Math.PI / 2) * vol.music * MUSIC_TRIM * Tape.duck)); } catch (e) { /* 무시 */ }
       if (d.target === 0 && d.level <= 0) tapeDrop(d);
     });
     var c = Tape.cur;

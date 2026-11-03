@@ -70,6 +70,20 @@ instrumental, somber orchestral elegy, slow solo cello over sustained strings, s
 instrumental, quiet hopeful resolution, solo piano opening joined by warm strings, gentle sunrise feeling, understated, no triumph, D major, 66 BPM, intimate film score, no vocals, no drums, soft ending
 ```
 
+## 소리 크기
+
+크기는 귀가 아니라 LUFS(100ms 창)로 재서 맞춘다. 칸별 값은 `tools/sfx_picks.json`의 `level`이다.
+
+| 단계 | 크기 | 소리 |
+|---|---|---|
+| 큰 사건 | -20 ~ -21 | 결과 도장 · 90점 이상 · 진실 발견 |
+| 판정 | -22 ~ -24 | 낮은 점수 · 80점대 · 카드 · 장면 넘김 · 관계 변화 · 새 장 |
+| 알림 | -25 ~ -26 | 메신저 · 중간 점수 · 제출 · 돌발 업무 · 서류 넘김 |
+| 자주 나는 소리 | -27 ~ -31 | 창 열기 · 자리 이동 · 남은 10초 · 메신저 보내기 · 선택 |
+| 배경 | -36 ~ -40 | 글자 입력 · 기본 클릭 |
+
+음악은 `MUSIC_TRIM`(`js/fx.js`)으로 낮춰 튼다. 곡이 들어오면 실제로 재서 다시 맞춘다.
+
 ## 효과음
 
 Sonniss GDC 2026 번들에서 고른 소리를 `tools/audio.py`가 다듬어 `assets/sfx.js`로 굽는다. 효과음 자체로 재배포하면 안 되므로 원본은 저장소에 넣지 않는다. 게임에 들어간 형태로만 둔다.

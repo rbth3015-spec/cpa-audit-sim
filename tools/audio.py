@@ -4,8 +4,9 @@
   python tools/audio.py                   assets/audio/ 의 곡을 적어 assets/audio.js 를 만든다
   python tools/audio.py --sfx <원본 폴더>   tools/sfx_picks.json 대로 잘라 assets/sfx.js 도 만든다
 
-sfx_picks.json 형식 — 소리 이름마다 테이크 목록. start · dur 은 초, gain 은 배수, 모두 없어도 된다
-  { "stamp": [{ "file": "묶음/파일.wav", "start": 0.1, "dur": 0.4, "gain": 0.8 }] }
+sfx_picks.json 형식 — 소리 이름마다 테이크 목록. start · dur 은 초, 없어도 된다
+  { "stamp": [{ "file": "묶음/파일.wav", "start": 0.1, "dur": 0.4, "level": -20 }] }
+level 은 게임에서 나는 크기 (LUFS, 100ms 창). 소리를 바꿔도 이 값으로 맞춰 구우므로 크기 균형이 유지된다.
 
 앞뒤 무음은 잘라 낸다. 원본 음원은 저장소에 넣지 않는다 (라이선스 — docs/audio-prompts.md).
 """
@@ -18,7 +19,8 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 AUDIO = os.path.join(ROOT, 'assets', 'audio')
 PICKS = os.path.join(ROOT, 'tools', 'sfx_picks.json')
 RATE = 32000          # 짧은 소리라 이 정도면 충분하다
-PEAK = 0.8
+OUT = 0.9             # js/fx.js 의 sbus — 파일 소리는 이만큼 줄어 나간다
+LIMIT = 0.95          # 굽는 소리의 최고점 한도
 
 
 def read_wav(path):
@@ -69,6 +71,32 @@ def resample(x, src, dst):
     return np.interp(np.arange(0, len(x) * dst // src) * src / float(dst), np.arange(len(x)), x)
 
 
+def biquad(x, b, a):
+    y = np.zeros(len(x))
+    x1 = x2 = y1 = y2 = 0.0
+    for i, v in enumerate(x):
+        r = (b[0] * v + b[1] * x1 + b[2] * x2 - a[1] * y1 - a[2] * y2) / a[0]
+        x2, x1, y2, y1 = x1, v, y1, r
+        y[i] = r
+    return y
+
+
+def loudness(x, rate, win=0.1):
+    """K 가중(ITU-R BS.1770) 후 win 초 창에서 가장 큰 값. 짧은 소리도 재도록 창은 100ms 로 둔다."""
+    A = 10 ** (3.999843853973347 / 40)
+    w = 2 * np.pi * 1681.974450955533 / rate
+    c, al = np.cos(w), np.sin(w) / (2 * 0.7071752369554196)
+    r = 2 * np.sqrt(A) * al
+    y = biquad(x, (A * ((A + 1) + (A - 1) * c + r), -2 * A * ((A - 1) + (A + 1) * c), A * ((A + 1) + (A - 1) * c - r)),
+               ((A + 1) - (A - 1) * c + r, 2 * ((A - 1) - (A + 1) * c), (A + 1) - (A - 1) * c - r))
+    w = 2 * np.pi * 38.13547087602444 / rate
+    c, al = np.cos(w), np.sin(w) / (2 * 0.5003270373238773)
+    y = biquad(y, ((1 + c) / 2, -(1 + c), (1 + c) / 2), (1 + al, -2 * c, 1 - al))
+    n = int(rate * win)
+    e = np.convolve(np.concatenate([y * y, np.zeros(n)]), np.ones(n) / n, mode='full')
+    return -0.691 + 10 * np.log10(max(e.max(), 1e-12))
+
+
 def trim(x, rate):
     """앞뒤 무음을 잘라 소리가 누르는 순간 바로 나게 한다."""
     env = np.abs(x)
@@ -92,7 +120,12 @@ def bake(take, base):
     x = x.copy()
     x[:fin] *= np.linspace(0, 1, fin)
     x[len(x) - fout:] *= np.linspace(1, 0, fout)
-    x = x * (PEAK * take.get('gain', 1.0) / max(np.abs(x).max(), 1e-6))
+    k = 10 ** ((take.get('level', -25) - loudness(x * OUT, RATE)) / 20)
+    limit = LIMIT / max(np.abs(x).max(), 1e-6)
+    if k > limit:
+        print('  ! 최고점 한도로 목표 크기에 못 미침:', take['file'])
+        k = limit
+    x = x * k
     pcm = (np.clip(x, -1, 1) * 32767).astype('<i2').tobytes()
     buf = io.BytesIO()
     with wave.open(buf, 'wb') as w:
@@ -111,7 +144,7 @@ def build_sfx(base):
             raw = bake(take, base)
             total += len(raw)
             data['%s.%d' % (name, i)] = base64.b64encode(raw).decode('ascii')
-            print('  %-10s %-2d %6.1f KB' % (name, i, len(raw) / 1024.0))
+            print('  %-10s %-2d %6.1f KB  목표 %s LUFS' % (name, i, len(raw) / 1024.0, take.get('level', -25)))
     with open(os.path.join(ROOT, 'assets', 'sfx.js'), 'w', encoding='utf-8', newline='\n') as f:
         f.write('/* tools/audio.py 가 만든 파일 — 손으로 고치지 않는다 */\n')
         f.write('window.SFX_DATA = ' + json.dumps(data, separators=(',', ':')) + ';\n')
