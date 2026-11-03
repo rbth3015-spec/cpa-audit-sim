@@ -1161,9 +1161,12 @@
         devOf('late').every(function (r) { return mark[r.id] === 'dev' || mark[r.id] === 'intent'; }),
         devOf('limit').every(function (r) { return mark[r.id] === 'dev' || mark[r.id] === 'intent'; }),
         devOf('forge').every(function (r) { return mark[r.id] === 'intent'; }),
-        st.decide === 'no',
+        false,
         false
       ];
+      // 결론은 자기가 표시한 이탈률이 허용이탈률을 넘을 때만 인정한다
+      var marked = M.rows.filter(function (r) { return mark[r.id] && mark[r.id] !== 'ok'; }).length;
+      hits[4] = st.decide === 'no' && marked / M.rows.length * 100 > M.D.tol;
       var falses = M.rows.filter(function (r) { return !r.dev && mark[r.id] && mark[r.id] !== 'ok'; }).length;
       hits[5] = falses === 0 && M.rows.some(function (r) { return mark[r.id] && mark[r.id] !== 'ok'; });
       var trap = st.decide === 'yes' ? [{ label: '이탈이 있는데 통제에 의존', score: -15, got: -15, hit: true, please: true }] : [];
