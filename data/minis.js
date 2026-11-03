@@ -290,7 +290,7 @@ window.MINIDATA = {
     rows: [
       { id: 'P01', day: '12/06 (일)', time: '01:12', store: '화성점', appr: '관리자 정', orig: null, pay: '현금', amt: 189000, tags: ['night', 'noorig', 'cash', 'round', 'weekend'], risk: '화성점 심야 현금 반품 · 원거래 없음' },
       { id: 'P02', day: '12/06 (일)', time: '01:40', store: '화성점', appr: '관리자 정', orig: null, pay: '현금', amt: 189000, tags: ['night', 'noorig', 'cash', 'round', 'weekend'], risk: '같은 금액 · 같은 관리자 반복' },
-      { id: 'P03', day: '12/13 (일)', time: '02:05', store: '오산점', appr: '관리자 윤', orig: null, pay: '현금', amt: 214500, tags: ['night', 'noorig', 'cash', 'weekend'], risk: '오산점 심야 현금 반품 · 원거래 없음' },
+      { id: 'P03', day: '12/13 (일)', time: '02:05', store: '오산점', appr: '관리자 윤', orig: null, pay: '현금', amt: 194500, tags: ['night', 'noorig', 'cash', 'weekend'], risk: '오산점 심야 현금 반품 · 원거래 없음' },
       { id: 'P04', day: '12/20 (일)', time: '01:55', store: '평택점', appr: '관리자 하', orig: null, pay: '현금', amt: 162000, tags: ['night', 'noorig', 'cash', 'weekend'], risk: '평택점 심야 현금 반품 · 원거래 없음' },
       { id: 'P05', day: '12/27 (일)', time: '02:30', store: '화성점', appr: '관리자 정', orig: null, pay: '현금', amt: 189000, tags: ['night', 'noorig', 'cash', 'round', 'weekend'], risk: '화성점 · 같은 금액 세 번째' },
       { id: 'N01', day: '12/01 (화)', time: '10:20', store: '수원점', appr: '관리자 박', orig: 'A-1201-0332', pay: '카드 취소', amt: 45900, tags: [] },
