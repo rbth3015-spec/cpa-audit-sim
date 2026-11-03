@@ -817,7 +817,7 @@
 
       { type: 'write', who: 'partner',
         say: found ? '인수회계 문단엔 뭐가 들어가나?' : '영업권 문단엔 뭐가 들어가나?',
-        ask: (found ? 'PT Samhan Indo 인수회계' : '영업권 손상') + '를 핵심감사사항으로 기재할 때 들어갈 내용을 2줄 이내로 서술하시오.',
+        ask: (found ? 'PT Samhan Indo 인수회계를' : '영업권 손상을') + ' 핵심감사사항으로 기재할 때 들어갈 내용을 2줄 이내로 서술하시오.',
         guide: ['① 왜 골랐는지', '② 감사에서 한 일', '③ 관련 공시'], maxChars: 110, timeLimit: 100,
         rubric: {
           bonusCap: 6,
