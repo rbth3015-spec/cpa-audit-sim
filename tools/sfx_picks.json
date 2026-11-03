@@ -1,0 +1,18 @@
+{
+ "stamp": [{ "file": "Epic Stock Media - HD Lock And Mechanism Sound Design Kit/MECHLtch_Click Deep Mechanism Latch Button Nearfield Thunk 02_ESM_HDLM.wav", "gain": 1 }],
+ "stampSm": [{ "file": "344 Audio - Antique Typewriter/COMType_Typewriter Space Key, Typewriter 05_344 Audio_Antiques - Typewriter.wav", "gain": 0.7, "dur": 0.3 }],
+ "flip": [{ "file": "Cinematic Sound Design - Paper Foley/Encyclopedia Glossy Page Turn Muted.wav", "gain": 0.6 }],
+ "turn": [{ "file": "Cinematic Sound Design - Paper Foley/A4 Printing Paper Rattle Page Turn Tail.wav", "gain": 0.8 }],
+ "open": [{ "file": "InMotionAudio - Scratch Card/OBJMisc_ScratchCard_CardMovement_09_InMotionAudio_ScratchCard.wav", "gain": 0.6, "dur": 0.5 }],
+ "msg": [{ "file": "CB_Sounddesign - Applicable Sounds - Organic UI and Building Games SFX/UIMisc_Kalimba 3 Up_CB Sounddesign_APPlicable Sounds.wav", "gain": 0.5 }],
+ "bond": [{ "file": "Cinematic Sound Design - User Interface/Interface Plucks Happy.wav", "gain": 0.55 }],
+ "great": [{ "file": "Cinematic Sound Design - UI Interaction Elements/Accept Boing Crunch.wav", "gain": 0.8 }],
+ "ok": [{ "file": "CB_Sounddesign - Applicable Sounds - Organic UI and Building Games SFX/UIMisc_Kalimba 3 Up_CB Sounddesign_APPlicable Sounds.wav", "gain": 0.7 }],
+ "mid": [{ "file": "Cinematic Sound Design - Interface & Infographics/Interface Percussion Snap.wav", "gain": 0.6 }],
+ "bad": [{ "file": "Cinematic Sound Design - System & UI Feedback Elements/Interface Deny Low Fat Dark.wav", "gain": 0.7 }],
+ "alarm": [{ "file": "344 Audio - Antique Clocks/CLOCKTick_You're Running Late _344 Audio_Antique Clocks.wav", "gain": 0.5, "start": 2.246, "dur": 0.25 }],
+ "reveal": [{ "file": "Jake Fielding - Cinematic Horn Braams/DSGNBram____Cinematic Horn Braam, Epic, Cinematic, Dark, Instrument, Huge-32.wav", "gain": 1, "dur": 3.5 }],
+ "card": [{ "file": "Epic Stock Media - Board Game - Sound Set Kit for Tabletop and Digital Games/PAPRHndl_Game Play Cards Dry Show Flip Toss Disgard Near 12_ESM_BG.wav", "gain": 0.7 }],
+ "tick": [{ "file": "Epic Stock Media - Board Game - Sound Set Kit for Tabletop and Digital Games/UIClick_UI Button Analog Vintage Double Click Neutral Dry Press 11_ESM_BG.wav", "gain": 0.35 }],
+ "hop": [{ "file": "InMotionAudio - Scratch Card/OBJMisc_ScratchCard_SurfaceWipe_04_InMotionAudio_ScratchCard.wav", "gain": 0.5, "dur": 0.5 }]
+}
