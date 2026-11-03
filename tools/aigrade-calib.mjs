@@ -1,5 +1,6 @@
 /* AI 연동 채점 — 모델이 우리 채점표대로 채점하는지, 모델끼리 같은 판정을 내는지 잰다 (aigrade-calib.mjs)
    실행:  node tools/aigrade-calib.mjs                              Opus 5.5 · 문항 6개
+          node tools/aigrade-calib.mjs --spot [--model …]            손으로 쓴 답안으로 지침이 가르는 자리만
           node tools/aigrade-calib.mjs --n 12 --model claude-sonnet-5-5
           node tools/aigrade-calib.mjs --all                        세 모델을 차례로 돌려 서로 비교
 
@@ -11,6 +12,7 @@
      B  다른 문항의 모범답안                     → 모든 논점 none
      C  배점이 가장 큰 논점의 인정 표현을 뺀 답안    → 그 논점은 full 이 아니어야 한다
      A' 모범답안을 한 번 더                      → A 와 같은 판정이어야 한다 (같은 모델 안의 흔들림)
+     D  모범답안의 행위 낱말을 같은 뜻 다른 말로 바꾼 답안 (커뮤니케이션 → 논의) → 그 논점은 none 이 아니어야 하고 full 이 많아야 한다
    --all 이면 같은 답안에 대해 모델끼리 판정이 같은 비율과 점수 차이도 낸다.
    기준 — A · B · C · A' 가 각각 90% 이상이면 「지침대로」. 못 미치면 js/aigrade.js 의 지침(SYSTEM)을 고치고 GUIDE_V 를 올린다. */
 import fs from 'node:fs';
@@ -71,13 +73,28 @@ function dropTop(p) {
   }
   return null;
 }
+/* 키워드 채점이 놓치는 표현 — 같은 행위를 가리키는 다른 말로 바꾼다 */
+const SWAPS = [['커뮤니케이션', '논의'], ['질문', '문의'], ['입수', '확보']];
+function swapWord(p) {
+  for (const [from, to] of SWAPS) {
+    if (!p.model.includes(from)) continue;
+    const m = p.rubric.must.find(x => [].concat(x.kw || []).some(k => k.includes(from)));
+    if (m && !AE.expand([].concat(m.kw || [])).some(k => k.includes(to))) {
+      return { text: p.model.split(from).join(to), label: m.label, from, to };
+    }
+  }
+  return null;
+}
+const swapRows = all.filter(x => swapWord(x.p)).slice(0, Math.max(3, Math.ceil(N / 2)));
 const cases = picked.map((x, i) => {
-  const other = all.find((o, k) => o.p !== x.p && o.where.split(' ')[0] !== x.where.split(' ')[0] && k >= (i * 7) % all.length) || all.find(o => o.p !== x.p);
+  // 회사마다 같은 틀의 장면(의견형성 등)이 있다 — 논점이 겹치는 문항은 '다른 문항' 이 아니다
+  const apart = o => !o.p.rubric.must.some(m => x.p.rubric.must.some(y => y.label === m.label));
+  const other = all.find((o, k) => o.p !== x.p && apart(o) && o.where.split(' ')[0] !== x.where.split(' ')[0] && k >= (i * 7) % all.length) || all.find(o => o.p !== x.p && apart(o));
   return { x, A: x.p.model, B: other.p.model, C: dropTop(x.p) };
 });
 
-const calls = models.length * cases.reduce((n, c) => n + 3 + (c.C ? 1 : 0), 0);
-console.log(`■ AI 연동 채점 일치 점검 — 지침 ${AIGRADE.GUIDE_V} · 모델 ${models.join(' · ')} · 문항 ${cases.length}개 · Claude 호출 ${calls}번`);
+const calls = models.length * (cases.reduce((n, c) => n + 3 + (c.C ? 1 : 0), 0) + swapRows.length);
+if (!flag('--spot')) console.log(`■ AI 연동 채점 일치 점검 — 지침 ${AIGRADE.GUIDE_V} · 모델 ${models.join(' · ')} · 문항 ${cases.length}개 · Claude 호출 ${calls}번`);
 
 const bin = findClaude();
 if (!bin) { console.log('  Claude Code 를 찾지 못했다 — 환경변수 CLAUDE_BIN'); process.exit(1); }
@@ -95,6 +112,54 @@ async function ask(model, p, sit, text) {
            trap: (p.rubric.trap || []).some(t => v.ai.trap[t.label] === true), pct: g.percent };
 }
 
+/* 손으로 쓴 답안 — 지침이 가르는 자리를 바로 본다. want 는 허용하는 판정 */
+const SPOT = [
+  { at: ['seorin', 's9', null, 2], label: '미수정왜곡표시를 지배기구와 커뮤니케이션', why: '내용 · 같은 행위 다른 말', want: ['full'],
+    ans: '미수정왜곡표시를 감사위원회와 논의하고 그 영향을 알린다.' },
+  { at: ['seorin', 's9', null, 2], label: '미수정왜곡표시를 지배기구와 커뮤니케이션', why: '뭉뚱그림', want: ['half'],
+    ans: '미수정 사항은 윗선에 보고한다.' },
+  { at: ['seorin', 's9', null, 2], label: '경영진 서면진술 입수', why: '채점어', want: ['full'],
+    ans: '경영진으로부터 미수정왜곡표시의 영향이 중요하지 않다는 서면진술을 입수한다.' },
+  { at: ['seorin', 's2', null, 0], label: '유의적 위험으로 식별', why: '용어', want: ['full'],
+    ans: '이 거래는 유의적 위험으로 식별한다.' },
+  { at: ['seorin', 's2', null, 0], label: '유의적 위험으로 식별', why: '용어 · 풀어 씀', want: ['half'],
+    ans: '이 거래는 감사에서 특별히 신경 써서 봐야 할 위험으로 본다.' },
+  { at: ['seorin', 's7', null, 1], label: '경영진이 거부하면 지배기구에 커뮤니케이션', why: '맥락 없음', want: ['half'],
+    ans: '지배기구와 커뮤니케이션한다.' },
+  { at: ['raon', 'r4', null, 1], label: '계약 조건을 직접 읽고 수행의무 식별', why: '묻지 않은 사항', want: ['none'],
+    ans: '대표이사의 실적 압박이 커서 부정의 동기가 있다.' },
+  { at: ['raon', 'r4', null, 1], label: '의무 이행 시점의 증거 확인', why: '반대 취지', want: ['none'],
+    ans: '계약금은 반환 의무가 없으므로 공동연구 이행 여부는 확인할 필요가 없다.' },
+  { at: ['raon', 'r5', 'BAD', 1], label: '계약 조건을 직접 확인', why: '내용 · 다른 말', want: ['full'],
+    ans: '투자자에게 상환 요구권이 있는지 약정 내용을 직접 열람해 확인한다.' },
+  { at: ['raon', 'r5', 'BAD', 1], label: '부채와 자본의 구분 판단', why: '채점어 없음', want: ['half'],
+    ans: '회사가 돈을 돌려줘야 할 의무가 있으면 빚으로 본다.' },
+  { at: ['daon', 'd4', null, 1], label: '부정 의심 — 경영진 · 지배기구 커뮤니케이션', why: '내용 · 같은 행위 다른 말', want: ['full'],
+    ans: '반품을 이용한 부정이 의심되므로 경영진과 감사위원회에 알리고 협의한다.' },
+  { at: ['raon', 'r7', 'DUE', 2], label: '반영되지 않으면 의견 변형', why: '판단 병기', want: ['none'],
+    ans: '지배기구와 커뮤니케이션하고, 반영되지 않으면 한정의견 또는 적정의견을 표명한다.' }
+];
+if (flag('--spot')) {
+  for (const model of models) {
+    let ok = 0;
+    console.log(`\n  ${model} · 지침 ${AIGRADE.GUIDE_V}`);
+    for (const c of SPOT) {
+      SEASONS.use(c.at[0]);
+      const sc = ctx.SCENES.find(x => x.id === c.at[1]);
+      const it = SEASON.resolve(sc, SEASON.create({ seed: 7 }), c.at[2] || (sc.variants ? sc.variants[0].id : undefined));
+      const p = it.parts[c.at[3]];
+      const at = p.rubric.must.findIndex(m => m.label === c.label);
+      if (at < 0) { console.log(`   ✕ 논점 없음 ${c.at[1]} ${c.label}`); continue; }
+      const r = await ask(model, p, it.situation, c.ans);
+      const v = r.err ? '오류' : r.must[at], hit = c.want.includes(v);
+      if (hit) ok++;
+      console.log(`   ${hit ? '○' : '✕'} ${v.padEnd(4)} (기대 ${c.want.join('·')}) ${c.why} | ${c.ans.slice(0, 34)}`);
+    }
+    console.log(`   ${ok} / ${SPOT.length}`);
+  }
+  process.exit(0);
+}
+
 const R = {};      // R[model][i] = { A, B, C, A2 }
 for (const model of models) {
   R[model] = [];
@@ -109,6 +174,13 @@ for (const model of models) {
     R[model][i] = row;
     const show = k => !row[k] ? '—' : row[k].err ? '오류(' + row[k].err.slice(0, 24) + ')' : row[k].must.map(v => v[0]).join('') + ' ' + row[k].pct + '점';
     console.log(`   ${c.x.where.padEnd(22)} A ${show('A')} · B ${show('B')} · C ${show('C')} · A' ${show('A2')}`);
+  }
+  R[model].swap = [];
+  for (const x of swapRows) {
+    const d = swapWord(x.p), r = await ask(model, x.p, x.sit, d.text);
+    const at = x.p.rubric.must.findIndex(m => m.label === d.label);
+    R[model].swap.push({ v: r.err ? 'err' : r.must[at] });
+    console.log(`   ${x.where.padEnd(22)} D ${d.from} → ${d.to} : ${r.err ? '오류' : r.must[at]}`);
   }
 }
 
@@ -132,6 +204,13 @@ for (const model of models) {
   const m = { a: pct(aF, aN), clean: pct(aClean, aRows), b: pct(bN, bT), c: pct(cOk, cT), s: pct(same, sameT) };
   console.log(`  ${model.padEnd(20)} ${String(m.a).padStart(6)}%   ${String(m.clean).padStart(6)}%   ${String(m.b).padStart(9)}%   ${String(m.c).padStart(10)}%   ${String(m.s).padStart(10)}%   ${String(errs).padStart(3)}`);
   if (errs || m.a < 90 || m.b < 90 || m.c < 90 || m.s < 90) weak.push(model);
+}
+
+for (const model of models) {
+  const rows = R[model].swap || [];
+  const full = rows.filter(r => r.v === 'full').length, none = rows.filter(r => r.v === 'none' || r.v === 'err').length;
+  console.log(`  ${model.padEnd(20)} D 같은 뜻 다른 말 — full ${full}/${rows.length} · none ${none}/${rows.length}`);
+  if (rows.length && (none || pct(full, rows.length) < 80)) weak.push(model + ' D');
 }
 
 if (models.length > 1) {

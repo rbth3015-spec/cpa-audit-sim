@@ -32,7 +32,7 @@
       var a = String(g).split(' — ');
       return { t: a[0].replace(/^[①②③④]\s*/, ''), tip: a[1] || '' };
     }).filter(function (g) { return !(p.type === 'judge' && /^판단/.test(g.t)); });
-    var html = out.map(function (g) { return '<li title="' + esc(g.tip) + '">' + esc(g.t) + '</li>'; }).join('');
+    var html = out.map(function (g) { return '<li>' + (g.tip ? '<b>' + esc(g.t) + '</b>' + esc(g.tip) : esc(g.t)) + '</li>'; }).join('');
     var m = /(\d+)\s*줄/.exec(p.ask || '');
     if (p.type === 'write' || p.type === 'judge') html += '<li class="lim">' + (m ? m[1] + '줄 · ' : '') + p.maxChars + '자</li>';
     return '<ul class="reqs">' + (extra || '') + html + '</ul>';

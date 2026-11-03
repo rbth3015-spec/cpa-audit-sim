@@ -190,8 +190,8 @@ table.tb tr.sum td { font-weight: 700; color: var(--red-2); border-top: 1px soli
 
 .ask { margin: 0; font: 700 21px/1.6 var(--serif); text-wrap: pretty; }
 .reqs { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
-.reqs li { font: 600 12px/1 var(--sans); border: 1px solid var(--strong); padding: 7px 9px; background: var(--panel); }
-.reqs li[title]:not([title=""]) { cursor: help; }
+.reqs li { font: 500 13px/1.35 var(--sans); border: 1px solid var(--strong); padding: 6px 9px; background: var(--panel); word-break: keep-all; }
+.reqs li b { font-weight: 700; margin-right: 6px; }
 .reqs li.lim { border-style: dashed; color: var(--dim); font: 500 12px/1 var(--mono); }
 .reqs li.hot { border-color: var(--red); color: var(--red-2); }
 
@@ -299,12 +299,12 @@ table.sort td { border-bottom: 1px solid var(--line); padding: 8px 6px; vertical
 table.sort td.it { font: 400 15px/1.55 var(--serif); padding-right: 12px; }
 table.sort td.it kbd { margin-right: 8px; }
 table.sort tr.sel td.it { box-shadow: inset 3px 0 0 var(--red); padding-left: 10px; }
-.cat { display: block; width: 100%; min-height: 40px; border: 1px dashed var(--rule); font: 700 13px/1.2 var(--sans); color: var(--dim); }
+.cat { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 40px; border: 1px dashed var(--rule); font: 700 15px/1.2 var(--sans); color: var(--dim); text-align: center; }
 .cat:hover { border-color: var(--strong); color: var(--ink); background: var(--panel-2); }
 .cat.on { border: 1px solid var(--ink); background: var(--ink); color: var(--bg); }
 .cat.right { border: 1px solid var(--good); background: var(--good); color: #fff; }
-.cat.wrong { border: 1px solid var(--red-2); background: var(--red-soft); color: var(--red-2); text-decoration: line-through; }
-.cat.should { border: 1px dashed var(--good); color: var(--good); }
+.cat.wrong { border: 1px solid var(--red-2); background: var(--red-soft); color: var(--red-2); }
+.cat.should { border: 1px dashed var(--good); color: var(--good); font-size: 12px; }
 table.sort .why { display: block; margin-top: 4px; font: 500 13px/1.45 var(--sans); color: var(--dim); }
 
 /* ── 채점 ────────────────────────────────────────────── */
