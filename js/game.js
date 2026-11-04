@@ -50,11 +50,12 @@
   function sceneImg(art) { return window.ART.sceneSrc(art || 'desk'); }
   var STORY = window.STORY, MESSENGER = window.MESSENGER;
   function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  var endHappy = false;
   function show(id) {
     ['home', 'play', 'end'].forEach(function (k) { $('#screen-' + k).hidden = k !== id; });
     window.scrollTo(0, 0);
-    // 배경음 — 화면에 맞춰 바뀐다 (홈은 조용히)
-    FX.music(id === 'play' ? 'scene' : id === 'end' ? 'end' : null);
+    // 배경음 — 화면에 맞춰 바뀐다
+    FX.music(id === 'play' ? 'scene' : id === 'end' ? (endHappy ? 'happy' : 'end') : 'home');
   }
   function typing(e) { var t = e.target; return t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT'); }
   var TYPE_NAME = SEASON.TYPE_NAME;
@@ -1603,12 +1604,20 @@
       '<button type="button" class="btn" data-act="resume">계속 <kbd>Esc</kbd></button>' +
       '<button type="button" class="btn ghost" data-act="binder">조서 보기</button>' +
       '<button type="button" class="btn ghost" data-act="snd">' + (FX.isOn() ? '소리 끄기' : '소리 켜기') + '</button>' +
+      '<div class="vols">' + [['music', '음악'], ['sfx', '효과음']].map(function (k) {
+        return '<label><span>' + k[1] + '</span><input type="range" min="0" max="100" value="' + Math.round(FX.vol(k[0]) * 100) + '" data-vol="' + k[0] + '"></label>';
+      }).join('') + '</div>' +
       (window.AIGRADE ? '<button type="button" class="btn ghost" data-act="grade">' + esc(window.AIGRADE.label()) + '</button>' : '') +
       '<button type="button" class="btn ghost" data-act="home">' + (mode === 'season' ? '홈으로 · 이 장면 처음부터 이어하기' : '연습 그만두기') + '</button></div>';
     document.body.appendChild(el);
     function close() { document.removeEventListener('keydown', onKey, true); el.remove(); }
     function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } }
     document.addEventListener('keydown', onKey, true);
+    el.addEventListener('input', function (e) {
+      var k = e.target.getAttribute('data-vol');
+      if (k) FX.setVol(k, e.target.value / 100);
+    });
+    el.addEventListener('change', function (e) { if (e.target.getAttribute('data-vol') === 'sfx') FX.play('stampSm'); });
     el.addEventListener('click', function (e) {
       if (e.target === el) return close();
       var b = e.target.closest('[data-act]');
@@ -1732,6 +1741,7 @@
     var dec = S.decision;
     // 진실을 잡아내고(발견 · 수정) 감리에서 지적이 없으면 — 세상이 컬러로 돌아온다
     var happy = a.tone === 'ok' && E.rows.some(function (r) { return r.state === 'found' || r.state === 'fixed'; });
+    endHappy = happy;
     var bg = window.ART.sceneSrc(happy ? 'dawn' : a.tone === 'bad' ? 'fss' : 'review');
     $('#screen-end').innerHTML =
       '<div class="end' + (happy ? ' happy' : '') + '">' +
