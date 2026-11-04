@@ -18,7 +18,8 @@ const LOGIN = process.argv[2] === '--login';
 const ROOT = path.resolve((!LOGIN && process.argv[2]) || process.cwd());   // 저장소 폴더에서 실행한다 — '.' 같은 상대 경로도 절대 경로로
 const PORT = +(process.argv[3] || 8765);
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json', '.jpg': 'image/jpeg', '.png': 'image/png', '.mp4': 'video/mp4', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
+  '.json': 'application/json', '.jpg': 'image/jpeg', '.png': 'image/png', '.mp4': 'video/mp4', '.svg': 'image/svg+xml', '.webp': 'image/webp',
+  '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.ogg': 'audio/ogg', '.wav': 'audio/wav' };
 
 /* 같은 출처에서 온 요청인가 — Host 는 이 서버여야 하고, Origin 이 있으면 이 서버여야 한다 */
 const HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`]);
@@ -67,7 +68,15 @@ if (LOGIN) {
     const f = path.join(ROOT, p);
     if (!f.startsWith(ROOT)) { res.writeHead(403); return res.end(); }
     const buf = await readFile(f);
-    res.writeHead(200, { 'Content-Type': TYPES[path.extname(f).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+    const head = { 'Content-Type': TYPES[path.extname(f).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store', 'Accept-Ranges': 'bytes' };
+    // 음악 이어 듣기는 구간 요청이 있어야 위치를 옮길 수 있다
+    const r = /^bytes=(\d+)-(\d*)$/.exec(req.headers.range || '');
+    if (r && +r[1] < buf.length) {
+      const from = +r[1], to = r[2] ? Math.min(+r[2], buf.length - 1) : buf.length - 1;
+      res.writeHead(206, { ...head, 'Content-Range': `bytes ${from}-${to}/${buf.length}` });
+      return res.end(buf.subarray(from, to + 1));
+    }
+    res.writeHead(200, head);
     res.end(buf);
   } catch (e) { if (!res.headersSent) res.writeHead(404); res.end('not found'); }
 }).listen(PORT, '127.0.0.1', 1024, () => console.log('serving', ROOT, PORT));

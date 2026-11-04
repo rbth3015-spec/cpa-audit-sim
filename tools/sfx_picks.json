@@ -1,0 +1,18 @@
+{
+ "stamp": [{"file": "Epic Stock Media - HD Lock And Mechanism Sound Design Kit/MECHLtch_Click Deep Mechanism Latch Button Nearfield Thunk 02_ESM_HDLM.wav", "level": -20}],
+ "stampSm": [{"file": "344 Audio - Antique Typewriter/COMType_Typewriter Space Key, Typewriter 05_344 Audio_Antiques - Typewriter.wav", "dur": 0.3, "level": -25}],
+ "flip": [{"file": "Cinematic Sound Design - Paper Foley/Encyclopedia Glossy Page Turn Muted.wav", "level": -26}],
+ "turn": [{"file": "Cinematic Sound Design - Paper Foley/A4 Printing Paper Rattle Page Turn Tail.wav", "level": -24}],
+ "open": [{"file": "InMotionAudio - Scratch Card/OBJMisc_ScratchCard_CardMovement_09_InMotionAudio_ScratchCard.wav", "dur": 0.5, "level": -27}],
+ "msg": [{"file": "CB_Sounddesign - Applicable Sounds - Organic UI and Building Games SFX/UIMisc_Kalimba 3 Up_CB Sounddesign_APPlicable Sounds.wav", "level": -25}],
+ "bond": [{"file": "Cinematic Sound Design - User Interface/Interface Plucks Happy.wav", "level": -24}],
+ "great": [{"file": "Cinematic Sound Design - UI Interaction Elements/Accept Boing Crunch.wav", "level": -20}],
+ "ok": [{"file": "Cinematic Sound Design - Interface & Infographics/Interface Accept Glassy Snap.wav", "level": -23}],
+ "mid": [{"file": "Cinematic Sound Design - Interface & Infographics/Interface Percussion Snap.wav", "level": -25}],
+ "bad": [{"file": "Cinematic Sound Design - System & UI Feedback Elements/Interface Deny Low Fat Dark.wav", "level": -22}],
+ "alarm": [{"file": "344 Audio - Antique Clocks/CLOCKTick_You're Running Late _344 Audio_Antique Clocks.wav", "start": 2.246, "dur": 0.25, "level": -28}],
+ "reveal": [{"file": "Jake Fielding - Cinematic Horn Braams/DSGNBram____Cinematic Horn Braam, Epic, Cinematic, Dark, Instrument, Huge-32.wav", "dur": 3.5, "level": -21}],
+ "card": [{"file": "Epic Stock Media - Board Game - Sound Set Kit for Tabletop and Digital Games/PAPRHndl_Game Play Cards Dry Show Flip Toss Disgard Near 12_ESM_BG.wav", "level": -23}],
+ "tick": [{"file": "Epic Stock Media - Board Game - Sound Set Kit for Tabletop and Digital Games/UIClick_UI Button Analog Vintage Double Click Neutral Dry Press 11_ESM_BG.wav", "level": -31}],
+ "hop": [{"file": "InMotionAudio - Scratch Card/OBJMisc_ScratchCard_SurfaceWipe_04_InMotionAudio_ScratchCard.wav", "dur": 0.5, "level": -28}]
+}
