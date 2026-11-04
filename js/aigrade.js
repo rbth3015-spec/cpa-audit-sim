@@ -20,6 +20,8 @@
     { id: 'claude-sonnet-5-5', name: 'Sonnet 5.5' },
     { id: 'claude-haiku-5-5', name: 'Haiku 5.5' }
   ];
+  // 기본은 Sonnet — 채점표대로 논점을 가르는 일이라 충분하고, 빠르고 사용량이 적다
+  var DEFAULT_MODEL = 'claude-sonnet-5-5';
   // 공식 SDK — 빌드 단계가 없는 정적 사이트라 필요할 때 CDN 에서 모듈로 불러온다
   var SDK_URL = 'https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.133.0/+esm';
   var WAIT_MS = 45000;
@@ -28,7 +30,7 @@
     var c = {};
     try { c = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { c = {}; }
     return { mode: c.mode === 'ai' ? 'ai' : 'basic',
-             model: MODELS.some(function (m) { return m.id === c.model; }) ? c.model : MODELS[0].id,
+             model: MODELS.some(function (m) { return m.id === c.model; }) ? c.model : DEFAULT_MODEL,
              key: typeof c.key === 'string' ? c.key : '' };
   }
   function save(c) { try { localStorage.setItem(KEY, JSON.stringify(c)); } catch (e) { /* 저장 공간 없음 */ } }

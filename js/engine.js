@@ -203,7 +203,8 @@
         if (item.negOk !== true) {
           // 부정문 탐지는 같은 문장 안에서만 한다
           var tail = hay.substr(f.i + f.len, item.negWindow || 12).split(SENT)[0];
-          if (NEG.test(tail)) {
+          // '~하지 않으면 · ~지 않는 경우' 는 조건절이지 앞 낱말의 부정이 아니다
+          if (NEG.test(tail.replace(/지않(으면|은경우|는경우|을경우|을때)|없애|없앤|없앰/g, ''))) {
             negatedHit = kws[a];
             if (f.fuzzy) break;
             from = f.i + 1; continue;   // 뒤쪽에 긍정 서술이 또 있을 수 있다

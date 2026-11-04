@@ -336,12 +336,14 @@
     var events = [];
 
     // 칸을 모두 합쳐서 본다
+    // 판단을 거꾸로 고른 칸의 논점은 진실 발견 · 개념 카드의 근거로 쓰지 않는다 — 그 칸은 0점이다
     var allMust = [], allTrap = [], vWrong = false;
     (res.parts || []).forEach(function (p) {
       if (!p) return;
-      (p.res.must || []).forEach(function (m) { allMust.push(m); });
+      var wrong = !!(p.verdict && !p.verdict.correct);
+      if (!wrong) (p.res.must || []).forEach(function (m) { allMust.push(m); });
       (p.res.trap || []).forEach(function (t) { allTrap.push(t); });
-      if (p.verdict && !p.verdict.correct) vWrong = true;
+      if (wrong) vWrong = true;
     });
 
     var newHits = [];
@@ -554,15 +556,30 @@
         ['재무제표 전체 중요성', matText()], ['수행중요성', (global.COMPANY || {}).pm || '—'],
         ['명백하게 사소한 금액', (global.COMPANY || {}).trivial || '—'], ['미수정 합계', m.total.toFixed(1) + '억원']] }
     ];
-    var nTruth = m.items.filter(function (i) { return i.kind === 'truth'; }).length;
-    it.situation = '감사 중 식별된 왜곡표시를 집계하였다. ' +
-      (m.byChair ? '감사위원회의 권고로 경영진은 일반적인 조정사항은 받아들였으나 '
-        : m.coop ? '경영진은 일반적인 조정사항은 받아들였으나 ' : '경영진은 ') +
-      (nTruth ? '감사인이 식별한 주요 왜곡표시의 수정은 거부하였다.' : '나머지 사항의 수정을 거부하였다.') +
+    // 상황 문장은 실제로 남은 미수정 항목을 따른다 — 다 고쳤는데 '거부' 라고 쓰지 않는다
+    var open = m.items.filter(function (i) { return !i.corrected; });
+    var fixedSome = open.length < m.items.length;
+    var tail;
+    if (!open.length) {
+      tail = (m.byChair ? '감사위원회의 권고로 ' : '') + '경영진은 식별된 왜곡표시를 모두 수정하였다.';
+      it.clues = ['모두 수정'];
+    } else if (fixedSome) {
+      tail = (m.byChair ? '감사위원회의 권고로 ' : '') + '경영진은 일반적인 조정사항은 받아들였으나 감사인이 식별한 주요 왜곡표시의 수정은 거부하였다.';
+      it.clues = ['주요 왜곡표시의 수정은 거부'];
+    } else {
+      tail = '경영진은 식별된 왜곡표시의 수정을 모두 거부하였다.';
+      it.clues = ['수정을 모두 거부'];
+    }
+    it.situation = '감사 중 식별된 왜곡표시를 집계하였다. ' + tail +
       (S.late ? ' 특수관계자 거래는 감사 종료 직전에야 확인되어 추가 절차를 할 시간이 부족하였다.' : '');
-    it.clues = ['수정은 거부'];
-    if (nTruth) it.clues = ['주요 왜곡표시의 수정은 거부'];
-    else it.clues = ['나머지 사항의 수정을 거부'];
+    // 고칠 것이 남지 않았으면 '끝까지 거부할 때' 칸은 가정으로 묻는다
+    if (!open.length) {
+      it.parts.forEach(function (p) {
+        if (p.type !== 'write' || !/끝까지 수정을 거부할 때/.test(p.ask || '')) return;
+        p.say = '다 고쳤잖아요. 못 고쳤으면 어떻게 하셨을 건데요?';
+        p.ask = '경영진이 수정을 거부하였다면 감사인이 할 조치 두 가지를 서술하시오.';
+      });
+    }
 
     // 합계가 중요성에 미달하면 "의견 변형" 을 물을 수 없다 — 그 칸의 논점을 바꾼다
     if (m.total <= mat()) {
@@ -572,6 +589,8 @@
           score: mu.score, label: '미수정 합계가 중요성에 미달하여 의견에 영향 없음', negOk: true,
           why: mu.why };
         p.model = '미수정왜곡표시를 개별적으로 또 합산하여 중요성과 비교하고 질적 요인도 고려한다. 합계가 중요성에 미달하므로 그 자체로는 감사의견에 영향을 미치지 아니한다.';
+        p.ask = '수정되지 않은 왜곡표시가 중요한지 판단하는 방법과, 이번 집계 결과가 감사의견에 미치는 영향을 서술하시오.';
+        p.guide = ['판단 방법 — 개별로만?', '영향 — 이번 미수정 합계는'];
         p.rubric.trap = (p.rubric.trap || []).filter(function (t) { return t.label !== '중요성 초과인데 적정의견'; });
       });
     }
@@ -603,11 +622,24 @@
       basis = 'none';
       kind = '적정의견';
     }
-    return { kind: kind, basis: basis, pervasive: pervasive, total: m.total, over: m.over, E: E };
+    return { kind: kind, basis: basis, pervasive: pervasive, total: m.total, over: m.over, E: E, pv: PV };
   }
 
   var WHY_OPINION = '감사의견 — 증거 부족(범위제한)이면 한정의견·의견거절, 중요한 왜곡표시면 한정의견·부적정의견. 영향이 전반적이면 의견거절·부적정의견';
   var WHY_PERVASIVE = '전반성 — 특정 계정에 국한되지 않거나, 국한되더라도 재무제표에서 비중이 큰 경우';
+
+  // 전반성 칸 — 낱말만 보면 정반대 결론도 만점이다. 판단대로 쓴 쪽만 인정하고 반대는 감점한다
+  var NOT_PERVASIVE = ['전반적이지 않', '전반적이지는 않', '전반적이지 아니', '전반적이지는 아니', '전반적인 것은 아니', '전반적인 영향은 없', '전반적이라고 볼 수 없'];
+  function pervasiveMust(d, score) {
+    return d.pervasive
+      ? { kw: ['전반적'], score: score, label: '중요하고 전반적', why: WHY_PERVASIVE }
+      : { kw: NOT_PERVASIVE, score: score, label: '중요하나 전반적이지 않음', negOk: true, why: WHY_PERVASIVE };
+  }
+  function pervasiveTrap(d) {
+    return d.pervasive
+      ? { kw: NOT_PERVASIVE, negOk: true, score: -12, label: '전반적인데 전반적이지 않다고 함' }
+      : { kw: ['전반적'], score: -12, label: '전반적이지 않은데 전반적이라고 함' };
+  }
 
   function opinionParts(d, S) {
     var t = d.total.toFixed(1);
@@ -627,44 +659,58 @@
       say: { staff: '왜 그 의견인지 써 봐.', senior: '근거는? 이사님께 올릴 수 있게.', partner: '근거는 어떻게 정리할까요?' },
       ask: '그 감사의견을 표명하는 근거를 2줄 이내로 서술하시오.',
       guide: ['감사증거 — 충분·적합 여부', '중요성 — 미수정 합계와 비교', '전반성 — 적정의견이면 생략'],
-      rubric: { bonusCap: 6, must: [], bonus: [
-        { kw: ['계량화', '재무적 영향'], score: 6, label: '재무적 영향의 계량화' }], trap: [] },
+      // 범위제한은 발견하지 못한 왜곡표시라 금액을 잴 수 없다 — 계량화 가점은 왜곡표시일 때만
+      rubric: { bonusCap: 6, must: [], bonus: d.basis === 'mis' ? [
+        { kw: ['계량화', '재무적 영향'], score: 6, label: '재무적 영향의 계량화' }] : [], trap: [] },
       model: '' };
 
     if (d.kind === '적정의견') {
       p2.rubric.must = [
         { kw: ['충분하고 적합한 감사증거'], score: 12, label: '충분하고 적합한 감사증거 입수', negOk: true },
-        { kw: ['미달', '이하', '넘지 않', '보다 작'], near: ['중요성'], within: 20, half: ['중요하지 않'], score: 16, label: '미수정왜곡표시가 중요성에 미달', negOk: true,
+        { kw: ['미달', '이하', '넘지 않', '보다 작', '초과하지 않', '미만', '보다 적', '하회', '중요하지 않'], near: ['중요성', '미수정', '왜곡표시'], within: 25, score: 16, label: '미수정왜곡표시가 중요성에 미달', negOk: true,
           why: '미수정왜곡표시 평가 — 합계가 중요성 미달이면 중요하지 않음. 단, 손익 반전·약정 위반 등 질적 요인 고려' }];
+      p2.rubric.trap = [{ kw: ['초과한다', '초과하므로', '초과하여', '초과하고', '초과함'], near: ['중요성'], within: 20, score: -10, label: '중요성을 초과한다고 함' }];
       p2.model = '충분하고 적합한 감사증거를 입수하였고 미수정왜곡표시 ' + t + '억원은 중요성 ' + mat() + '억원에 미달한다.';
+      if (d.total === 0) {     // 찾은 것을 모두 고친 길 — 미수정 사항이 없다
+        p2.rubric.must[1] = { kw: ['모두 수정', '전부 수정', '미수정왜곡표시가 없', '미수정왜곡표시는 없', '미수정 사항이 없', '남은 왜곡표시가 없'], half: ['수정되'], score: 16,
+          label: '식별한 왜곡표시 모두 수정 — 미수정왜곡표시 없음', negOk: true };
+        p2.rubric.trap = [];
+        p2.model = '충분하고 적합한 감사증거를 입수하였고 식별한 왜곡표시는 모두 수정되어 미수정왜곡표시가 없다.';
+      }
     } else if (d.basis === 'scope') {
       p2.rubric.must = [
-        { kw: ['감사범위제한'], score: 14, label: '감사범위제한',
+        { kw: ['감사범위제한'], half: ['입수할 수 없', '입수하지 못', '확보하지 못', '입수 불가'], score: 14, label: '감사범위제한', negOk: true,
           why: '감사범위제한 — 증거를 입수하지 못한 상황. 왜곡표시(부적정)와 구분 → 한정의견·의견거절' },
-        { kw: ['충분하고 적합한 감사증거'], score: 10, label: '충분하고 적합한 감사증거를 입수하지 못함', negOk: true },
-        { kw: ['전반적'], score: 14, label: d.pervasive ? '중요하고 전반적' : '중요하나 전반적이지 않음', negOk: true,
-          why: WHY_PERVASIVE }];
-      p2.model = '충분하고 적합한 감사증거를 입수하지 못하였으므로 감사범위제한에 해당하고, 그 영향이 ' +
-        (d.pervasive ? '중요하고 전반적이다.' : '중요하나 전반적이지는 않다.');
+        { kw: ['입수하지 못', '입수할 수 없', '확보하지 못', '입수 불가', '입수되지'], near: ['감사증거'], within: 20, half: ['충분하고 적합한 감사증거'], score: 10, label: '충분하고 적합한 감사증거를 입수하지 못함', negOk: true },
+        pervasiveMust(d, 14)];
+      p2.rubric.trap = [pervasiveTrap(d), { kw: ['입수하였', '입수했', '확보하였'], near: ['감사증거'], within: 20, score: -8, label: '증거를 입수했다고 함' }];
+      p2.guide = ['감사범위제한 — 증거 입수 여부', '영향 — 발견되지 아니한 왜곡표시가 미칠 수 있는', '전반성 — 특정 영역에 그치는지'];
+      p2.model = '충분하고 적합한 감사증거를 입수하지 못하였으므로 감사범위제한에 해당하고, 발견되지 아니한 왜곡표시가 미칠 수 있는 영향이 ' +
+        (d.pervasive ? '중요하고 동시에 전반적일 수 있다.' : '중요할 수 있으나 전반적이지는 않다.') +
+        (d.total > mat() ? ' 식별한 왜곡표시 ' + t + '억원도 근거 단락에 기술한다.' : '');
     } else {
       p2.rubric.must = [
-        { kw: ['충분하고 적합한 감사증거'], score: 10, label: '충분하고 적합한 감사증거 입수', negOk: true },
-        { kw: ['중요'], score: 10, label: '중요성 초과', negOk: true },
-        { kw: ['전반적'], score: 16, label: d.pervasive ? '중요하고 전반적' : '중요하나 전반적이지 않음', negOk: true,
-          why: WHY_PERVASIVE }];
-      p2.model = '충분하고 적합한 감사증거는 입수하였으나 미수정왜곡표시 ' + t + '억원이 중요성 ' + mat() + '억원을 초과하고, 그 영향이 ' +
-        (d.pervasive ? '재무제표의 다수 요소에 걸쳐 전반적이다.' : '특정 계정에 국한되어 전반적이지는 않다.');
+        { kw: ['입수하였', '입수했', '입수함', '입수하고', '확보하였', '확보했'], near: ['감사증거'], within: 20, half: ['충분하고 적합한 감사증거'], score: 10, label: '충분하고 적합한 감사증거 입수' },
+        { kw: ['초과', '넘어', '넘는', '넘으', '중요한 왜곡표시', '중요하나', '중요하고', '중요하며', '집합적으로 중요'], near: ['중요성', '왜곡표시'], within: 30, score: 10, label: '중요성 초과', negOk: true },
+        pervasiveMust(d, 16)];
+      p2.rubric.trap = [pervasiveTrap(d),
+        { kw: ['입수하지 못', '입수할 수 없', '확보하지 못'], near: ['감사증거'], within: 20, negOk: true, score: -8, label: '증거를 입수하지 못했다고 함' },
+        { kw: ['중요하지 않', '초과하지 않', '넘지 않', '미달'], near: ['중요성', '왜곡표시'], within: 30, negOk: true, score: -10, label: '왜곡표시가 중요하지 않다고 함' }];
+      p2.model = '충분하고 적합한 감사증거는 입수하였으나 미수정왜곡표시 ' + t + '억원이 중요성 ' + mat() + '억원을 초과하고, ' +
+        (d.pervasive ? '합계 또는 중요성 초과 항목 수가 전반성 판단 기준을 넘어 전반적이다.' : '합계가 전반성 판단 기준보다 작아 전반적이지는 않다.');
     }
 
     // 상장사 보고서는 업무품질관리검토를 거쳐야 나간다 — 마지막 칸은 품질관리실 오세진이 묻는다
-    var extra = (global.COMPANY || {}).opinionBonus || [];
+    // 회사 가점 — 계속기업 단락은 적정 · 한정일 때의 논점이다
+    var extra = (d.kind === '적정의견' || d.kind === '한정의견') ? ((global.COMPANY || {}).opinionBonus || []) : [];
+    // 의견거절이면 핵심감사사항 단락 자체가 없고, 미수정 사항이 없으면 관계를 물을 일이 없다
+    var kamBonus = (d.kind === '의견거절' || (d.kind === '적정의견' && d.total === 0)) ? [] : [{ kw: ['핵심감사사항'], score: 8, label: '핵심감사사항과의 관계' }];
     var p3 = { key: '③', who: 'eqr', maxChars: 110, timeLimit: 100,
       say: '발행 전에 제가 봅니다. 뭘 챙겼습니까?',
       ask: '감사보고서를 작성·발행할 때 함께 해야 할 일을 두 가지 이상 서술하시오.',
-      guide: ['보고서 문단 — 변형의견일 때 위치', '커뮤니케이션 · 서면진술'],
-      rubric: { bonusCap: 8, must: [], bonus: [
-        { kw: ['핵심감사사항'], score: 8, label: '핵심감사사항과의 관계' },
-        { kw: ['강조사항문단'], score: 8, label: '강조사항문단과 구분' }].concat(extra),
+      guide: ['근거 단락 — 변형의견일 때 제목과 위치', '커뮤니케이션 · 서면진술'],
+      rubric: { bonusCap: 8, must: [], bonus: kamBonus.concat([
+        { kw: ['강조사항문단'], score: 8, label: '강조사항문단과 구분' }]).concat(extra),
         trap: [{ kw: ['강조사항문단으로 갈음', '강조사항으로 기재'], score: -12, label: '강조사항문단으로 갈음' }] },
       model: '' };
 
@@ -674,17 +720,30 @@
         { kw: ['지배기구와의 커뮤니케이션'], near: ['미수정', '왜곡표시'], within: 30, score: 14, label: '미수정 사항을 지배기구와 커뮤니케이션' },
         { kw: ['서면진술'], score: 10, label: '미수정 사항이 중요하지 않다는 서면진술' }];
       p3.model = '미수정 사항은 지배기구와 커뮤니케이션하고, 미수정왜곡표시가 중요하지 않다는 경영진의 서면진술을 입수한다.';
+      if (d.total === 0) {     // 미수정 사항 커뮤니케이션과 서면진술(KSA 450)은 미수정왜곡표시가 있어야 성립한다
+        p3.rubric.must = [
+          { kw: ['유의적 발견사항', '감사 결과', '감사결과'], near: ['지배기구', '감사위원회', '커뮤니케이션', '보고'], within: 25, half: ['지배기구와의 커뮤니케이션'], score: 14, label: '감사 결과를 지배기구와 커뮤니케이션' },
+          { kw: ['핵심감사사항'], score: 10, label: '핵심감사사항 단락 기재(상장)' }];
+        p3.model = '감사의 유의적 발견사항을 지배기구와 커뮤니케이션하고, 상장회사이므로 핵심감사사항 단락을 기재한다.';
+      }
     } else {
       p3.rubric.must = [
-        { kw: ['변형의견근거문단'], score: 14, label: '변형의견근거문단 기재', negOk: true,
-          why: '변형의견근거문단 — 의견문단 바로 앞. 사유·재무적 영향 기재. 의견 변형 사유는 핵심감사사항으로 기재하지 않음' },
-        { kw: ['의견문단 앞', '의견문단의 바로 앞', '의견문단 바로 앞', '바로 앞에', '앞에 기재'], score: 10, label: '근거문단은 의견문단 바로 앞' },
+        { kw: ['한정의견근거', '부적정의견근거', '의견거절근거', '의견근거 단락', '근거 단락', '근거문단'], score: 14, label: '한정의견근거 · 부적정의견근거 · 의견거절근거 단락 기재', negOk: true,
+          why: '근거 단락 — 감사의견 단락 바로 다음. 왜곡표시면 재무적 영향(계량화), 범위제한이면 입수하지 못한 이유. 의견 변형 사유는 핵심감사사항으로 기재하지 않음' },
+        { kw: ['단락 바로 다음', '단락 다음', '단락 바로 뒤', '단락 뒤', '문단 바로 다음', '문단 다음', '문단 뒤', '문단 바로 뒤', '의견 바로 다음', '의견 다음', '바로 다음'], near: ['의견'], within: 25, score: 10, label: '근거 단락은 감사의견 단락 바로 다음' },
         { kw: ['지배기구와의 커뮤니케이션'], score: 10, label: '지배기구 커뮤니케이션' }];
-      p3.model = '의견문단 바로 앞에 변형의견근거문단을 두어 사유와 재무적 영향을 기재하고, 그 사항은 핵심감사사항으로 적지 아니하며 지배기구와 커뮤니케이션한다.';
+      p3.rubric.trap.push({ kw: ['바로 앞', '단락 앞', '문단 앞', '앞에 기재', '앞에 둔', '앞에 두'], near: ['의견'], within: 25, score: -6, label: '근거 단락을 의견 단락 앞에 둠' });
+      var scopeMis = d.basis === 'scope' && d.total > mat();     // 범위제한이어도 식별한 왜곡표시는 근거 단락에 함께 쓴다
+      var ground = d.basis === 'scope'
+        ? '충분하고 적합한 감사증거를 입수하지 못한 이유' + (scopeMis ? '와 식별한 왜곡표시를' : '를')
+        : '사유와 재무적 영향을';
+      p3.model = '감사의견 단락 바로 다음의 ' + d.kind + '근거 단락에 ' + ground + ' 기재하고, 그 사항은 핵심감사사항으로 적지 아니하며 지배기구와 커뮤니케이션한다.';
       if (d.kind === '의견거절') {
-        p3.rubric.must.push({ kw: ['핵심감사사항을 기재하지', '핵심감사사항은 기재하지', 'KAM을 기재하지'],
-          score: 10, label: '의견거절 시 핵심감사사항 미기재', negOk: true });
-        p3.model += ' 의견거절이므로 핵심감사사항은 기재하지 아니한다.';
+        p3.rubric.must.push({ kw: ['기재하지', '포함하지', '포함하여서는', '두지 않', '두지 아니', '쓰지 않', '쓰지 아니', '적지 않', '적지 아니', '기재 안', '기재해서는', '미기재', '미포함'],
+          near: ['핵심감사사항', 'KAM'], within: 15, score: 10, label: '의견거절 시 핵심감사사항 단락 없음', negOk: true });
+        p3.rubric.bonus.push({ kw: ['기타정보'], near: ['포함하지', '두지', '쓰지', '기재하지', '미포함', '적지', '포함하여서는'], within: 15, negOk: true, score: 4, label: '기타정보 단락도 포함하지 않음' });
+        p3.rubric.trap.push({ kw: ['핵심감사사항을 기재', '핵심감사사항으로 기재', '핵심감사사항에 기재', '핵심감사사항을 쓴', '핵심감사사항을 포함', '핵심감사사항 3건', '핵심감사사항 단락에 기재', '핵심감사사항 단락을 둔'], score: -8, label: '의견거절인데 핵심감사사항 기재' });
+        p3.model = '감사의견 단락 바로 다음의 의견거절근거 단락에 증거를 입수할 수 없는 이유' + (scopeMis ? '와 식별한 왜곡표시를' : '를') + ' 기재하고 지배기구와 커뮤니케이션한다. 핵심감사사항 · 기타정보 단락은 두지 않는다.';
       }
     }
     return [p1, p2, p3];
@@ -696,13 +755,15 @@
     S.decision = d;
     it.situation = '감사 종료 단계이다. 미수정왜곡표시 합계는 ' + d.total.toFixed(1) +
       '억원이고 재무제표 전체 중요성은 ' + mat() + '억원이다. 감사증거 확보 수준은 ' + S.gauge.E + '점이다.' +
-      (d.basis === 'scope' ? ' 여러 영역에서 충분하고 적합한 감사증거를 확보하지 못했다.' : '');
+      (d.basis === 'scope' ? (d.pervasive ? ' 재무제표 다수 영역에서 충분하고 적합한 감사증거를 확보하지 못했다.' : ' 특정 영역에서 충분하고 적합한 감사증거를 확보하지 못했다.') : '');
     it.exhibits = [{ type: 'kv', title: '판단 자료', items: [
       ['미수정왜곡표시 합계', d.total.toFixed(1) + '억원'],
       ['중요성을 넘는 개별 항목', S.mis.over + '건'],
       ['재무제표 전체 중요성', matText()],
       ['감사증거', S.gauge.E + ' / 100'],
-      ['핵심감사사항', '3건 (상장회사)']] }];
+      ['전반성 판단 기준', '미수정 합계 ' + d.pv + '억원 이상 또는 중요성 초과 항목 3건 이상'],
+      ['감사증거 기준', '45점 미만 범위제한 · 35점 미만 전반적'],
+      ['상장 구분', (global.COMPANY || {}).market || '상장회사']] }];
     it.clues = ['미수정왜곡표시 합계는 ' + d.total.toFixed(1) + '억원', '감사증거 확보 수준은 ' + S.gauge.E + '점'];
     // 회사가 의견 장면에 문항을 더 둔 경우(sc.parts) — 의견 칸 뒤에 ④부터 붙인다
     var extra = (call(it.sc.parts, it.v, S) || []).map(function (p, i) { return Object.assign({ key: KEYS[3 + i] }, p); });
