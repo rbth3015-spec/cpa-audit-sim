@@ -7,6 +7,8 @@
      node tools/kb.js eval [--miss]                                        검색 품질 측정
      node tools/kb.js check                                                문단 번호 무결성 점검
      node tools/kb.js stats                                                지식베이스 규모
+     node tools/kb.js node par:505-8 | con:감사증거 | 적극적 조회              그래프 노드 하나와 연결 (이름 일부로도)
+     node tools/kb.js graph                                                그래프 규모 · 관계별 엣지 수
 
    불러오기 · 색인 · 검색은 tools/kb-core.js — 채점 서버도 같은 것을 쓴다.
    측정: 정답을 사람이 새로 만들지 않는다. 기출 · GS 문항에 달린 기준서(자료/db/items.jsonl)와
@@ -33,35 +35,8 @@ const words = args.filter(a => {
 });
 
 /* ── 측정 ─────────────────────────────────── */
-// 해설에 인쇄된 문단 번호 — 인용 앞뒤 글을 질의로, 번호를 정답으로
-function citations() {
-  const out = [], seen = {};
-  const dirs = [path.join(ROOT, '자료', 'ocr'), path.join(ROOT, '자료', 'gs_review')];
-  dirs.forEach(dir => {
-    if (!fs.existsSync(dir)) return;
-    fs.readdirSync(dir).filter(f => /해설|강평|\d\d-\d/.test(f)).forEach(f => {
-      const lines = fs.readFileSync(path.join(dir, f), 'utf8').split('\n');
-      lines.forEach((line, i) => {
-        const re = /(?<![\d-])([2-7]\d\d)-(A?\d{1,3})(?![\d-])/g;
-        let m;
-        while ((m = re.exec(line))) {
-          const id = m[1] + '-' + m[2];
-          if (!byId[id]) continue;
-          // 강평은 한 줄이 물음 하나, 해설은 앞뒤 줄이 그 답이다 — 쪽 머리글과 배점은 뺀다
-          const near = dir.endsWith('gs_review') ? [line] : [lines[i - 2], lines[i - 1], line, lines[i + 1]];
-          const query = near.filter(t => t && !/모의고사|아카데미/.test(t)).join(' ')
-            .replace(/[2-7]\d\d-A?\d{1,3}/g, ' ').replace(/^물음\s*\d+\s*\([^)]*\)/, ' ');
-          if (norm(query).length < 15) continue;
-          const key = f + '|' + id + '|' + i;
-          if (seen[key]) continue;
-          seen[key] = 1;
-          out.push({ key: key, id, query });
-        }
-      });
-    });
-  });
-  return out;
-}
+// 해설에 인쇄된 문단 번호 — tools/kb-core.js
+const citations = () => core.citations(byId);
 
 function metric(rows, hit, ks, onMiss) {
   const res = {};
@@ -170,6 +145,36 @@ if (cmd === 'find') {
   if (hits === null) console.log('문구 찾기는 DB 가 있어야 됩니다 — node tools/kb_db.js');
   else if (!hits.length) console.log('없음');
   else hits.forEach(h => console.log(`${h.id.padEnd(10)} ${h.snip.replace(/\s+/g, ' ')}`));
+} else if (cmd === 'node' || cmd === 'graph') {
+  const db = KB.db;
+  const has = db && db.prepare("SELECT count(*) n FROM sqlite_master WHERE name = 'edge'").get().n && db.prepare('SELECT count(*) n FROM node').get().n;
+  if (!has) console.log('그래프가 없습니다 — node tools/kb_graph.js');
+  else if (cmd === 'graph') {
+    console.log('■ 노드'); db.prepare('SELECT type, count(*) n FROM node GROUP BY type ORDER BY n DESC').all().forEach(r => console.log(`  ${r.type.padEnd(11)} ${String(r.n).padStart(6)}`));
+    console.log('■ 엣지'); db.prepare('SELECT rel, source, count(*) n FROM edge GROUP BY rel, source ORDER BY rel, n DESC').all().forEach(r => console.log(`  ${r.rel.padEnd(12)} ${r.source.padEnd(12)} ${String(r.n).padStart(6)}`));
+  } else {
+    const q = words.join(' ');
+    let n = db.prepare('SELECT * FROM node WHERE id = ?').get(q) || db.prepare('SELECT * FROM node WHERE id = ?').get('par:' + q) || db.prepare('SELECT * FROM node WHERE id = ?').get('con:' + q);
+    if (!n) {
+      const like = db.prepare("SELECT id, type, label FROM node WHERE label LIKE ? ORDER BY length(label) LIMIT 12").all('%' + q + '%');
+      if (like.length === 1) n = db.prepare('SELECT * FROM node WHERE id = ?').get(like[0].id);
+      else { console.log(like.length ? '여럿입니다 — id 로 다시:' : '없음'); like.forEach(r => console.log(`  ${r.id}  (${r.type}) ${r.label.slice(0, 50)}`)); }
+    }
+    if (n) {
+      console.log(`■ ${n.id}  (${n.type})  ${n.label}`);
+      if (n.attrs !== '{}') console.log('  ' + n.attrs.slice(0, 200));
+      const show = (rows, arrow) => {
+        const by = {};
+        rows.forEach(r => { (by[r.rel + ' · ' + r.source] = by[r.rel + ' · ' + r.source] || []).push(r); });
+        Object.keys(by).forEach(k => {
+          const list = by[k].sort((a, b) => b.confidence - a.confidence || b.weight - a.weight);
+          console.log(`  ${arrow} ${k} (${list.length})  ` + list.slice(0, 8).map(r => r.other + (r.confidence < 1 ? '·' + r.confidence.toFixed(2) : '') + (r.weight > 1 ? '×' + r.weight : '')).join('  '));
+        });
+      };
+      show(db.prepare('SELECT rel, source, dst other, weight, confidence FROM edge WHERE src = ?').all(n.id), '→');
+      show(db.prepare('SELECT rel, source, src other, weight, confidence FROM edge WHERE dst = ?').all(n.id), '←');
+    }
+  }
 } else if (cmd === 'stats') {
   const s = KB.stats;
   console.log(`읽은 곳 ${KB.source} · 문단 ${s.paragraphs} · 색인 단위 ${s.units} · 두 글자 ${s.grams} · 사전 묶음 ${s.lexicon}`);
@@ -184,5 +189,5 @@ if (cmd === 'find') {
 } else if (cmd === 'check') {
   check();
 } else {
-  console.log('node tools/kb.js find <질의> | grep <문구> | show <문단> | eval | check | stats');
+  console.log('node tools/kb.js find <질의> | grep <문구> | show <문단> | node <노드> | graph | eval | check | stats');
 }

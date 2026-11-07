@@ -2,12 +2,12 @@
 
      node tools/kb_db.js        자료/kb/ksa.jsonl → 자료/kb/ksa.db
 
-   흐름: 회계감사기준 전문 .docx → tools/kb_build.py → ksa.jsonl → 이 파일 → ksa.db
+   흐름: 회계감사기준 전문 .docx → tools/kb_build.py → ksa.jsonl → 이 파일 → ksa.db → tools/kb_graph.js (그래프)
    JSONL 은 사람이 비교해 보기 쉬운 중간 산출물이고, 검색 · 채점은 DB 를 읽는다.
    원문이 들어 있어 둘 다 저장소에 없다 (자료/ 는 .gitignore). 스키마는 docs/kb.md
 */
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
-const { openDb, SCHEMA_VERSION } = require('./kb-core');
+const { openDb, SCHEMA_VERSION, GRAPH_DDL } = require('./kb-core');
 
 const ROOT = path.join(__dirname, '..');
 const SRC = path.join(ROOT, '자료', 'kb', 'ksa.jsonl');
@@ -48,7 +48,7 @@ db.exec(`
   CREATE INDEX paragraph_std ON paragraph (std, ord);
   -- 문구 그대로 찾기 — 세 글자 조각 색인이라 조사가 붙어도 걸린다
   CREATE VIRTUAL TABLE paragraph_fts USING fts5 (id UNINDEXED, heading, body, tokenize = 'trigram');
-`);
+` + GRAPH_DDL);
 
 const titles = new Map(), counts = new Map();
 rows.forEach(r => {

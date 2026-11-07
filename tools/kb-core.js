@@ -10,7 +10,29 @@ const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 const DB_FILE = path.join(ROOT, '자료', 'kb', 'ksa.db');
 const JSONL_FILE = path.join(ROOT, '자료', 'kb', 'ksa.jsonl');
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;    // 1 문단 · 전문 색인, 2 그래프(node · edge)
+
+/* 지식그래프 — 노드 id 는 종류를 앞에 붙인다 (std:505 · par:505-A12 · con:감사증거 · item:K26-1-1 · scene:s1 · pt:s1#논점)
+   엣지는 (출발, 관계, 도착, 출처) 하나가 한 줄. 출처마다 따로 남겨 어디서 온 연결인지 보이게 한다 */
+const GRAPH_DDL = `
+  CREATE TABLE IF NOT EXISTS node (
+    id    TEXT PRIMARY KEY,
+    type  TEXT NOT NULL,
+    label TEXT NOT NULL,
+    attrs TEXT NOT NULL DEFAULT '{}'
+  );
+  CREATE INDEX IF NOT EXISTS node_type ON node (type);
+  CREATE TABLE IF NOT EXISTS edge (
+    src        TEXT NOT NULL REFERENCES node(id),
+    rel        TEXT NOT NULL,
+    dst        TEXT NOT NULL REFERENCES node(id),
+    weight     REAL NOT NULL DEFAULT 1,
+    source     TEXT NOT NULL,
+    confidence REAL NOT NULL DEFAULT 1,
+    PRIMARY KEY (src, rel, dst, source)
+  );
+  CREATE INDEX IF NOT EXISTS edge_dst ON edge (dst, rel);
+`;
 
 const K1 = 1.2, B = 0.75, HEADING_WEIGHT = 2;
 const CHUNK_OVER = 500;      // 이보다 긴 문단은 항목별로도 색인한다 — 항목 하나가 맞으면 그 문단이 나오게
@@ -42,7 +64,7 @@ function readDocs() {
   if (fs.existsSync(DB_FILE)) {
     const db = openDb(DB_FILE, { readOnly: true });
     const ver = db.prepare('PRAGMA user_version').get().user_version;
-    if (ver >= SCHEMA_VERSION) {
+    if (ver >= 1) {
       const titles = {};
       db.prepare('SELECT no, title FROM standard').all().forEach(s => { titles[s.no] = s.title; });
       const docs = db.prepare('SELECT id, std, no, kind, heading, text, items FROM paragraph ORDER BY ord').all()
@@ -167,4 +189,34 @@ function load() {
   };
 }
 
-module.exports = { load, openDb, norm, grams, SCHEMA_VERSION, DB_FILE, JSONL_FILE };
+/* 해설 · 강평에 인쇄된 문단 번호 — 인용 앞뒤 글을 질의로, 번호를 정답으로 (검색 측정 · 그래프 공용) */
+function citations(byId) {
+  const out = [], seen = {};
+  const dirs = [path.join(ROOT, '자료', 'ocr'), path.join(ROOT, '자료', 'gs_review')];
+  dirs.forEach(dir => {
+    if (!fs.existsSync(dir)) return;
+    fs.readdirSync(dir).filter(f => /해설|강평|\d\d-\d/.test(f)).forEach(f => {
+      const lines = fs.readFileSync(path.join(dir, f), 'utf8').split('\n');
+      lines.forEach((line, i) => {
+        const re = /(?<![\d-])([2-7]\d\d)-(A?\d{1,3})(?![\d-])/g;
+        let m;
+        while ((m = re.exec(line))) {
+          const id = m[1] + '-' + m[2];
+          if (!byId[id]) continue;
+          // 강평은 한 줄이 물음 하나, 해설은 앞뒤 줄이 그 답이다 — 쪽 머리글과 배점은 뺀다
+          const near = dir.endsWith('gs_review') ? [line] : [lines[i - 2], lines[i - 1], line, lines[i + 1]];
+          const query = near.filter(t => t && !/모의고사|아카데미/.test(t)).join(' ')
+            .replace(/[2-7]\d\d-A?\d{1,3}/g, ' ').replace(/^물음\s*\d+\s*\([^)]*\)/, ' ');
+          if (norm(query).length < 15) continue;
+          const key = f + '|' + id + '|' + i;
+          if (seen[key]) continue;
+          seen[key] = 1;
+          out.push({ key: key, file: f.replace(/\.[a-z]+$/i, ''), id, query });
+        }
+      });
+    });
+  });
+  return out;
+}
+
+module.exports = { load, openDb, norm, grams, citations, SCHEMA_VERSION, GRAPH_DDL, DB_FILE, JSONL_FILE };
