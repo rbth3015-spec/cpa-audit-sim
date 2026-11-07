@@ -1,125 +1,28 @@
 /* 회계감사기준 문단 검색 (kb.js)
-   문단 지식베이스는 저장소에 없다 — 자료/kb/ksa.jsonl (tools/kb_build.py 로 만든다. 저작권 때문에 .gitignore)
+   문단 지식베이스는 저장소에 없다 — 자료/kb/ksa.db (tools/kb_build.py → tools/kb_db.js. 저작권 때문에 .gitignore)
 
-     node tools/kb.js find 조회서 발송 거부 [--k=5] [--std=505] [--plain]    문단 검색
+     node tools/kb.js find 조회서 발송 거부 [--k=5] [--std=505] [--plain]    문단 검색 (BM25)
+     node tools/kb.js grep 적극적 조회 [--k=20]                             문구 그대로 찾기 (전문 색인)
      node tools/kb.js show 505-8                                           한 문단 전부
      node tools/kb.js eval [--miss]                                        검색 품질 측정
      node tools/kb.js check                                                문단 번호 무결성 점검
+     node tools/kb.js stats                                                지식베이스 규모
 
-   검색: BM25. 낱말 대신 글자 두 자씩(bigram)으로 색인한다 — 한국어는 조사가 붙어 낱말 경계가 흔들린다.
-   채점 사전(data/lexicon.js)으로 질의를 조금 넓힌다 — 약어나 교재 표기로 물어도 기준서 문단이 나오게. --plain 은 넓히지 않는다.
+   불러오기 · 색인 · 검색은 tools/kb-core.js — 채점 서버도 같은 것을 쓴다.
    측정: 정답을 사람이 새로 만들지 않는다. 기출 · GS 문항에 달린 기준서(자료/db/items.jsonl)와
          해설에 인쇄된 문단 번호(자료/ocr, 자료/gs_review)를 그대로 정답으로 쓴다.
 */
-const fs = require('fs'), path = require('path'), vm = require('vm');
+const fs = require('fs'), path = require('path');
+const core = require('./kb-core');
 const ROOT = path.join(__dirname, '..');
-const FILE = path.join(ROOT, '자료', 'kb', 'ksa.jsonl');
 
-if (!fs.existsSync(FILE)) {
-  console.log('지식베이스가 없습니다: 자료/kb/ksa.jsonl');
-  console.log('python -I tools/kb_build.py "<회계감사기준 전문 .docx>" 로 만드세요');
+const KB = core.load();
+if (!KB) {
+  console.log('지식베이스가 없습니다: 자료/kb/ksa.db');
+  console.log('python -I tools/kb_build.py "<회계감사기준 전문 .docx>" 로 문단을 뽑고 node tools/kb_db.js 로 DB 를 만드세요');
   process.exit(0);
 }
-
-const K1 = 1.2, B = 0.75, HEADING_WEIGHT = 2;
-const CHUNK_OVER = 500;      // 이보다 긴 문단은 항목별로도 색인한다 — 항목 하나가 맞으면 그 문단이 나오게
-const LEX_SHARE = 0.2;       // 사전 확장의 몫 — 질의에서 맞은 표현 무게의 20%를 묶음 전체가 나눠 갖는다. 기준서에 없는 표현(MA · 두문자)이면 전부 넘긴다
-const DEFAULT_SKIP = '1200'; // 소규모기업 기준은 본 기준서와 내용이 겹치고 시험 범위가 아니다 — --std=1200 으로만
-
-const norm = s => String(s || '').toLowerCase().replace(/[^0-9a-z가-힣]/g, '');
-function grams(s) {
-  const t = norm(s), out = [];
-  for (let i = 0; i < t.length - 1; i++) out.push(t.slice(i, i + 2));
-  return out;
-}
-
-const docs = fs.readFileSync(FILE, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l));
-const byId = {};
-docs.forEach(d => { byId[d.id] = d; });
-
-const plainHeading = d => d.heading.replace(/\(문단.*?참조\)|\(문단[^)]*\)/g, '').trim();
-
-// 색인 — 문단 하나를 단위 하나로, 긴 문단은 앞머리 + 항목으로도. 제목은 가중치를 준다
-const units = [];
-docs.forEach((d, i) => {
-  const head = plainHeading(d);
-  if ((d.text + d.items.join('')).length > CHUNK_OVER && d.items.length >= 2) {
-    units.push({ doc: i, text: d.text, head });
-    d.items.forEach(t => units.push({ doc: i, text: d.text.slice(0, 60) + ' ' + t, head }));
-  } else {
-    units.push({ doc: i, text: d.text + ' ' + d.items.join(' '), head });
-  }
-});
-const postings = new Map();
-let totalLen = 0;
-units.forEach((u, ui) => {
-  const tf = new Map();
-  grams(u.text).forEach(g => tf.set(g, (tf.get(g) || 0) + 1));
-  grams(u.head).forEach(g => tf.set(g, (tf.get(g) || 0) + HEADING_WEIGHT));
-  u.len = 0;
-  tf.forEach((n, g) => {
-    u.len += n;
-    if (!postings.has(g)) postings.set(g, []);
-    postings.get(g).push([ui, n]);
-  });
-  totalLen += u.len;
-});
-const avgLen = totalLen / units.length;
-const CORPUS = norm(docs.map(d => d.text + d.items.join('')).join(' '));
-const idf = g => {
-  const n = (postings.get(g) || []).length;
-  return Math.log(1 + (units.length - n + 0.5) / (n + 0.5));
-};
-
-// 채점 사전 — 질의에 나온 표현의 같은 묶음 표현을 질의에 더한다
-const lexicon = (function () {
-  try {
-    const ctx = { window: {} };
-    vm.createContext(ctx);
-    vm.runInContext(fs.readFileSync(path.join(ROOT, 'data', 'lexicon.js'), 'utf8'), ctx);
-    return Object.keys(ctx.window.LEXICON).map(k => [k].concat(ctx.window.LEXICON[k]).map(norm).filter(w => w.length >= 2));
-  } catch (e) { return []; }
-})();
-function addSynonyms(q, weights) {
-  const t = norm(q);
-  lexicon.forEach(group => {
-    const found = group.filter(w => t.indexOf(w) >= 0);
-    if (!found.length) return;
-    const rest = [].concat.apply([], group.filter(w => t.indexOf(w) < 0).map(grams));
-    if (!rest.length) return;
-    const longest = found.reduce((a, b) => b.length > a.length ? b : a, '');
-    const known = CORPUS.indexOf(longest) >= 0;
-    const share = (known ? LEX_SHARE : 1) * Math.max.apply(null, found.map(w => grams(w).length)) / rest.length;
-    rest.forEach(g => weights.set(g, (weights.get(g) || 0) + share));
-  });
-}
-
-function search(q, opt) {
-  opt = opt || {};
-  const k = opt.k || 5;
-  const weights = new Map();
-  grams(q).forEach(g => weights.set(g, (weights.get(g) || 0) + 1));
-  if (!opt.plain) addSynonyms(q, weights);
-  const unitScore = new Float64Array(units.length);
-  weights.forEach((w, g) => {
-    const list = postings.get(g);
-    if (!list) return;
-    const i = idf(g);
-    list.forEach(([ui, tf]) => {
-      unitScore[ui] += w * i * tf * (K1 + 1) / (tf + K1 * (1 - B + B * units[ui].len / avgLen));
-    });
-  });
-  const score = new Float64Array(docs.length);
-  units.forEach((u, ui) => { if (unitScore[ui] > score[u.doc]) score[u.doc] = unitScore[ui]; });
-  const out = [];
-  for (let i = 0; i < docs.length; i++) {
-    if (score[i] <= 0) continue;
-    if (opt.std ? docs[i].std !== String(opt.std) : docs[i].std === DEFAULT_SKIP) continue;
-    out.push([score[i], docs[i]]);
-  }
-  out.sort((a, b) => b[0] - a[0]);
-  return out.slice(0, k);
-}
+const { docs, byId, search, plainHeading, norm } = KB;
 
 const args = process.argv.slice(2);
 const opts = {};
@@ -208,7 +111,7 @@ function evaluate() {
     console.log('■ 문단 단위 — 5위 안에 못 든 인용');
     metric(cited, (r, d) => d.id === r.id, ks, (r, top) => console.log(`  ${r.id.padEnd(9)} ← ${top.slice(0, 2).map(([, d]) => d.id).join(' ')} | ${norm(r.query).slice(0, 60)}`));
   }
-  console.log(`■ 색인 — 문단 ${docs.length} · 단위 ${units.length} · 두 글자 ${postings.size} · 사전 묶음 ${lexicon.length}`);
+  console.log(`■ 색인 — 문단 ${KB.stats.paragraphs} · 단위 ${KB.stats.units} · 두 글자 ${KB.stats.grams} · 사전 묶음 ${KB.stats.lexicon} · 읽은 곳 ${KB.source}`);
 }
 
 /* ── 번호 무결성 ─────────────────────────── */
@@ -262,10 +165,24 @@ if (cmd === 'find') {
     console.log(d.text);
     d.items.forEach(t => console.log('  ' + t));
   }
+} else if (cmd === 'grep') {
+  const hits = KB.phrase(words.join(' '), { k: +opts.k || 20 });
+  if (hits === null) console.log('문구 찾기는 DB 가 있어야 됩니다 — node tools/kb_db.js');
+  else if (!hits.length) console.log('없음');
+  else hits.forEach(h => console.log(`${h.id.padEnd(10)} ${h.snip.replace(/\s+/g, ' ')}`));
+} else if (cmd === 'stats') {
+  const s = KB.stats;
+  console.log(`읽은 곳 ${KB.source} · 문단 ${s.paragraphs} · 색인 단위 ${s.units} · 두 글자 ${s.grams} · 사전 묶음 ${s.lexicon}`);
+  if (KB.db) {
+    const m = {};
+    KB.db.prepare('SELECT key, value FROM meta').all().forEach(r => { m[r.key] = r.value; });
+    const kinds = KB.db.prepare('SELECT kind, count(*) n FROM paragraph GROUP BY kind').all().map(r => r.kind + ' ' + r.n).join(' · ');
+    console.log(`DB 스키마 ${m.schema} · 만든 때 ${m.built_at} · 기준서 ${m.standards} · ${kinds}`);
+  }
 } else if (cmd === 'eval') {
   evaluate();
 } else if (cmd === 'check') {
   check();
 } else {
-  console.log('node tools/kb.js find <질의> | show <문단> | eval | check');
+  console.log('node tools/kb.js find <질의> | grep <문구> | show <문단> | eval | check | stats');
 }
