@@ -3,6 +3,7 @@
           node tools/aigrade-calib.mjs --spot [--model …]            손으로 쓴 답안으로 지침이 가르는 자리만
           node tools/aigrade-calib.mjs --n 12 --model claude-sonnet-5-5
           node tools/aigrade-calib.mjs --all                        세 모델을 차례로 돌려 서로 비교
+          node tools/aigrade-calib.mjs --rag [--model …]             근거 문단(RAG)을 붙여 같은 답안을 채점 — 끈 결과와 견준다
 
    실제로 Claude 를 부른다 — 문항 하나에 네 번. 이 PC 의 Claude Code 로그인이 필요하고 (`node tools/serve.mjs --login`),
    부른 만큼 그 계정의 사용량이 나간다. 시작할 때 몇 번 부르는지 먼저 적는다.
@@ -28,6 +29,8 @@ const val = (k, d) => { const i = argv.indexOf(k); return i >= 0 && argv[i + 1] 
 const N = Math.max(1, parseInt(val('--n', '6'), 10) || 6);
 const models = flag('--all') ? MODELS : [val('--model', MODELS[0])];
 if (models.some(m => !MODELS.includes(m))) { console.log('모델은 ' + MODELS.join(' · ') + ' 중에서'); process.exit(1); }
+/* --rag — 게임의 채점 서버와 같은 모듈로 근거 문단을 붙인다 */
+const RAG = flag('--rag') ? await import('./kb-ground.mjs') : null;
 
 /* 게임 데이터 · 채점 엔진 · 채점 요청 만들기 — 게임과 같은 파일을 그대로 읽는다 */
 const store = {};
@@ -49,7 +52,7 @@ function collect() {
     try { it = SEASON.resolve(sc, SEASON.create({ seed: 7 }), v.id); } catch (e) { return; }
     it.parts.forEach(p => {
       if (p.type !== 'write' || p.verdict || typeof p.model !== 'string' || !p.model) return;
-      out.push({ p, sit: it.situation, where: `${label} ${sc.id}${p.key}` });
+      out.push({ p, sit: it.situation, stds: (it.sc || it).standards, where: `${label} ${sc.id}${p.key}` });
     });
   });
   SEASONS.list().map(b => b.id).forEach(id => { SEASONS.use(id); scan(SEASONS.current().name, ctx.SCENES); });
@@ -94,19 +97,26 @@ const cases = picked.map((x, i) => {
 });
 
 const calls = models.length * (cases.reduce((n, c) => n + 3 + (c.C ? 1 : 0), 0) + swapRows.length);
-if (!flag('--spot')) console.log(`■ AI 연동 채점 일치 점검 — 지침 ${AIGRADE.GUIDE_V} · 모델 ${models.join(' · ')} · 문항 ${cases.length}개 · Claude 호출 ${calls}번`);
+if (!flag('--spot')) console.log(`■ AI 연동 채점 일치 점검 — ${RAG ? '근거 문단 붙임(RAG) · ' : ''}지침 ${AIGRADE.GUIDE_V} · 모델 ${models.join(' · ')} · 문항 ${cases.length}개 · Claude 호출 ${calls}번`);
 
 const bin = findClaude();
 if (!bin) { console.log('  Claude Code 를 찾지 못했다 — 환경변수 CLAUDE_BIN'); process.exit(1); }
 if (!(await loggedIn(bin, true))) { console.log('  로그인 전이다 — node tools/serve.mjs --login'); process.exit(1); }
 
-async function ask(model, p, sit, text) {
+const cite = { asks: 0, paras: 0, must: 0, cited: 0, given: 0, kept: 0, ms: 0 };
+async function ask(model, p, sit, text, stds) {
   const ans = { text };
-  const req = AIGRADE.build(p, ans, { situation: sit });
-  const r = await gradeOnce({ system: req.system, user: req.user, schema: req.schema, model }, { max: 1, ms: 90000 });
+  const req = AIGRADE.build(p, ans, { situation: sit, standards: stds });
+  const gr = RAG && req.ground ? await RAG.ground(req.ground) : null;
+  const r = await gradeOnce({ system: req.system, user: req.user + (gr ? gr.block : ''), schema: req.schema, model }, { max: 1, ms: 90000 });
   if (!r.ok) return { err: r.error + (r.detail ? ' ' + r.detail : '') };
+  if (gr) {
+    const k = RAG.keepCites(r.out, gr.ids);
+    cite.asks++; cite.paras += gr.ids.length; cite.ms += gr.ms; cite.given += k.given; cite.kept += k.kept;
+    (r.out.must || []).forEach(m => { cite.must++; if (m.cite && m.cite.length) cite.cited++; });
+  }
   let v;
-  try { v = AIGRADE.toVerdicts(r.out, req.ids, req.needVerdict); } catch (e) { return { err: '형식' }; }
+  try { v = AIGRADE.toVerdicts(r.out, req.ids, req.needVerdict, gr ? gr.ids : null); } catch (e) { return { err: '형식' }; }
   const g = AE.gradeAny(p, ans, { ai: v.ai });
   return { must: p.rubric.must.map(m => v.ai.must[m.label] || '-'),
            trap: (p.rubric.trap || []).some(t => v.ai.trap[t.label] === true), pct: g.percent };
@@ -150,7 +160,7 @@ if (flag('--spot')) {
       const p = it.parts[c.at[3]];
       const at = p.rubric.must.findIndex(m => m.label === c.label);
       if (at < 0) { console.log(`   ✕ 논점 없음 ${c.at[1]} ${c.label}`); continue; }
-      const r = await ask(model, p, it.situation, c.ans);
+      const r = await ask(model, p, it.situation, c.ans, (it.sc || it).standards);
       const v = r.err ? '오류' : r.must[at], hit = c.want.includes(v);
       if (hit) ok++;
       console.log(`   ${hit ? '○' : '✕'} ${v.padEnd(4)} (기대 ${c.want.join('·')}) ${c.why} | ${c.ans.slice(0, 34)}`);
@@ -166,18 +176,18 @@ for (const model of models) {
   console.log(`\n  ${model}`);
   for (const [i, c] of cases.entries()) {
     const p = c.x.p, row = {};
-    row.A = await ask(model, p, c.x.sit, c.A);
+    row.A = await ask(model, p, c.x.sit, c.A, c.x.stds);
     if (row.A.err === 'login') { console.log('  로그인이 풀렸다 — node tools/serve.mjs --login'); process.exit(1); }
-    row.B = await ask(model, p, c.x.sit, c.B);
-    row.C = c.C ? await ask(model, p, c.x.sit, c.C.text) : null;
-    row.A2 = await ask(model, p, c.x.sit, c.A);
+    row.B = await ask(model, p, c.x.sit, c.B, c.x.stds);
+    row.C = c.C ? await ask(model, p, c.x.sit, c.C.text, c.x.stds) : null;
+    row.A2 = await ask(model, p, c.x.sit, c.A, c.x.stds);
     R[model][i] = row;
     const show = k => !row[k] ? '—' : row[k].err ? '오류(' + row[k].err.slice(0, 24) + ')' : row[k].must.map(v => v[0]).join('') + ' ' + row[k].pct + '점';
     console.log(`   ${c.x.where.padEnd(22)} A ${show('A')} · B ${show('B')} · C ${show('C')} · A' ${show('A2')}`);
   }
   R[model].swap = [];
   for (const x of swapRows) {
-    const d = swapWord(x.p), r = await ask(model, x.p, x.sit, d.text);
+    const d = swapWord(x.p), r = await ask(model, x.p, x.sit, d.text, x.stds);
     const at = x.p.rubric.must.findIndex(m => m.label === d.label);
     R[model].swap.push({ v: r.err ? 'err' : r.must[at] });
     console.log(`   ${x.where.padEnd(22)} D ${d.from} → ${d.to} : ${r.err ? '오류' : r.must[at]}`);
@@ -226,5 +236,6 @@ if (models.length > 1) {
   console.log(`\n  모델끼리 같은 판정 ${pct(agree, total)}% (논점 ${total}개) · 같은 답안의 점수 차이 평균 ${spreadN ? (spread / spreadN).toFixed(1) : '—'}점`);
   if (pct(agree, total) < 90) weak.push('모델 사이');
 }
+if (RAG && cite.asks) console.log(`\n  근거 문단 — 요청 ${cite.asks}번 · 평균 ${(cite.paras / cite.asks).toFixed(1)}개 · 근거를 인용한 논점 ${(100 * cite.cited / Math.max(cite.must, 1)).toFixed(0)}% · 받지 않은 번호 인용 ${cite.given - cite.kept}건(걸러냄) · 검색 평균 ${(cite.ms / cite.asks).toFixed(0)}ms`);
 console.log(weak.length ? `\n  기준(90%)에 못 미침: ${[...new Set(weak)].join(' · ')} — js/aigrade.js 의 지침을 손보고 GUIDE_V 를 올릴 것`
                         : '\n  지침대로 채점한다 (모든 항목 90% 이상)');
