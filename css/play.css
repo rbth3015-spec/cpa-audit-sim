@@ -324,6 +324,8 @@ table.sort .why { display: block; margin-top: 4px; font: 500 13px/1.45 var(--san
 .checks th small { display: block; font: 500 13px/1.5 var(--sans); color: var(--dim); margin-top: 3px; }
 /* 부분 점수를 준 이유 — 용어를 바꿔 쓰라는 신호라 조금 더 눈에 띄게 */
 .checks th small.tier { color: #8a5a00; font-weight: 600; }
+.checks th small.cite { color: var(--dim); font-weight: 500; }
+.checks th small.cite a, .checks tr.note th a { font-family: var(--mono); color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .checks .p { width: 84px; text-align: right; font: 600 13px/1.5 var(--mono); white-space: nowrap; }
 .checks tr.ok .m, .checks tr.ok .p { color: var(--good); }
 .checks tr.half .m, .checks tr.half .p { color: var(--warn); }

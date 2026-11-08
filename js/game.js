@@ -1158,9 +1158,9 @@
     $('#after').onclick = function (e) {
       if (e.target.closest('[data-act="skipai"]')) end(null, 'AI 채점 건너뜀 · 기본 채점');
     };
-    window.AIGRADE.judge(p, ans, { situation: c.it.situation }).then(function (v) {
+    window.AIGRADE.judge(p, ans, { situation: c.it.situation, standards: (c.it.sc || c.it).standards }).then(function (v) {
       var st = window.AIGRADE.settle(v.ai, AE.gradeAny(p, ans));      // 기본 채점과 맞춰 본다 (고정 규칙 · 차이 표시)
-      end({ ai: st.ai }, 'AI 채점 · ' + v.by + ' · 기본 ' + st.basePct + '점' + (v.comment ? ' · ' + v.comment : ''));
+      end({ ai: st.ai, cite: st.ai.cite, ground: v.ground }, 'AI 채점 · ' + v.by + ' · 기본 ' + st.basePct + '점' + (v.comment ? ' · ' + v.comment : ''));
     }, function (e) {
       end(null, 'AI 채점 실패 · ' + ((e && e.label) || '오류') + ' · 기본 채점');
     });
@@ -1168,6 +1168,7 @@
 
   function gradePart(p, ans, timedOut, ext, note) {
     var g = AE.gradeAny(p, ans, ext);
+    if (ext && (ext.cite || ext.ground)) { g.res.cite = ext.cite || null; g.res.ground = ext.ground || null; }    // RAG 채점 — 논점별 근거 문단
     if (note) g.res.flags.push(note);
     if (timedOut) {
       var pen = Math.round(g.max * 0.1);
@@ -1243,9 +1244,17 @@
     if (got.length) setTimeout(function () { cardToast(got); }, 650);   // 채점 소리가 끝난 뒤에
   }
 
+  /* 근거 문단 번호 — 이 PC 의 서버로 열었으면 그래프 탐색기로 잇고, 아니면 번호만 */
+  var KB_LOCAL = /^https?:$/.test(location.protocol) && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  function kbRef(id) {
+    return KB_LOCAL ? '<a href="kb.html#' + esc(id) + '" target="_blank" rel="noopener">' + esc(id) + '</a>' : esc(id);
+  }
+
   /* 채점표 */
   function checkRows(p, g) {
     var rows = '', r = g.res;
+    // 기본 채점에도 — 놓친 논점의 근거 문단 (data/kb_links.js · tools/kb-link.mjs 가 고른 번호)
+    var links = window.KB_LINKS || null, sid = cur && cur.it && cur.it.sc ? cur.it.sc.id : '';
     if (g.verdict && p.verdict && p.verdict.label) {
       var L = p.verdict.label;
       if (g.verdict.correct) {
@@ -1263,7 +1272,9 @@
       var note = (m.partial || m.ext) && !m.hit && m.note ? '<small class="tier">' + esc(m.note) + '</small>' : '';
       var why = !m.hit && m.why ? '<small>' + esc(m.why) + '</small>' : '';
       var hint = !m.hit && !m.why && m.hint ? '<small>' + esc(m.hint) + '</small>' : '';
-      rows += '<tr class="' + cls + '"><td class="m">' + (m.hit ? '✓' : m.partial ? '◐' : '✗') + '</td><th>' + esc(m.label) + note + why + hint +
+      var cites = r.cite && r.cite[m.label] ? '<small class="cite">근거 ' + r.cite[m.label].map(kbRef).join(' ') + '</small>'
+        : !m.hit && links && links[sid + '#' + m.label] ? '<small class="cite">근거 KSA ' + links[sid + '#' + m.label].map(kbRef).join(' · ') + '</small>' : '';
+      rows += '<tr class="' + cls + '"><td class="m">' + (m.hit ? '✓' : m.partial ? '◐' : '✗') + '</td><th>' + esc(m.label) + cites + note + why + hint +
         '</th><td class="p">' + (m.hit ? '+' + got : got + ' / ' + m.score) + '</td></tr>';
     });
     (r.bonus || []).forEach(function (b) {
@@ -1275,6 +1286,11 @@
     (r.flags || []).forEach(function (f) {
       rows += '<tr class="note"><td class="m">·</td><th>' + esc(f) + '</th><td class="p"></td></tr>';
     });
+    if (r.ground && r.ground.length) {
+      rows += '<tr class="note"><td class="m">·</td><th>받은 근거 문단 · ' + r.ground.map(function (x) {
+        return kbRef(x.id) + ' ' + esc(x.heading);
+      }).join(' · ') + '</th><td class="p"></td></tr>';
+    }
     if (g.timedOut) rows += '<tr class="note"><td class="m">·</td><th>시간 초과 · 자동 제출</th><td class="p">−10%</td></tr>';
     return rows;
   }
