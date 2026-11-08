@@ -7,7 +7,7 @@
    원문이 들어 있어 둘 다 저장소에 없다 (자료/ 는 .gitignore). 스키마는 docs/kb.md
 */
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
-const { openDb, SCHEMA_VERSION, GRAPH_DDL } = require('./kb-core');
+const { openDb, SCHEMA_VERSION, GRAPH_DDL, VECTOR_DDL, LOG_DDL } = require('./kb-core');
 
 const ROOT = path.join(__dirname, '..');
 const SRC = path.join(ROOT, '자료', 'kb', 'ksa.jsonl');
@@ -48,7 +48,7 @@ db.exec(`
   CREATE INDEX paragraph_std ON paragraph (std, ord);
   -- 문구 그대로 찾기 — 세 글자 조각 색인이라 조사가 붙어도 걸린다
   CREATE VIRTUAL TABLE paragraph_fts USING fts5 (id UNINDEXED, heading, body, tokenize = 'trigram');
-` + GRAPH_DDL);
+` + GRAPH_DDL + VECTOR_DDL + LOG_DDL);
 
 const titles = new Map(), counts = new Map();
 rows.forEach(r => {
@@ -77,10 +77,23 @@ const meta = {
 const insMeta = db.prepare('INSERT INTO meta (key, value) VALUES (?, ?)');
 Object.keys(meta).forEach(k => insMeta.run(k, meta[k]));
 db.exec('COMMIT');
+
+// 이전 DB 의 벡터 · 채점 기록을 옮겨 담는다 — 벡터는 글이 같으면(sha) tools/kb-embed.mjs build 가 다시 계산하지 않는다
+if (fs.existsSync(OUT)) {
+  try {
+    db.exec(`ATTACH DATABASE '${OUT.replace(/'/g, "''")}' AS old`);
+    const has = t => db.prepare("SELECT count(*) n FROM old.sqlite_master WHERE name = ?").get(t).n;
+    if (has('vector')) db.exec('INSERT INTO vector SELECT * FROM old.vector WHERE par IN (SELECT id FROM paragraph)');
+    if (has('grading_log')) db.exec('INSERT INTO grading_log SELECT * FROM old.grading_log');
+    db.exec('DETACH DATABASE old');
+    console.log(`이전 DB 에서 옮김 — 벡터 ${db.prepare('SELECT count(*) n FROM vector').get().n} · 채점 기록 ${db.prepare('SELECT count(*) n FROM grading_log').get().n}`);
+  } catch (e) { console.log('이전 DB 를 읽지 못해 벡터 · 기록은 새로 시작한다 — ' + e.message); }
+}
 db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+db.exec('PRAGMA journal_mode = WAL');   // 채점 서버 · 탐색기가 읽는 동안에도 벡터 · 그래프를 쓸 수 있게
 db.exec("INSERT INTO paragraph_fts (paragraph_fts) VALUES ('optimize')");
 db.close();
 
-if (fs.existsSync(OUT)) fs.unlinkSync(OUT);
+['', '-wal', '-shm'].forEach(x => { if (fs.existsSync(OUT + x)) fs.unlinkSync(OUT + x); });
 fs.renameSync(TMP, OUT);
 console.log(`자료/kb/ksa.db — 기준서 ${titles.size} · 문단 ${rows.length} · 스키마 ${SCHEMA_VERSION} · ${(fs.statSync(OUT).size / 1048576).toFixed(1)}MB`);

@@ -34,6 +34,36 @@ const GRAPH_DDL = `
   CREATE INDEX IF NOT EXISTS edge_dst ON edge (dst, rel);
 `;
 
+/* 채점 기록 — RAG 채점이 무엇을 근거로 받았고 무엇을 인용했는지 (답안 글은 남기지 않는다) */
+const LOG_DDL = `
+  CREATE TABLE IF NOT EXISTS grading_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    at          TEXT NOT NULL,
+    model       TEXT NOT NULL,
+    guide       INTEGER NOT NULL,
+    rag         INTEGER NOT NULL,
+    question    TEXT NOT NULL,
+    retrieved   TEXT NOT NULL,   -- 붙여 준 문단 번호 JSON 배열
+    cited       TEXT NOT NULL,   -- 논점별 인용 번호 JSON
+    verdicts    TEXT NOT NULL,   -- 논점별 full · half · none JSON
+    ok          INTEGER NOT NULL,
+    ms_retrieve INTEGER NOT NULL,
+    ms_grade    INTEGER NOT NULL
+  );
+`;
+
+/* 벡터 — 모델마다 색인 단위 하나에 한 줄. vec 는 정규화한 Float32 배열. sha 가 같으면 다시 계산하지 않는다 */
+const VECTOR_DDL = `
+  CREATE TABLE IF NOT EXISTS vector (
+    model TEXT NOT NULL,
+    unit  INTEGER NOT NULL,
+    par   TEXT NOT NULL REFERENCES paragraph(id),
+    sha   TEXT NOT NULL,
+    vec   BLOB NOT NULL,
+    PRIMARY KEY (model, unit)
+  );
+`;
+
 const K1 = 1.2, B = 0.75, HEADING_WEIGHT = 2;
 const CHUNK_OVER = 500;      // 이보다 긴 문단은 항목별로도 색인한다 — 항목 하나가 맞으면 그 문단이 나오게
 const LEX_SHARE = 0.2;       // 사전 확장의 몫 — 질의에서 맞은 표현 무게의 20%를 묶음 전체가 나눠 갖는다. 기준서에 없는 표현(MA · 두문자)이면 전부 넘긴다
@@ -48,7 +78,9 @@ function openDb(file, opt) {
   };
   try {
     const { DatabaseSync } = require('node:sqlite');
-    return opt ? new DatabaseSync(file, opt) : new DatabaseSync(file);
+    const db = opt ? new DatabaseSync(file, opt) : new DatabaseSync(file);
+    db.exec('PRAGMA busy_timeout = 15000');   // 다른 연결이 쓰는 중이면 바로 실패하지 않고 기다린다
+    return db;
   } finally { process.emitWarning = emit; }
 }
 
@@ -184,7 +216,7 @@ function load() {
   }
 
   return {
-    source, db, docs, byId, search, phrase, plainHeading, norm,
+    source, db, docs, byId, units, search, phrase, plainHeading, norm,
     stats: { paragraphs: docs.length, units: units.length, grams: postings.size, lexicon: lexicon.length }
   };
 }
@@ -219,4 +251,4 @@ function citations(byId) {
   return out;
 }
 
-module.exports = { load, openDb, norm, grams, citations, SCHEMA_VERSION, GRAPH_DDL, DB_FILE, JSONL_FILE };
+module.exports = { load, openDb, norm, grams, citations, SCHEMA_VERSION, GRAPH_DDL, VECTOR_DDL, LOG_DDL, DB_FILE, JSONL_FILE };

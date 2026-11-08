@@ -182,7 +182,13 @@ if (cmd === 'find') {
     const m = {};
     KB.db.prepare('SELECT key, value FROM meta').all().forEach(r => { m[r.key] = r.value; });
     const kinds = KB.db.prepare('SELECT kind, count(*) n FROM paragraph GROUP BY kind').all().map(r => r.kind + ' ' + r.n).join(' · ');
-    console.log(`DB 스키마 ${m.schema} · 만든 때 ${m.built_at} · 기준서 ${m.standards} · ${kinds}`);
+    const one = sql => KB.db.prepare(sql).get();
+    const has = t => one(`SELECT count(*) n FROM sqlite_master WHERE type = 'table' AND name = '${t}'`).n > 0;
+    console.log(`DB 스키마 ${one('PRAGMA user_version').user_version} · 만든 때 ${m.built_at} · 기준서 ${m.standards} · ${kinds}`);
+    console.log(`점검 integrity_check ${one('PRAGMA integrity_check').integrity_check} · 외래키 위반 ${KB.db.prepare('PRAGMA foreign_key_check').all().length}`);
+    if (has('node')) console.log(`그래프 노드 ${one('SELECT count(*) n FROM node').n} · 엣지 ${one('SELECT count(*) n FROM edge').n} (만든 때 ${m.graph_built_at || '-'}) · 검증된 논점 근거 ${one("SELECT count(*) n FROM edge WHERE rel = 'grounded_in' AND source = 'verified'").n} (만든 때 ${m.links_built_at || '-'})`);
+    if (has('vector')) console.log('벡터 ' + (KB.db.prepare('SELECT model, count(*) n FROM vector GROUP BY model').all().map(r => `${r.model} ${r.n}${m['vector_' + r.model] ? '' : ' (만드는 중)'}`).join(' · ') || '없음') + ` · 색인 단위 ${s.units}`);
+    if (has('grading_log')) console.log(`채점 기록 ${one('SELECT count(*) n FROM grading_log').n}건 (근거 붙임 ${one('SELECT count(*) n FROM grading_log WHERE rag = 1').n})`);
   }
 } else if (cmd === 'eval') {
   evaluate();

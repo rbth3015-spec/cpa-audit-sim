@@ -13,9 +13,9 @@
      pt     게임 논점 (채점표 라벨)                 about        문항 · 장면 · 카드 → 기준서
      card   개념 카드                             cites        해설 → 문단 (인쇄된 문단 번호, weight = 횟수)
                                                 has_point    장면 → 논점
-                                                grounded_in  논점 → 문단 (검색으로 고른 후보, confidence 0~1)
+                                                grounded_in  논점 → 문단 — tools/kb-link.mjs 가 따로 쓴다 (검색 후보 · Claude 검증)
 
-   엣지마다 source 를 남긴다 — 원문 구조에서 뽑은 것(text) · 해설 인쇄 번호(solution) · 검색으로 고른 것(bm25 · hybrid) 을 구분한다.
+   엣지마다 source 를 남긴다 — 원문 구조에서 뽑은 것(text) · 해설 인쇄 번호(solution) 등. 논점 → 문단(검색 후보 candidate · 검증 verified)은 kb-link 가 이 그래프 위에 더한다.
    원문 · 기출 · 요약집이 들어 있어 DB 는 저장소에 없다 (자료/). 저장소에는 이 코드만 둔다.
 */
 const fs = require('fs'), path = require('path'), vm = require('vm');
@@ -208,7 +208,18 @@ function mentionsIn(src, text) {
   const t = norm(text);
   conList.forEach(c => { if (surfaces(c).some(f => t.indexOf(f) >= 0)) edge(src, 'mentions', c.id); });
 }
-const stdNums = s => (String(s || '').match(/\b\d{3,4}\b/g) || []).filter(n => stds[n]);
+// 「KSA 710-18 · 510-7」 처럼 KSA 뒤에 이어지는 번호만 감사기준서로 본다 — 「윤리기준 240 · 290」 의 240 은 감사기준서 240 이 아니다
+function stdNums(s) {
+  const out = [];
+  let ksa = false;
+  String(s || '').split(/[·,，/]|\s{2,}/).forEach(tok => {
+    if (/KSA|감사기준서/.test(tok)) ksa = true;
+    else if (/윤리기준|기업회계기준서|K-IFRS|법|시행령|품질관리기준/.test(tok)) ksa = false;
+    if (!ksa) return;
+    (tok.match(/\b(\d{3,4})(?=\b|-)/g) || []).forEach(n => { if (stds[n] && out.indexOf(n) < 0) out.push(n); });
+  });
+  return out;
+}
 
 /* ── 4. 기출 · GS 문항, 해설 인용, 요약집 논점 (로컬 자료) ─── */
 const jsonl = f => fs.existsSync(f) ? fs.readFileSync(f, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)) : [];
@@ -247,17 +258,20 @@ function addScene(sc, company) {
   const sid = 'scene:' + sc.id;
   const vids = (sc.variants || [{ id: null }]).map(v => v.id);
   const stdList = new Set(stdNums((sc.standards || []).join(' ') + ' ' + (sc.ref || '')));
-  node(sid, 'scene', (company ? company + ' ' : '') + sc.id + ' ' + (sc.chapter || ''), { company: company || '돌발', standards: [...stdList] });
+  // 감사기준서가 아닌 근거(윤리기준 · 법령)만 있는 장면 — 지식베이스 밖이라 근거 문단을 고르지 않는다
+  const outside = !stdList.size && /윤리기준|법|K-IFRS|기업회계기준서/.test((sc.standards || []).join(' ') + ' ' + (sc.ref || ''));
+  node(sid, 'scene', (company ? company + ' ' : '') + sc.id + ' ' + (sc.chapter || ''), { company: company || '돌발', standards: [...stdList], outside });
   stdList.forEach(n => edge(sid, 'about', 'std:' + n));
   vids.forEach(vid => {
     let it;
     try { it = ctx.SEASON.resolve(sc, ctx.SEASON.create({ seed: 7 }), vid); } catch (e) { return; }
     (it.parts || []).forEach(p => {
       pointsOf(p).forEach(pt => {
-        const id = node('pt:' + sc.id + '#' + pt.label, 'point', pt.label, { scene: sc.id, type: p.type });
+        const q = [p.ask || '', pt.label, pt.why].join(' ');
+        const id = node('pt:' + sc.id + '#' + pt.label, 'point', pt.label, { scene: sc.id, type: p.type, q: q.slice(0, 600), stds: [...stdList], outside });
         edge(sid, 'has_point', id);
         mentionsIn(id, pt.label + ' ' + pt.why);
-        if (!points.some(x => x.id === id)) points.push({ id, sid: sc.id, stds: [...stdList], query: [p.ask || '', pt.label, pt.why].join(' ') });
+        if (!outside && !points.some(x => x.id === id)) points.push({ id, sid: sc.id, stds: [...stdList], query: q });
       });
     });
   });
@@ -274,15 +288,8 @@ ctx.SEASONS.use('seorin');
   mentionsIn(id, c.q + ' ' + (c.a || []).join(' '));
 });
 
-/* 논점 → 근거 문단 후보 — 장면의 기준서 안에서 먼저, 없으면 전체에서. 1위 점수 대비 비율을 confidence 로 둔다 */
-points.forEach(p => {
-  let cand = [];
-  p.stds.forEach(n => { cand = cand.concat(KB.search(p.query, { k: 3, std: n })); });
-  if (!cand.length) cand = KB.search(p.query, { k: 3 });
-  cand.sort((a, b) => b[0] - a[0]);
-  const top = cand.slice(0, 3), best = top.length ? top[0][0] : 1;
-  top.forEach(([score, d]) => edge(p.id, 'grounded_in', parId(d.id), { source: 'bm25', weight: +score.toFixed(2), confidence: +(score / best).toFixed(3) }));
-});
+/* 논점 → 근거 문단은 여기서 잇지 않는다 — 검색 1위만으로는 표본 40개 중 16개만 맞았다.
+   tools/kb-link.mjs 가 후보(candidate)를 고르고 Claude 가 검증(verified)한 것을 더한다 (kb-rebuild 순서: 그래프 → 연결) */
 
 /* ── 쓰기 ───────────────────────────────────── */
 db.exec('BEGIN');
@@ -310,5 +317,5 @@ console.log(`■ 합계 — 노드 ${nN} · 엣지 ${nE}`);
 console.log(`■ 점검 — 원문 참조 ${refTotal}건 중 문단을 찾은 것 ${refHit}건 (${(100 * refHit / Math.max(refTotal, 1)).toFixed(1)}%) · 못 찾음 예: ${unresolved.slice(0, 4).join(' ')}`);
 console.log(`         개념 ${conList.length}개 (정의 절 ${defConcepts} · 사전에서 더함 ${conList.length - defConcepts}) · 외래키 위반 ${q('PRAGMA foreign_key_check').length} · 버린 엣지 ${dangling}`);
 const lonePar = q("SELECT count(*) n FROM node WHERE type = 'paragraph' AND id NOT IN (SELECT src FROM edge WHERE rel <> 'contains' UNION SELECT dst FROM edge WHERE rel <> 'contains')")[0].n;
-console.log(`         기준서 안에만 매달린 문단(다른 연결 없음) ${lonePar} · 근거 후보가 없는 논점 ${points.filter(p => !q("SELECT 1 FROM edge WHERE src = '" + p.id.replace(/'/g, "''") + "' AND rel = 'grounded_in' LIMIT 1").length).length} / ${points.length}`);
+console.log(`         기준서 안에만 매달린 문단(다른 연결 없음) ${lonePar} · 게임 논점 ${points.length} · 지식베이스 밖(윤리기준 · 법령) 논점 ${q("SELECT count(*) n FROM node WHERE type = 'point' AND json_extract(attrs, '$.outside') = 1")[0].n}`);
 db.close();
