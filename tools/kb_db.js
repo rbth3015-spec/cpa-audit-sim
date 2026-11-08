@@ -94,6 +94,20 @@ db.exec('PRAGMA journal_mode = WAL');   // 채점 서버 · 탐색기가 읽는 
 db.exec("INSERT INTO paragraph_fts (paragraph_fts) VALUES ('optimize')");
 db.close();
 
-['', '-wal', '-shm'].forEach(x => { if (fs.existsSync(OUT + x)) fs.unlinkSync(OUT + x); });
-fs.renameSync(TMP, OUT);
-console.log(`자료/kb/ksa.db — 기준서 ${titles.size} · 문단 ${rows.length} · 스키마 ${SCHEMA_VERSION} · ${(fs.statSync(OUT).size / 1048576).toFixed(1)}MB`);
+const done = how => console.log(`자료/kb/ksa.db — 기준서 ${titles.size} · 문단 ${rows.length} · 스키마 ${SCHEMA_VERSION} · ${(fs.statSync(OUT).size / 1048576).toFixed(1)}MB${how}`);
+try {
+  ['', '-wal', '-shm'].forEach(x => { if (fs.existsSync(OUT + x)) fs.unlinkSync(OUT + x); });
+  fs.renameSync(TMP, OUT);
+  done('');
+} catch (e) {
+  if (e.code !== 'EBUSY' && e.code !== 'EPERM') throw e;
+  // 채점 서버 · 탐색기가 DB 를 열고 있으면 Windows 는 파일을 지우지 못한다 — 파일은 두고 내용을 통째로 덮어쓴다 (SQLite backup)
+  (async () => {
+    const { DatabaseSync, backup } = require('node:sqlite');
+    const src = new DatabaseSync(TMP);
+    await backup(src, OUT);
+    src.close();
+    ['', '-wal', '-shm'].forEach(x => { if (fs.existsSync(TMP + x)) fs.unlinkSync(TMP + x); });
+    done(' · 열려 있는 DB 에 덮어씀 (채점 서버를 다시 켜면 새 내용을 읽는다)');
+  })().catch(err => { console.log('DB 를 바꾸지 못했다 — 채점 서버를 끄고 다시: ' + err.message); process.exit(1); });
+}

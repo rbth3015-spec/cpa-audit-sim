@@ -8,9 +8,11 @@
    retrieve(질의, { k, mode, model, stds }) → [{ id, score, why[] }]
      mode: route (기본) · bm25 · dense · hybrid · graph (= hybrid + 그래프 확장)
      stds: 기준서 번호 배열 — 주면 그 기준서 안에서만
-   route — 측정으로 고른 경로 (docs/kb.md 「검색 경로」)
-     기준서를 알 때   그 기준서 안에서 BM25. 같은 기준서 안의 문단을 가르는 데는 낱말 일치가 가장 정확했다
-     모를 때          BM25 + 벡터 혼합. 어느 기준서인지 고르는 데는 혼합이 나았다
+   route — 측정으로 고른 경로 (docs/kb.md 「검색 경로」) = BM25. 기준서를 알면 그 안에서
+     문단을 찾는 데는 기준서를 알 때도 모를 때도 BM25 가 가장 정확했다 (개발 · 검증 세트 모두).
+     혼합은 기준서 고르기에서 BM25 와 비슷했고(기출 문항 MRR 0.787 대 0.774) 문단은 크게 못했다(0.450 대 0.614).
+     「혼합으로 기준서를 고른 뒤 그 안에서 BM25」 2단계도 개발 세트에서 BM25 를 넘지 못했다.
+   벡터는 질의 표현이 기준서와 다를 때 후보를 넓히는 데 쓴다 — 논점 근거 후보(tools/kb-link.mjs) · 탐색기의 혼합 · 벡터
    그래프 확장은 순위를 올리지 못해 기본 경로에 넣지 않았다. 근거 설명 · 탐색기 · 커버리지에 쓴다
 */
 import { createRequire } from 'node:module';
@@ -101,7 +103,7 @@ async function denseList(q, model, stds, pool) {
 
 export async function retrieve(q, opt) {
   const o = Object.assign({}, DEFAULTS, opt || {});
-  if (o.mode === 'route') o.mode = o.stds && o.stds.length ? 'bm25' : (matrix(o.model) ? 'hybrid' : 'bm25');
+  if (o.mode === 'route') o.mode = 'bm25';   // 측정으로 고른 경로 — 위 설명
   const score = new Map(), why = new Map();
   const add = (id, s, tag) => { score.set(id, (score.get(id) || 0) + s); (why.get(id) || why.set(id, []).get(id)).push(tag); };
 

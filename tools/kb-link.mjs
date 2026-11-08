@@ -32,7 +32,7 @@ function points() {
 async function candidates(p) {
   const at = p.q.indexOf(p.label), only = at >= 0 ? p.q.slice(at) : p.label;
   const scoped = p.stds && p.stds.length;
-  const A = await retrieve(p.q, { k: 3, stds: scoped ? p.stds : null, mode: scoped ? 'bm25' : 'route' });
+  const A = await retrieve(p.q, { k: 3, stds: scoped ? p.stds : null, mode: scoped ? 'bm25' : 'hybrid' });
   const B = await retrieve(only, { k: 3, mode: hasVectors(DEFAULTS.model) ? 'hybrid' : 'bm25' });
   const out = [];
   A.concat(B).forEach(h => { if (out.indexOf(h.id) < 0) out.push(h.id); });

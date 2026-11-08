@@ -5,7 +5,7 @@
    원문은 이 PC 에서만 읽는다. 채점을 맡는 Claude 에는 요청 글의 일부로 함께 간다 (저장소 · 배포본에는 들어가지 않는다).
 */
 import { createRequire } from 'node:module';
-import { retrieve, kb, hasVectors, DEFAULTS } from './kb-retrieve.mjs';
+import { retrieve, kb } from './kb-retrieve.mjs';
 
 const require = createRequire(import.meta.url);
 const core = require('./kb-core.js');
@@ -31,7 +31,7 @@ export async function ground(spec) {
   };
   let hits = await find({ stds: stds.length ? stds : null });
   if (!hits.length && stds.length) hits = await find({});   // 장면의 기준서에 없으면 전체에서
-  if (mode === 'route') mode = stds.length && hits.length ? 'bm25 · 장면 기준서 안' : (hasVectors(DEFAULTS.model) ? '혼합' : 'bm25');
+  if (mode === 'route') mode = stds.length && hits.length ? 'bm25 · 장면 기준서 안' : 'bm25';
   const by = kb().byId, paragraphs = [], parts = [];
   let used = 0;
   hits.forEach(h => {

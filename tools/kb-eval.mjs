@@ -11,11 +11,12 @@
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { retrieve, kb, hasVectors, DEFAULTS } from './kb-retrieve.mjs';
 
 const require = createRequire(import.meta.url);
 const core = require('./kb-core.js');
-const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/(\w:)/, '$1')), '..');
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');   // 한글 폴더 이름 — URL 경로를 그대로 쓰면 깨진다
 
 const hash = t => { let h = 0; for (const c of String(t)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
 const isDev = r => hash(r.key) % 2 === 0;
