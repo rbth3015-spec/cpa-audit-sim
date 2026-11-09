@@ -28,10 +28,14 @@
   nav.tabs button[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
   main { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); min-height: calc(100vh - 60px); }
   aside { border-right: 1px solid var(--line); padding: 14px 16px; overflow: auto; max-height: calc(100vh - 60px); }
-  form.q { display: grid; gap: 6px; }
+  form.q { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
   form.q input, form.q select { font: inherit; padding: 7px 9px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
   form.q .row { display: flex; gap: 6px; }
   form.q .row > * { flex: 1; min-width: 0; }
+  form.q label.rw { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--dim); cursor: pointer; }
+  form.q label.rw input { margin: 0; }
+  .rwline { margin: 10px 0 0; font-size: 12px; color: var(--dim); }
+  .rwline b { font: 600 12px var(--mono); color: var(--ink); }
   form.q button { font: 600 13px var(--sans); padding: 7px; background: var(--ink); color: var(--bg); border: 0; cursor: pointer; }
   ol.hits { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 2px; }
   ol.hits li { padding: 8px 6px; border-bottom: 1px solid var(--line); cursor: pointer; }
@@ -92,8 +96,10 @@
         </select>
         <input id="q-std" placeholder="기준서 (예: 505)" inputmode="numeric">
       </div>
+      <label class="rw" title="Claude 가 질문을 기준서 용어로 바꿔 쓴 뒤 찾는다 · 10초 안팎 · 같은 질문은 바로"><input type="checkbox" id="q-rw"> 기준서 말로 바꿔 찾기 · 일상어 질문용</label>
       <button type="submit">찾기</button>
     </form>
+    <p class="rwline" id="rwline" hidden></p>
     <ol class="hits" id="hits"></ol>
   </aside>
   <section class="view" id="view">
@@ -132,9 +138,16 @@
     if (e) e.preventDefault();
     var t = $('#q-text').value.trim();
     if (!t) return;
-    $('#hits').innerHTML = '<li class="ph">찾는 중</li>';
-    api('search?q=' + encodeURIComponent(t) + '&mode=' + $('#q-mode').value + '&std=' + encodeURIComponent($('#q-std').value) + '&k=12').then(function (j) {
+    var rw = $('#q-rw').checked;
+    $('#hits').innerHTML = '<li class="ph">' + (rw ? '기준서 말로 바꾸는 중' : '찾는 중') + '</li>';
+    $('#rwline').hidden = true;
+    api('search?q=' + encodeURIComponent(t) + '&mode=' + $('#q-mode').value + '&std=' + encodeURIComponent($('#q-std').value) + '&k=12' + (rw ? '&rw=1' : '')).then(function (j) {
       if (!j.ok) { $('#hits').innerHTML = '<li class="ph">' + esc(j.error || '실패') + '</li>'; return; }
+      if (j.rw) {
+        $('#rwline').hidden = false;
+        $('#rwline').innerHTML = j.rw.terms ? '바꾼 말 <b>' + esc(j.rw.terms) + '</b> · ' + (j.rw.ms < 100 ? '전에 바꾼 말' : (j.rw.ms / 1000).toFixed(1) + '초')
+          : '바꾸지 못함 — 원래 질문으로 찾음 (Claude Code 로그인 · 채점 중이면 잠시 뒤)';
+      }
       $('#hits').innerHTML = j.hits.length ? j.hits.map(function (h) {
         return '<li data-id="par:' + esc(h.id) + '"><span class="pid">' + esc(h.id) + '</span> <span class="ph">' + esc(h.kind) + '</span><br>' + esc(h.heading) + whyTags(h.why) + '</li>';
       }).join('') : '<li class="ph">없음</li>';

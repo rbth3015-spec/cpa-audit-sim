@@ -5,9 +5,11 @@
    3. 순위 합치기 (RRF) — 점수 크기가 다른 두 결과를 순위로 합친다
    4. 그래프 확장 — 위쪽 문단의 적용지침 · 요구사항 · 참조 문단에 점수를 나눠 준다 (지식그래프의 guidance · refers)
 
-   retrieve(질의, { k, mode, model, stds }) → [{ id, score, why[] }]
+   retrieve(질의, { k, mode, model, stds, rw }) → [{ id, score, why[] }]
      mode: route (기본) · bm25 · dense · hybrid · graph (= hybrid + 그래프 확장)
      stds: 기준서 번호 배열 — 주면 그 기준서 안에서만
+     rw: 질의를 기준서 말로 바꿔 쓴 검색어 (tools/kb-rewrite.mjs) — 원래 질의 뒤에 붙인다
+   rewriteRoute() — 바꿔 찾기의 경로. 벡터가 있으면 혼합 + 그래프, 없으면 BM25 — 일상어 질의 개발 세트에서 고른 것 (docs/kb.md 「일상어 질의」)
    route — 측정으로 고른 경로 (docs/kb.md 「검색 경로」) = BM25. 기준서를 알면 그 안에서
      문단을 찾는 데는 기준서를 알 때도 모를 때도 BM25 가 가장 정확했다 (개발 · 검증 세트 모두).
      혼합은 기준서 고르기에서 BM25 와 비슷했고(기출 문항 MRR 0.787 대 0.774) 문단은 크게 못했다(0.450 대 0.614).
@@ -101,12 +103,17 @@ async function denseList(q, model, stds, pool) {
   return [...best.entries()].filter(([id]) => allowed(id, stds)).sort((a, b) => b[1] - a[1]).slice(0, pool).map(([id]) => id);
 }
 
+/* 바꿔 찾기 — 바꾼 말 + 원래 질의로 혼합 + 그래프 확장. 일상어 개발 세트 MRR: BM25 0.386 · 혼합 0.422 · 혼합+그래프 0.453 */
+export const rewriteRoute = () => (hasVectors(DEFAULTS.model) ? 'graph' : 'bm25');
+
 export async function retrieve(q, opt) {
   const o = Object.assign({}, DEFAULTS, opt || {});
   if (o.mode === 'route') o.mode = 'bm25';   // 측정으로 고른 경로 — 위 설명
   const score = new Map(), why = new Map();
   const add = (id, s, tag) => { score.set(id, (score.get(id) || 0) + s); (why.get(id) || why.set(id, []).get(id)).push(tag); };
 
+  // rw — 기준서 말로 바꿔 쓴 검색어 (tools/kb-rewrite.mjs). 원래 질의 뒤에 붙여 BM25 · 벡터 모두 그 글로 찾는다
+  if (o.rw) q = q + ' ' + o.rw;
   const lex = o.mode !== 'dense' ? bm25List(q, o.stds, o.pool) : [];
   lex.forEach((id, r) => add(id, o.wBm25 / (o.rrf + r + 1), 'bm25#' + (r + 1)));
   if (o.mode !== 'bm25') {
