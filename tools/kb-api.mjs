@@ -3,11 +3,13 @@
 
      GET /api/kb/stats                    규모 · 측정 요약
      GET /api/kb/search?q=…&mode=graph    근거 문단 찾기 (tools/kb-retrieve.mjs)
+         &rw=1                            기준서 말로 바꿔 찾기 — Claude Code 가 질의를 기준서 용어로 바꿔 쓴다 (tools/kb-rewrite.mjs · 10초 안팎)
      GET /api/kb/par?id=505-8             문단 원문
      GET /api/kb/node?id=par:505-8        노드와 이웃 (관계 · 출처 · 신뢰도)
      GET /api/kb/coverage                 기준서별 — 기출 출제 · 해설 인용 · 게임 논점 · 카드
 */
-import { retrieve, kb, hasVectors, DEFAULTS } from './kb-retrieve.mjs';
+import { retrieve, kb, hasVectors, DEFAULTS, rewriteRoute } from './kb-retrieve.mjs';
+import { rewrite } from './kb-rewrite.mjs';
 
 const one = (sql, ...a) => kb().db.prepare(sql).get(...a);
 const all = (sql, ...a) => kb().db.prepare(sql).all(...a);
@@ -58,10 +60,18 @@ export async function kbApi(url) {
     if (!text.trim()) return { code: 200, body: { ok: true, hits: [] } };
     const mode = ['route', 'bm25', 'dense', 'hybrid', 'graph'].indexOf(q('mode')) >= 0 ? q('mode') : 'route';
     const stds = (q('std').match(/\d{3,4}/g) || []);
+    // 바꿔 찾기 — 바꾸지 못하면(로그인 · 바쁨 · 시간 초과) 원래 질의로만 찾고 그렇다고 알린다
+    let rw = null, rwMs = 0;
+    if (q('rw') === '1') {
+      const t0 = Date.now();
+      try { rw = await rewrite(text); } catch (e) { rw = null; }
+      rwMs = Date.now() - t0;
+    }
+    const opt = { k: Math.min(20, +q('k') || 10), mode: rw && mode === 'route' ? rewriteRoute() : mode, stds: stds.length ? stds : null, rw };
     let hits;
-    try { hits = await retrieve(text, { k: Math.min(20, +q('k') || 10), mode, stds: stds.length ? stds : null }); }
-    catch (e) { hits = await retrieve(text, { k: Math.min(20, +q('k') || 10), mode: 'bm25', stds: stds.length ? stds : null }); }
-    return { code: 200, body: { ok: true, mode, hits: hits.map(h => Object.assign(par(h.id), { score: h.score, why: h.why })) } };
+    try { hits = await retrieve(text, opt); }
+    catch (e) { hits = await retrieve(text, Object.assign(opt, { mode: 'bm25' })); }
+    return { code: 200, body: { ok: true, mode: opt.mode, rw: q('rw') === '1' ? { terms: rw, ms: rwMs } : null, hits: hits.map(h => Object.assign(par(h.id), { score: h.score, why: h.why })) } };
   }
   if (p === 'par') {
     const d = par(q('id'));

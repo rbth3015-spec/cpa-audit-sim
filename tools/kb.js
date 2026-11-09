@@ -190,6 +190,9 @@ if (cmd === 'find') {
     if (has('vector')) console.log('벡터 ' + (KB.db.prepare('SELECT model, count(*) n FROM vector GROUP BY model').all().map(r => `${r.model} ${r.n}${m['vector_' + r.model] ? '' : ' (만드는 중)'}`).join(' · ') || '없음') + ` · 색인 단위 ${s.units}`);
     if (has('grading_log')) console.log(`채점 기록 ${one('SELECT count(*) n FROM grading_log').n}건 (근거 붙임 ${one('SELECT count(*) n FROM grading_log WHERE rag = 1').n})`);
   }
+  // 일상어 질의 세트(tools/kb-plain.mjs)와 바꿔 쓴 말 캐시(tools/kb-rewrite.mjs) — 저장소 밖
+  const count = f => { try { return Object.keys(JSON.parse(fs.readFileSync(path.join(__dirname, '..', '자료', 'kb', f), 'utf8'))).length; } catch (e) { return 0; } };
+  console.log(`일상어 질의 ${count('plain_queries.json')}개 · 바꿔 쓴 말 캐시 ${count('rewrite_cache.json')}개`);
 } else if (cmd === 'eval') {
   evaluate();
 } else if (cmd === 'check') {
