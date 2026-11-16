@@ -734,6 +734,251 @@
   };
 
   /* ============================================================
+     조회 관리 대장 — 조회서가 나가서 돌아오기까지
+     발송 전 양식 점검 → 발송 → 1주차 회신 예외(반송 · 회사 경유 · 무응답) → 마감(재발송분 회신 · 차이 분류 · 남은 미회신)
+     양식을 안 고치고 보내면 회신이 쓸모없거나(기준일 · 날인) 회사를 거치거나(회신처), 숨은 항목이 안 드러난다(조회 내용 — 금융기관 항목 누락)
+     ============================================================ */
+  var LD_DEFS = [
+    { label: '발송 전 양식 점검 — 회신처 · 기준일 · 회사 날인', score: 22,
+      why: '조회서 양식 — 기준일은 재무제표일, 회신은 감사인에게 직접, 거래처가 응하도록 회사 날인. 틀린 채 나가면 회신을 증거로 쓰지 못한다' },
+    { label: '반송은 감사인이 주소를 확인해 재발송', score: 12,
+      why: '반송 — 새 주소를 회사에 묻지 않고 등기부 · 홈페이지 같은 독립된 출처로 확인. 발송과 회수는 감사인이 통제' },
+    { label: '무응답은 독촉 · 마감 때 남은 미회신은 대체적 감사절차', score: 16,
+      why: '미회신 — 2차 독촉 뒤에도 없으면 대체적 감사절차(채무는 기말 후 지급 · 청구서, 법률 조회는 의사록 · 법무비용 원장 · 변호사 면담). 경영진 확인서로 갈음 불가' },
+    { label: '회사를 거친 회신은 발신처에서 직접 다시 받음', score: 14,
+      why: '회신의 신뢰성 — 회사를 거쳐 온 회신은 감사인이 통제하지 못한 경로. 발신처에서 직접 받는다' },
+    { label: '회신 차이를 증빙으로 시차와 왜곡표시로 구분', score: 20,
+      why: '차이 조정 — 송금 중 · 미입고 같은 시차는 조정하면 맞고, 기말 전 입고 · 용역 완료분이 장부에 없으면 부채 누락(완전성 왜곡표시)' },
+    { label: '금융기관 조회는 전 항목 — 장부 밖 지급보증 발견', score: 16,
+      why: '금융기관 조회 — 예금 · 차입만 묻지 않고 담보 · 보증 · 약정까지. 장부 밖 보증은 우발부채 · 특수관계자 주석 대상' }
+  ];
+  var LD_FIELDS = [['date', '기준일'], ['ask', '조회 내용'], ['to', '회신처'], ['seal', '회사 날인']];
+  var LD_TX = { ok: '✓ 일치', diff: '≠ 차이', none: '✗ 무응답', ret: '↩ 반송', fax: '⚠ 회사를 거쳐 들어옴', bad: '✗ 쓸 수 없는 회신',
+                taken: '그대로 정리', closed: '종결' };
+  function ldFixed(st, r) { return !!(r.bad && (st.fix || {})[r.id + '.' + r.bad]); }
+  /* 1주차 회신 — 양식을 안 고친 칸이 있으면 그 탓으로 회신이 달라진다 */
+  function ldRep1(r, st) {
+    if (r.bad && !ldFixed(st, r)) return r.bad === 'ask' ? { r: 'ok' } : { r: 'bad', note: r.badRep };
+    return r.w1;
+  }
+  /* 마감 때 회신 — 1주차 예외를 어떻게 처리했는가에 따라 */
+  function ldRep2(r, st) {
+    var a = (st.a1 || {})[r.id], p = ldRep1(r, st);
+    if (p.r === 'bad') return a === 'redo' ? r.w1 : a === 'take' ? { r: 'taken', note: r.badRep } : p;
+    if (p.r === 'ret') return a === 'iv' || a === 'pv' ? Object.assign({ via: a }, r.w2) : a === 'close' ? { r: 'closed' } : { r: 'none' };
+    if (p.r === 'fax') return a === 'direct' ? r.w2 : a === 'take' ? { r: 'taken', note: p.note } : p;
+    if (p.r === 'none') return a === 'remind' ? (r.w2 || { r: 'none' }) : a === 'close' ? { r: 'closed' } : p;
+    return p;
+  }
+  function ldNow(r, st) { return !st.sent ? null : st.week >= 2 ? ldRep2(r, st) : ldRep1(r, st); }
+  function ldOpts(M, r, rep) { return rep.opts || M.D.acts.diff; }
+  function ldLast(M, r) {
+    return M.D.acts.last.map(function (a) { return a.k === 'alt' ? { k: 'alt', t: r.alt || '기말 후 지급 · 청구서 검토' } : a; });
+  }
+
+  var ledger = {
+    name: '조회 관리 대장',
+    labels: function () { return LD_DEFS.map(function (d) { return { label: d.label, score: d.score, why: d.why }; }); },
+    traps: function () {
+      return [{ label: '회사를 거친 회신을 그대로 인정', score: -12, please: true },
+              { label: '반송 주소를 회사에 받아 재발송', score: -8, please: true },
+              { label: '미회신을 경영진 확인서로 갈음', score: -10 },
+              { label: '장부 누락을 시차로 넘김', score: -8, please: true },
+              { label: '기준일이 다른 회신을 그대로 씀', score: -6 },
+              { label: '정상 양식 칸을 오류로 표시', score: -4 }];
+    },
+    build: function () { var D = MD().ledger; return { D: D, rows: D.rows.slice() }; },
+
+    grade: function (M, st) {
+      st = Object.assign({ fix: {}, a1: {}, a2: {}, cls: {}, week: 0 }, st || {});
+      var fix = st.fix, a1 = st.a1, a2 = st.a2, cls = st.cls, end = !!st.sent && st.week >= 2;
+      var row = function (id) { return M.rows.filter(function (r) { return r.id === id; })[0]; };
+      var falses = Object.keys(fix).filter(function (k) { return fix[k] && (row(k.split('.')[0]) || {}).bad !== k.split('.')[1]; }).length;
+      var rep1 = {}, rep2 = {};
+      M.rows.forEach(function (r) { rep1[r.id] = st.sent ? ldRep1(r, st) : null; rep2[r.id] = end ? ldRep2(r, st) : null; });
+      var of = function (map, k) { return M.rows.filter(function (r) { return map[r.id] && map[r.id].r === k; }); };
+      var h1 = !!st.sent && M.rows.filter(function (r) { return r.bad && r.bad !== 'ask'; }).every(function (r) { return ldFixed(st, r); });
+      var rets = of(rep1, 'ret'), faxes = of(rep1, 'fax'), nones = of(rep1, 'none'), lastNone = of(rep2, 'none');
+      var h2 = rets.length > 0 && rets.every(function (r) { return a1[r.id] === 'iv'; });
+      var h3 = end && lastNone.length > 0 && nones.every(function (r) { return a1[r.id] === 'remind'; }) &&
+               lastNone.every(function (r) { return a2[r.id] === 'alt'; }) && of(rep2, 'closed').length === 0;
+      var h4 = faxes.length > 0 && faxes.every(function (r) { return a1[r.id] === 'direct'; });
+      var diffs = of(rep2, 'diff').filter(function (r) { return rep2[r.id].cls !== 'note'; });
+      var need = M.rows.filter(function (r) { return [r.w1, r.w2].some(function (w) { return w && w.r === 'diff' && w.cls !== 'note'; }); });
+      var h5 = end && need.every(function (r) { return diffs.indexOf(r) >= 0 && cls[r.id] === rep2[r.id].cls; });
+      var scope = M.rows.filter(function (r) { return r.bad === 'ask'; });
+      var h6 = end && scope.length > 0 && scope.every(function (r) { return ldFixed(st, r) && cls[r.id] === 'note'; });
+
+      var trap = [];
+      var nTake = faxes.filter(function (r) { return a1[r.id] === 'take'; }).length +
+                  of(rep1, 'bad').filter(function (r) { return r.bad === 'to' && a1[r.id] === 'take'; }).length;
+      if (nTake) trap.push({ label: '회사를 거친 회신을 그대로 인정', score: -12 * nTake, got: -12 * nTake, hit: true, please: true });
+      if (rets.some(function (r) { return a1[r.id] === 'pv'; })) trap.push({ label: '반송 주소를 회사에 받아 재발송', score: -8, got: -8, hit: true, please: true });
+      if (lastNone.some(function (r) { return a2[r.id] === 'rep'; })) trap.push({ label: '미회신을 경영진 확인서로 갈음', score: -10, got: -10, hit: true });
+      var nTime = diffs.filter(function (r) { return rep2[r.id].cls === 'mis' && cls[r.id] === 'time'; }).length;
+      if (nTime) trap.push({ label: '장부 누락을 시차로 넘김', score: -8 * nTime, got: -8 * nTime, hit: true, please: true });
+      if (of(rep1, 'bad').some(function (r) { return r.bad === 'date' && a1[r.id] === 'take'; })) trap.push({ label: '기준일이 다른 회신을 그대로 씀', score: -6, got: -6, hit: true });
+      if (falses) trap.push({ label: '정상 양식 칸을 오류로 표시', score: -4 * falses, got: -4 * falses, hit: true });
+
+      var r = pack(scored(LD_DEFS, [h1, h2, h3, h4, h5, h6]), trap);
+      var got = M.rows.filter(function (x) { var p = rep2[x.id] || rep1[x.id]; return p && (p.r === 'ok' || p.r === 'diff'); }).length;
+      r.detail = { fixed: M.rows.filter(function (x) { return ldFixed(st, x); }).length, bads: M.rows.filter(function (x) { return x.bad; }).length,
+                   got: got, n: M.rows.length, diff: (end ? of(rep2, 'diff') : of(rep1, 'diff')).length, none: end ? lastNone.length : nones.length, week: st.week };
+      return r;
+    },
+    summary: function (M, st, g) {
+      var d = g.res.detail || {};
+      return '양식 고침 ' + d.fixed + '/' + d.bads + ' · 회신 ' + d.got + '/' + d.n + ' · 차이 ' + d.diff + ' · 미회신 ' + d.none + (d.week < 2 ? ' · 마감 전 종료' : '');
+    },
+    perfect: function (M) {
+      var st = { fix: {}, a1: {}, a2: {}, cls: {}, ev: {}, sent: true, week: 0 };
+      M.rows.forEach(function (r) { if (r.bad) st.fix[r.id + '.' + r.bad] = true; });
+      st.week = 1;
+      M.rows.forEach(function (r) {
+        var p = ldRep1(r, st);
+        if (p.r === 'ret') st.a1[r.id] = 'iv';
+        if (p.r === 'fax') st.a1[r.id] = 'direct';
+        if (p.r === 'none') st.a1[r.id] = 'remind';
+      });
+      st.week = 2;
+      M.rows.forEach(function (r) {
+        var p = ldRep2(r, st);
+        if (p.r === 'none') st.a2[r.id] = 'alt';
+        if (p.r === 'diff') st.cls[r.id] = p.cls;
+      });
+      return st;
+    },
+
+    mount: function (host, M, api) {
+      var D = M.D, st = { fix: {}, a1: {}, a2: {}, cls: {}, ev: {}, sent: false, week: 0 }, fresh = false;
+      host.innerHTML =
+        '<div class="mg ld">' +
+          '<div class="mg-bar"><b>' + esc(D.title) + '</b>' +
+            '<span class="mg-stat">' + esc(D.client) + ' · 기준일 <b>' + esc(D.base) + '</b></span>' +
+            '<span class="mg-stat lim" data-k="day"></span>' +
+            '<span class="mg-stat" data-k="stat"></span>' +
+            '<button type="button" class="btn sm" data-act="next"></button>' +
+            '<button type="button" class="btn sm" data-act="done" hidden>검사 종료 <kbd>Ctrl Enter</kbd></button></div>' +
+          '<div class="mg-steps" data-k="steps"></div>' +
+          '<table class="mg-t ld-t"><thead><tr><th>조회처</th><th>장부</th><th>조회서</th><th>회신</th><th>처리</th></tr></thead>' +
+            '<tbody data-k="rows"></tbody></table>' +
+          '<div class="mg-foot">채무 5 · 금융기관 2 · 법률 1 · ' + esc(D.firm) + ' · 매출채권 조회는 발송대에서 따로</div>' +
+        '</div>';
+      var $ = function (k) { return host.querySelector('[data-k="' + k + '"]'); };
+      function pending() {
+        return M.rows.filter(function (r) {
+          var p = ldNow(r, st);
+          if (!p) return false;
+          if (st.week === 1) return ['bad', 'ret', 'fax', 'none'].indexOf(p.r) >= 0 && !st.a1[r.id];
+          return (p.r === 'none' && !st.a2[r.id]) || (p.r === 'diff' && !st.cls[r.id]);
+        }).length;
+      }
+      function chips(r) {
+        return '<div class="ld-form">' + LD_FIELDS.map(function (f) {
+          var key = r.id + '.' + f[0], on = !!st.fix[key], val = r.form[f[0]];
+          var shown = on ? '<s>' + esc(val) + '</s>' + (st.sent && r.bad === f[0] ? ' ' + esc(r.fixed) : ' <i>고침</i>') : esc(val);
+          return '<button type="button" class="ch' + (on ? ' on' : '') + '" data-fx="' + key + '"' + (st.sent ? ' disabled' : '') + '>' +
+            '<em>' + f[1] + '</em>' + shown + '</button>';
+        }).join('') + '</div>';
+      }
+      function repCell(r, p, k) {
+        if (!p) return '<span class="dim">—</span>';
+        var t = '<span class="rep ' + p.r + (fresh ? '' : ' still') + '" style="--i:' + k + '">' + (p.cls === 'note' ? '≠ 장부에 없는 항목' : LD_TX[p.r]) +
+          (p.r === 'diff' ? ' · 회신 <b>' + esc(p.v) + '</b>' : '') +
+          (p.note ? '<small>' + esc(p.note) + '</small>' : '') +
+          (p.via === 'pv' ? '<small>회사가 준 주소로 받은 회신</small>' : '') + '</span>';
+        if (st.week >= 2) {
+          var p1 = ldRep1(r, st), a = st.a1[r.id];
+          if (p1.r !== p.r || a) t += '<small class="ld-hist">1주차 ' + LD_TX[p1.r] + (a ? ' → ' + esc((D.acts[p1.r] || []).filter(function (x) { return x.k === a; }).map(function (x) { return x.t; })[0] || '') : '') + '</small>';
+        }
+        return t;
+      }
+      function btns(list, sel, attr, id) {
+        return '<div class="acts">' + list.map(function (a) {
+          return '<button type="button" class="act-b' + (sel === a.k ? ' on' : '') + '" ' + attr + '="' + a.k + '" data-id="' + id + '">' + esc(a.t) + '</button>';
+        }).join('') + '</div>';
+      }
+      function actCell(r, p) {
+        if (!p) return '';
+        if (p.r === 'diff') {
+          return (st.ev[r.id] ? '<span class="ev-open">' + esc(p.ev) + '</span>' : '<button type="button" class="ev-b" data-ev="' + r.id + '">증빙 보기</button>') +
+            btns(ldOpts(M, r, p), st.cls[r.id], 'data-cls', r.id);
+        }
+        if (st.week === 1 && D.acts[p.r]) return btns(D.acts[p.r], st.a1[r.id], 'data-a1', r.id);
+        if (st.week >= 2 && p.r === 'none') return btns(ldLast(M, r), st.a2[r.id], 'data-a2', r.id);
+        return '';
+      }
+      function draw() {
+        var k = 0;
+        $('rows').innerHTML = M.rows.map(function (r) {
+          var p = ldNow(r, st);
+          return '<tr>' +
+            '<td><b>' + esc(r.name) + '</b><span class="ld-kind">' + esc(r.kind) + '</span>' + (r.note ? '<small class="ld-note">' + esc(r.note) + '</small>' : '') + '</td>' +
+            '<td class="n">' + esc(r.book) + '</td><td>' + chips(r) + '</td>' +
+            '<td>' + repCell(r, p, p ? k++ : 0) + '</td><td>' + actCell(r, p) + '</td></tr>';
+        }).join('');
+        var left = pending();
+        $('day').textContent = D.days[st.week];
+        $('stat').innerHTML = st.sent
+          ? '회신 <b>' + M.rows.filter(function (r) { var p = ldNow(r, st); return p && (p.r === 'ok' || p.r === 'diff'); }).length + '/' + M.rows.length + '</b>'
+          : '고친 칸 <b>' + Object.keys(st.fix).filter(function (x) { return st.fix[x]; }).length + '</b>';
+        var nx = host.querySelector('[data-act="next"]');
+        nx.hidden = st.week >= 2;
+        nx.innerHTML = (st.sent ? '마감으로' : '발송') + ' <kbd>Enter</kbd>';
+        host.querySelector('[data-act="done"]').hidden = st.week < 2;
+        $('steps').innerHTML = ['양식 점검', '발송', '1주차 회신', '마감 정리'].map(function (s, i) {
+          var at = st.week === 0 ? 0 : st.week === 1 ? 2 : 3;
+          return '<span class="' + (i === at ? 'on' : '') + (i < at ? ' done' : '') + '"><b>' + (i + 1) + '</b>' + s +
+            (i === at && st.sent ? ' <em>' + (left ? '남은 처리 ' + left : '처리 끝') + '</em>' : '') + '</span>';
+        }).join('');
+      }
+      function next() {
+        if (st.week >= 2) return;
+        if (!st.sent) { st.sent = true; st.week = 1; api.sound && api.sound('send'); }
+        else {
+          var re = M.rows.filter(function (r) { return ['redo', 'iv', 'pv', 'remind', 'direct'].indexOf(st.a1[r.id]) >= 0; }).length;
+          if (api.spend && re) api.spend(D.costSec * re);
+          st.week = 2; api.sound && api.sound('flip');
+        }
+        fresh = true; draw(); fresh = false;
+      }
+      host.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-fx],[data-a1],[data-a2],[data-cls],[data-ev],[data-act]');
+        if (!b || !host.contains(b) || b.disabled) return;
+        var act = b.getAttribute('data-act'), id = b.getAttribute('data-id');
+        if (act === 'next') return next();
+        if (act === 'done') return api.submit();
+        if (b.hasAttribute('data-fx')) { var key = b.getAttribute('data-fx'); st.fix[key] = !st.fix[key]; api.sound && api.sound(st.fix[key] ? 'stampSm' : 'tick'); }
+        else if (b.hasAttribute('data-a1')) { st.a1[id] = b.getAttribute('data-a1'); api.sound && api.sound('stampSm'); }
+        else if (b.hasAttribute('data-a2')) { st.a2[id] = b.getAttribute('data-a2'); api.sound && api.sound('stampSm'); }
+        else if (b.hasAttribute('data-cls')) { st.cls[id] = b.getAttribute('data-cls'); api.sound && api.sound('stampSm'); }
+        else if (b.hasAttribute('data-ev')) { st.ev[b.getAttribute('data-ev')] = true; if (api.spend) api.spend(3); api.sound && api.sound('flip'); }
+        draw();
+      });
+      var off1 = keyHandler(function (e) { if (e.key === 'Enter') { e.preventDefault(); next(); } });
+      var off2 = doneKey(api);
+      draw();
+      return { state: function () { return JSON.parse(JSON.stringify(st)); }, destroy: function () { off1(); off2(); } };
+    },
+
+    review: function (M, st) {
+      st = Object.assign({ fix: {}, a1: {}, a2: {}, cls: {}, week: 0 }, st || {});
+      var P = ledger.perfect(M), end = !!st.sent && st.week >= 2;
+      var rows = M.rows.map(function (r) {
+        var form = !r.bad || ldFixed(st, r);
+        var falses = LD_FIELDS.some(function (f) { return st.fix[r.id + '.' + f[0]] && r.bad !== f[0]; });
+        var acts = ['a1', 'a2', 'cls'].every(function (k) { return !P[k][r.id] || (st[k] || {})[r.id] === P[k][r.id]; });
+        var good = !!st.sent && form && !falses && acts && (end || !P.a2[r.id] && !P.cls[r.id]);
+        var p = end ? ldRep2(r, st) : st.sent ? ldRep1(r, st) : null;
+        return '<tr class="' + (good ? 'ok' : 'no') + '"><td>' + esc(r.name) + ' <small>' + esc(r.kind) + '</small></td>' +
+          '<td class="dim">' + esc(r.ans) + '</td>' +
+          '<td class="n">' + (good ? '✓' : !st.sent ? '발송 안 함' : !form ? '양식 그대로' : falses ? '정상 칸 표시' : p ? LD_TX[p.r] : '—') + '</td></tr>';
+      }).join('');
+      return '<table class="rv-t"><caption>조회서마다 해야 했던 처리 (기준일 ' + esc(M.D.base) + ')</caption>' + rows + '</table>';
+    }
+  };
+
+  /* ============================================================
      부외부채 — 기말 후 지급 검토
      청구일 · 지급일이 아니라 의무가 생긴 때(입고 · 용역 제공 · 사용 기간)로 기말 부채인지 가린다
      ============================================================ */
@@ -1595,6 +1840,29 @@
       ]
     };
   };
+  ledger.howto = function (M) {
+    return {
+      goal: '조회서가 나가서 돌아오기까지를 대장으로 관리하는 절차다. 발송 전에 양식을 점검하고, 1주차 회신의 예외를 처리하고, 마감 때 차이와 미회신을 정리한다.',
+      find: [
+        ['양식', '기준일 · 조회 내용 · 회신처 · 회사 날인 — 틀린 칸을 눌러 고친다'],
+        ['반송', '새 주소는 회사에 묻지 않고 감사인이 확인'],
+        ['회사를 거친 회신', '발신처에서 직접 다시 받는다'],
+        ['무응답', '독촉 뒤에도 없으면 대체적 감사절차'],
+        ['차이', '증빙으로 시차인지 장부 누락인지 가린다']
+      ],
+      terms: [['조회 관리 대장', '조회서마다 발송 · 회신 · 독촉 · 처리를 적는 표'], ['시차', '한쪽만 기말 전에 기록한 거래 — 조정하면 맞는다'],
+              ['금융기관 조회서', '예금 · 차입 · 담보 · 보증 · 약정을 은행에 한 번에 묻는 조회서'], ['법률 조회서', '회사의 소송 · 청구를 담당 변호사에게 묻는 조회서']],
+      steps: [
+        { t: '양식 점검', d: '틀린 칸을 눌러 고친다. 정상 칸을 누르면 감점.',
+          demo: sp('ch', '<em>기준일</em>' + esc(M.D.base)) + sp('ch on', '<em>회신처</em><s>회사 재무팀</s> <i>고침</i>') },
+        { t: '발송', key: 'Enter', d: '보낸 뒤에는 양식을 바꿀 수 없다.' },
+        { t: '1주차 회신', d: '반송 · 회사 경유 · 무응답마다 처리를 하나 고른다.',
+          demo: sp('rep ok still', '✓ 일치') + sp('rep ret still', '↩ 반송') + sp('rep fax still', '⚠ 회사를 거쳐 들어옴') + sp('rep none still', '✗ 무응답') },
+        { t: '마감', key: 'Enter', d: '재발송한 곳의 회신이 온다. 차이는 증빙을 보고 분류하고, 남은 미회신은 처리를 고른다. 재발송 한 통에 ' + M.D.costSec + '초.' },
+        { t: '끝내기', key: 'Ctrl Enter' }
+      ]
+    };
+  };
   unrec.howto = function (M) {
     return {
       goal: '장부에 없는 부채를 찾는 절차다. 1월에 나간 돈 ' + M.rows.length + '건을 거꾸로 보며, 12월까지 이미 갚을 의무가 생겼는데 장부에 없는 것을 찾는다.',
@@ -1711,6 +1979,6 @@
     };
   };
 
-  global.MINIS = { count: count, jet: jet, cutoff: cutoff, confirm: confirm, unrec: unrec, sample: sample, ic: ic,
+  global.MINIS = { count: count, jet: jet, cutoff: cutoff, confirm: confirm, ledger: ledger, unrec: unrec, sample: sample, ic: ic,
                    attr: attr, ret: ret, site: site };
 })(typeof window !== 'undefined' ? window : this);

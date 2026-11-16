@@ -342,7 +342,7 @@
     variants: [
       { id: 'STORE', label: '새벽 매장 관찰', route: '매장 야간 현장',
         when: function (S) { return !!S.flags.route_store && (S.bond.dstore || 0) >= 40; },
-        chapter: '매장 야간 현장', day: '20×8. 1. 10.', art: 'night', view: 'staff', speaker: 'dstore',
+        chapter: '매장 야간 현장', day: '20×8. 1. 10.', art: 'store', view: 'staff', speaker: 'dstore',
         line: '화성점은 새벽 두 시에 마감 정산을 해요. 그때 오시면 돼요.' },
       { id: 'WIDE', label: '84개 매장 1년치', route: '전 매장 데이터 확장',
         when: function (S) { return !S.flags.route_store; },

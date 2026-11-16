@@ -375,7 +375,7 @@
   /* ── 3. 현장 방문 ★진실 ─────────────────────── */
   {
     id: 'e3', day: '20×7. 12. 28.', chapter: '현장 방문', tag: '실증절차',
-    art: 'warehouse', view: 'staff', area: '감사절차 수행과 결과 보고', standards: ['KSA 500', 'KSA 540'],
+    art: 'site', view: 'staff', area: '감사절차 수행과 결과 보고', standards: ['KSA 500', 'KSA 540'],
     speaker: 'manager', cost: 7,
     line: '보고된 공정률 71%야. 지붕부터 봐.',
     situation: '한결이 평택 물류센터 현장을 돈다. 본사는 공정률 71%로 보고했다. 현장 사진 · 공정 일보를 공종별로 맞춰 본다. 원가 투입 누계는 257억원, 회사 총예정원가는 362억원이다. 공급사 견적 · 회신 단가로 다시 잡은 총예정원가는 444억원이다.',
@@ -449,7 +449,7 @@
   /* ── 5. PF 보증 ★진실 ─────────────────────── */
   {
     id: 'e5', day: '20×8. 2. 3.', chapter: 'PF 보증', tag: '외부조회',
-    art: 'meeting', view: 'partner', area: '감사절차 수행과 결과 보고', standards: ['KSA 505', '기업회계기준서 1037'],
+    art: 'bank', view: 'partner', area: '감사절차 수행과 결과 보고', standards: ['KSA 505', '기업회계기준서 1037'],
     speaker: 'manager', cost: 7,
     line: '이사님, 주석의 보증 목록과 은행 쪽 숫자가 다를 수 있습니다.',
     situation: '회사 주석에는 PF 보증이 "일반 지급보증 1,800억원"으로 한 줄에 묶여 있다. 분양률 23%인 대구 주상복합의 시행사는 이자를 두 달째 못 내고 있다. 감사팀은 대주단 은행에 금융기관 조회서를 보내려 한다.',
@@ -626,7 +626,7 @@
     variants: [
       { id: 'TRACE', label: '청주 공사 기록 대조', route: '공사 기록 추적',
         when: function (S) { return !!S.flags.route_trace && (S.bond.esite || 0) >= 45; },
-        chapter: '공사 기록 추적', day: '20×8. 3. 12.', art: 'warehouse', view: 'senior', speaker: 'esite',
+        chapter: '공사 기록 추적', day: '20×8. 3. 12.', art: 'siteoffice', view: 'senior', speaker: 'esite',
         line: '청주 소장이 내 동기라요. 사무실에 기록 다 꺼내 놓으라 했어요.' },
       { id: 'AWAIT', label: '중간 결과 평가', route: '조사 결과 대기',
         when: function (S) { return !S.flags.route_trace; },
