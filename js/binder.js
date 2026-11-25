@@ -77,15 +77,15 @@
     }
     var grid = [0, 50, 100].map(function (v) {
       var y = H - pad - v / 100 * (H - pad * 2);
-      return '<line x1="' + pad + '" x2="' + (W - pad) + '" y1="' + y + '" y2="' + y + '" stroke="#e2e0df"/><text x="4" y="' + (y + 3) + '">' + v + '</text>';
+      return '<line x1="' + pad + '" x2="' + (W - pad) + '" y1="' + y + '" y2="' + y + '" stroke="#e6e3db"/><text x="4" y="' + (y + 3) + '">' + v + '</text>';
     }).join('');
     return '<svg class="spark" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' + grid +
-      line('E', '#201e1d', function (v) { return v; }) +
+      line('E', '#1c1b19', function (v) { return v; }) +
       line('R', '#2f5d43', function (v) { return v; }) +
-      line('T', '#ae1800', function (v) { return v; }) +
+      line('T', '#a3211b', function (v) { return v; }) +
       line('C', '#8a5a00', function (v) { return v; }) + '</svg>' +
-      '<div class="legend"><span><i style="background:#201e1d"></i>감사증거</span><span><i style="background:#2f5d43"></i>신뢰</span>' +
-      '<span><i style="background:#ae1800"></i>기한</span><span><i style="background:#8a5a00"></i>회사 태도</span></div>';
+      '<div class="legend"><span><i style="background:#1c1b19"></i>감사증거</span><span><i style="background:#2f5d43"></i>신뢰</span>' +
+      '<span><i style="background:#a3211b"></i>기한</span><span><i style="background:#8a5a00"></i>회사 태도</span></div>';
   }
 
   function tabA() {
@@ -185,7 +185,7 @@
       }
       var tag = t.found ? '<span class="tag found">발견' + (d.nonMonetary ? '' : ' ' + t.amount.toFixed(1) + '억') + '</span>'
         : t.verified ? '<span class="tag cleared">이상 없음</span>'
-        : t.active ? '<span class="tag" style="color:#ae1800">놓침</span>' : '<span class="tag cleared">없었음</span>';
+        : t.active ? '<span class="tag" style="color:#a3211b">놓침</span>' : '<span class="tag cleared">없었음</span>';
       return '<li class="open"><span class="ac">' + esc(d.account) + '</span><span class="txt">' +
         esc(global.SEASON.truthText(t)) + '</span>' + tag + '</li>';
     }).join('');
